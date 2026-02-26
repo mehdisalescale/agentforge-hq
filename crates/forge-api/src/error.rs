@@ -24,6 +24,7 @@ pub fn api_error(e: ForgeError) -> Response {
         ForgeError::EventBus(_) => (StatusCode::INTERNAL_SERVER_ERROR, "event_bus"),
         ForgeError::SessionNotFound(_) => (StatusCode::NOT_FOUND, "session_not_found"),
         ForgeError::SkillNotFound(_) => (StatusCode::NOT_FOUND, "skill_not_found"),
+        ForgeError::WorkflowNotFound(_) => (StatusCode::NOT_FOUND, "workflow_not_found"),
         ForgeError::Io(_) => (StatusCode::INTERNAL_SERVER_ERROR, "io"),
         ForgeError::Internal(_) => (StatusCode::INTERNAL_SERVER_ERROR, "internal"),
     };

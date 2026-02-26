@@ -1,7 +1,7 @@
 //! Application state shared across handlers.
 
 use forge_core::EventBus;
-use forge_db::{AgentRepo, EventRepo, SessionRepo, SkillRepo};
+use forge_db::{AgentRepo, EventRepo, SessionRepo, SkillRepo, WorkflowRepo};
 use std::sync::Arc;
 
 /// Shared state for the API: repositories and event bus.
@@ -12,6 +12,7 @@ pub struct AppState {
     pub event_repo: Arc<EventRepo>,
     pub event_bus: Arc<EventBus>,
     pub skill_repo: Arc<SkillRepo>,
+    pub workflow_repo: Arc<WorkflowRepo>,
 }
 
 impl AppState {
@@ -21,6 +22,7 @@ impl AppState {
         event_repo: Arc<EventRepo>,
         event_bus: Arc<EventBus>,
         skill_repo: Arc<SkillRepo>,
+        workflow_repo: Arc<WorkflowRepo>,
     ) -> Self {
         Self {
             agent_repo,
@@ -28,6 +30,7 @@ impl AppState {
             event_repo,
             event_bus,
             skill_repo,
+            workflow_repo,
         }
     }
 }

@@ -20,6 +20,9 @@ pub enum ForgeError {
     #[error("Skill not found: {0}")]
     SkillNotFound(String),
 
+    #[error("Workflow not found: {0}")]
+    WorkflowNotFound(String),
+
     #[error("Validation error: {0}")]
     Validation(String),
 

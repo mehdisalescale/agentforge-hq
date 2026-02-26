@@ -13,6 +13,7 @@ pub use repos::agents::AgentRepo;
 pub use repos::events::{EventRepo, StoredEvent};
 pub use repos::sessions::{NewSession, Session, SessionRepo};
 pub use repos::skills::{Skill, SkillRepo};
+pub use repos::workflows::{Workflow, WorkflowRepo};
 
 #[cfg(test)]
 mod tests {
@@ -167,6 +168,16 @@ mod tests {
 
         let conn = setup_test_db();
         let repo = SkillRepo::new(Arc::clone(&conn));
+        let list = repo.list().unwrap();
+        assert!(list.is_empty());
+    }
+
+    #[test]
+    fn workflow_repo_list_empty() {
+        use crate::WorkflowRepo;
+
+        let conn = setup_test_db();
+        let repo = WorkflowRepo::new(Arc::clone(&conn));
         let list = repo.list().unwrap();
         assert!(list.is_empty());
     }

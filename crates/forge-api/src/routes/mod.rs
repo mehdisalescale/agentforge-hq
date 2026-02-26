@@ -5,6 +5,7 @@ mod health;
 mod run;
 mod sessions;
 mod skills;
+mod workflows;
 mod ws;
 
 use axum::Router;
@@ -18,5 +19,6 @@ pub fn router() -> Router<AppState> {
         .merge(run::routes())
         .merge(sessions::routes())
         .merge(skills::routes())
+        .merge(workflows::routes())
         .merge(ws::routes())
 }
