@@ -1,0 +1,13 @@
+[workspace]
+resolver = "2"
+members = ["crates/forge-core", "crates/forge-agent", "crates/forge-db", "crates/forge-api", "crates/forge-process", "crates/forge-safety"]
+
+[workspace.dependencies]
+tokio = { version = "1", features = ["sync", "rt", "macros", "test-util"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+rusqlite = { version = "0.32", features = ["bundled", "vtab"] }
+axum = { version = "0.7", features = ["json", "ws", "macros"] }
+tower-http = { version = "0.5", features = ["cors"] }
