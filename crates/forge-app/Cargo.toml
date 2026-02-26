@@ -12,6 +12,7 @@ forge-api = { path = "../forge-api" }
 forge-core = { path = "../forge-core" }
 forge-db = { path = "../forge-db" }
 forge-agent = { path = "../forge-agent" }
+forge-safety = { path = "../forge-safety" }
 tokio = { version = "1", features = ["full"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }

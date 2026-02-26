@@ -7,6 +7,7 @@ use axum::{
     routing::post,
     Json, Router,
 };
+use forge_core::error::ForgeError;
 use forge_core::events::ForgeEvent;
 use forge_core::ids::{AgentId, SessionId};
 use forge_db::NewSession;
@@ -63,6 +64,11 @@ async fn run_handler(
     };
     let session_id = session.id.clone();
 
+    state
+        .circuit_breaker
+        .check()
+        .map_err(|_| api_error(ForgeError::Internal("circuit breaker open".into())))?;
+
     let resume_arg = body.session_id.as_deref();
     let config = SpawnConfig::from_env().with_working_dir(&session.directory);
     let mut handle = spawn(&config, &body.prompt, resume_arg)
@@ -78,6 +84,7 @@ async fn run_handler(
 
     let event_bus = Arc::clone(&state.event_bus);
     let session_repo = Arc::clone(&state.session_repo);
+    let circuit_breaker = Arc::clone(&state.circuit_breaker);
     let sid = session_id.clone();
     let aid = agent_id.clone();
     tokio::spawn(async move {
@@ -123,6 +130,7 @@ async fn run_handler(
         match handle.wait().await {
             Ok(status) => {
                 let code = status.code().unwrap_or(-1);
+                circuit_breaker.record_success();
                 if session_repo.update_status(&sid, "completed").is_err() {
                     tracing::warn!(session_id = %sid, "run task: failed to update session status to completed");
                 }
@@ -138,6 +146,7 @@ async fn run_handler(
                 }
             }
             Err(e) => {
+                circuit_breaker.record_failure();
                 tracing::warn!(error = %e, "run task: wait failed");
                 if session_repo.update_status(&sid, "failed").is_err() {
                     tracing::warn!(session_id = %sid, "run task: failed to update session status to failed");

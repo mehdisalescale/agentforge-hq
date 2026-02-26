@@ -88,7 +88,7 @@ cargo clippy --workspace
 
 *Agent: fill this in when done.*
 
-- [ ] What was changed:
-- [ ] Tests pass: yes/no
-- [ ] Clippy clean: yes/no
+- [x] What was changed: Implemented 3-state CircuitBreaker in forge-safety (Closed/Open/HalfOpen, failure_threshold 5, success_threshold 2, timeout 60s); check(), record_success(), record_failure(), state(), reset(); 7 tests. Wired into AppState, run handler (check before spawn; record_success on ProcessCompleted, record_failure on ProcessFailed); forge-app creates default and passes to AppState; all forge-api tests updated.
+- [x] Tests pass: yes
+- [x] Clippy clean: yes
 - [ ] Notes:

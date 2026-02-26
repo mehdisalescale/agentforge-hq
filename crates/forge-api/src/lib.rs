@@ -144,6 +144,7 @@ mod tests {
     use axum::body::Body;
     use forge_core::EventBus;
     use forge_db::{AgentRepo, EventRepo, Migrator, DbPool, SessionRepo, SkillRepo, WorkflowRepo};
+    use forge_safety::CircuitBreaker;
     use http::{Request, StatusCode};
     use std::sync::Arc;
     use tower::ServiceExt;
@@ -170,6 +171,7 @@ mod tests {
             Arc::new(event_bus),
             Arc::new(skill_repo),
             Arc::new(workflow_repo),
+            Arc::new(CircuitBreaker::default()),
         );
         let app = app(state);
         let request = Request::builder()
@@ -206,6 +208,7 @@ mod tests {
             Arc::new(event_bus),
             Arc::new(skill_repo),
             Arc::new(workflow_repo),
+            Arc::new(CircuitBreaker::default()),
         );
         let app = app(state);
         let request = Request::builder()
@@ -241,6 +244,7 @@ mod tests {
             Arc::new(event_bus),
             Arc::new(skill_repo),
             Arc::new(workflow_repo),
+            Arc::new(CircuitBreaker::default()),
         );
 
         let app = app(state);
@@ -298,6 +302,7 @@ mod tests {
             Arc::new(event_bus),
             Arc::new(skill_repo),
             Arc::new(workflow_repo),
+            Arc::new(CircuitBreaker::default()),
         );
 
         let app = app(state);
@@ -400,6 +405,7 @@ mod tests {
             Arc::new(event_bus),
             Arc::new(skill_repo),
             Arc::new(workflow_repo),
+            Arc::new(CircuitBreaker::default()),
         );
 
         let app = app(state);

@@ -2,9 +2,10 @@
 
 use forge_core::EventBus;
 use forge_db::{AgentRepo, EventRepo, SessionRepo, SkillRepo, WorkflowRepo};
+use forge_safety::CircuitBreaker;
 use std::sync::Arc;
 
-/// Shared state for the API: repositories and event bus.
+/// Shared state for the API: repositories, event bus, and circuit breaker.
 #[derive(Clone)]
 pub struct AppState {
     pub agent_repo: Arc<AgentRepo>,
@@ -13,6 +14,7 @@ pub struct AppState {
     pub event_bus: Arc<EventBus>,
     pub skill_repo: Arc<SkillRepo>,
     pub workflow_repo: Arc<WorkflowRepo>,
+    pub circuit_breaker: Arc<CircuitBreaker>,
 }
 
 impl AppState {
@@ -23,6 +25,7 @@ impl AppState {
         event_bus: Arc<EventBus>,
         skill_repo: Arc<SkillRepo>,
         workflow_repo: Arc<WorkflowRepo>,
+        circuit_breaker: Arc<CircuitBreaker>,
     ) -> Self {
         Self {
             agent_repo,
@@ -31,6 +34,7 @@ impl AppState {
             event_bus,
             skill_repo,
             workflow_repo,
+            circuit_breaker,
         }
     }
 }

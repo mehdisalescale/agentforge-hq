@@ -4,6 +4,7 @@
 use forge_api::{serve_until_signal, AppState};
 use forge_core::EventBus;
 use forge_db::{AgentRepo, BatchWriter, DbPool, EventRepo, Migrator, SessionRepo, SkillRepo, WorkflowRepo};
+use forge_safety::CircuitBreaker;
 use std::env;
 use std::net::SocketAddr;
 use std::path::Path;
@@ -84,6 +85,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         Arc::new(event_bus),
         Arc::new(skill_repo),
         Arc::new(workflow_repo),
+        Arc::new(CircuitBreaker::default()),
     );
 
     let host = env::var("FORGE_HOST").unwrap_or_else(|_| "127.0.0.1".into());
