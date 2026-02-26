@@ -53,5 +53,5 @@ Read it. Every claim should be verifiable by looking at the code.
 
 *Agent: fill this in when done.*
 
-- [ ] What was changed:
+- [x] What was changed: Replaced "What Works" with verified-in-code list; "What's Missing" now v0.2.0 (MCP, circuit breaker, rate limiter, cost tracking, markdown rendering, GitHub Release binaries). Removed all references to MCP server editor, Hooks editor, multi-pane/split view, directory picker, CLAUDE.md editor, agent edit page, AgentForm. Updated Phase 1 sprint status and Phase A table.
 - [ ] Notes:

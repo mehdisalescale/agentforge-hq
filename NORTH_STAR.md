@@ -39,22 +39,26 @@ See `STRATEGIC_ASSESSMENT.md` for the full analysis.
 
 ## Current State
 
-### What Works (in `claude-forge/`)
-- **8 Rust crates**: forge-core, forge-agent, forge-db, forge-api, forge-process, forge-safety, forge-mcp, forge-app
-- Agent CRUD + 9 presets
-- Process spawning with `--resume` session continuity
-- Real-time WebSocket event streaming + rich rendering
-- SQLite persistence (batch writes every 50 events or 2s, WAL mode)
-- Agent edit page + shared AgentForm component
-- Directory picker, Export (JSON/Markdown), CLAUDE.md editor
-- MCP server editor, Hooks editor
-- Multi-pane tab layout with split view
-- Session browser backend (`GET /api/sessions`, `/api/sessions/projects`)
+### What Works (verified in code)
+- 8 Rust crates: forge-core, forge-agent, forge-db, forge-api, forge-process, forge-safety, forge-mcp, forge-app
+- Agent CRUD + 9 presets (API + frontend)
+- Process spawning with `--output-format stream-json` + `--resume`
+- Real-time WebSocket event streaming
+- Event persistence via BatchWriter (50 events / 2s flush to SQLite)
+- Session CRUD + export (JSON / Markdown) with status lifecycle
+- Run endpoint with real Claude CLI spawn and directory support
+- Embedded frontend via rust-embed (single binary)
+- Graceful shutdown with signal handling
+- TraceLayer request logging
+- Configurable CORS
+- Skills and Workflows list API (Phase 2 seed)
+- CI: GitHub Actions
 
-### What's Missing for v0.1.0
-- Session browser frontend (`+page.svelte` + nav link)
-- End-to-end smoke test
-- GitHub Release with binary
+### What's Missing for v0.2.0
+- MCP server (stdio transport + 10 tools)
+- Circuit breaker, rate limiter, cost tracking
+- Markdown rendering in stream output
+- GitHub Release binaries
 
 ---
 
@@ -62,16 +66,16 @@ See `STRATEGIC_ASSESSMENT.md` for the full analysis.
 
 ### Phase 1 sprint status (forge-project codebase)
 
-Phase 1 complete: Tracks **A–F** implemented (spawn, runner, sessions, run with real spawn, Agents CRUD, Run + Sessions UI). **Next sprint:** [NEXT_SPRINT_AGENT_TASKS.md](NEXT_SPRINT_AGENT_TASKS.md) — tasks A–F for Phase 1 polish + Phase 2 seed (directory, BatchWriter, E2E, workflow/skill stubs). See [PHASE1_6_AGENT_SPRINT.md](PHASE1_6_AGENT_SPRINT.md) for Phase 1 detail.
+Phase 1 complete: Tracks **A–F** implemented (spawn, runner, sessions, run with real spawn, Agents CRUD, Run + Sessions UI, BatchWriter, configurable host/port, E2E smoke script, GitHub Release workflow, README, NORTH_STAR alignment). See [PHASE1_6_AGENT_SPRINT.md](PHASE1_6_AGENT_SPRINT.md) for Phase 1 detail.
 
 ### Phase A: Ship What We Have (2 weeks)
 
 | Task | Status | Notes |
 |------|--------|-------|
-| Finish session browser frontend | Not started | Backend done, needs UI page |
-| End-to-end smoke test | Not started | Create agent -> run prompt -> see output -> export |
+| Finish session browser frontend | Done | Sessions list + export in UI |
+| End-to-end smoke test | Done | scripts/e2e-smoke.sh |
 | Fix known code issues | Not started | See `AUDIT_REPORT.md` Rust section |
-| Ship `v0.1.0` on GitHub Releases | Not started | Single binary, macOS first |
+| Ship `v0.1.0` on GitHub Releases | Done | release.yml on tag push |
 | Get 5 people to try it | Not started | Real users, real feedback |
 
 ### Phase B: Core Loop + MCP (4 weeks)
