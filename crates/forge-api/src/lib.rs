@@ -46,10 +46,44 @@ mod tests {
     use super::*;
     use axum::body::Body;
     use forge_core::EventBus;
-    use forge_db::{AgentRepo, EventRepo, Migrator, DbPool, SessionRepo};
+    use forge_db::{AgentRepo, EventRepo, Migrator, DbPool, SessionRepo, SkillRepo};
     use http::{Request, StatusCode};
     use std::sync::Arc;
     use tower::ServiceExt;
+
+    #[tokio::test]
+    async fn skills_list_returns_200_and_empty_array() {
+        let db = DbPool::in_memory().unwrap();
+        let conn_arc = db.conn_arc();
+        {
+            let conn = conn_arc.lock().unwrap();
+            let migrator = Migrator::new(&conn);
+            migrator.apply_pending().unwrap();
+        }
+        let agent_repo = AgentRepo::new(Arc::clone(&conn_arc));
+        let session_repo = SessionRepo::new(Arc::clone(&conn_arc));
+        let event_repo = EventRepo::new(Arc::clone(&conn_arc));
+        let skill_repo = SkillRepo::new(Arc::clone(&conn_arc));
+        let event_bus = EventBus::new(16);
+        let state = AppState::new(
+            Arc::new(agent_repo),
+            Arc::new(session_repo),
+            Arc::new(event_repo),
+            Arc::new(event_bus),
+            Arc::new(skill_repo),
+        );
+        let app = app(state);
+        let request = Request::builder()
+            .uri("http://localhost/api/v1/skills")
+            .body(Body::empty())
+            .unwrap();
+        let response = app.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert!(json.is_array());
+        assert_eq!(json.as_array().unwrap().len(), 0);
+    }
 
     #[tokio::test]
     async fn health_check_responds_ok() {
@@ -63,12 +97,14 @@ mod tests {
         let agent_repo = AgentRepo::new(Arc::clone(&conn_arc));
         let session_repo = SessionRepo::new(Arc::clone(&conn_arc));
         let event_repo = EventRepo::new(Arc::clone(&conn_arc));
+        let skill_repo = SkillRepo::new(Arc::clone(&conn_arc));
         let event_bus = EventBus::new(16);
         let state = AppState::new(
             Arc::new(agent_repo),
             Arc::new(session_repo),
             Arc::new(event_repo),
             Arc::new(event_bus),
+            Arc::new(skill_repo),
         );
 
         let app = app(state);
@@ -88,7 +124,7 @@ mod tests {
         use axum::body::Body;
         use forge_core::EventBus;
         use forge_agent::model::NewAgent;
-        use forge_db::{AgentRepo, EventRepo, Migrator, DbPool, SessionRepo};
+        use forge_db::{AgentRepo, EventRepo, Migrator, DbPool, SessionRepo, SkillRepo};
         use http::{Request, StatusCode};
         use std::sync::Arc;
         use tower::ServiceExt;
@@ -116,12 +152,14 @@ mod tests {
 
         let session_repo = SessionRepo::new(Arc::clone(&conn_arc));
         let event_repo = EventRepo::new(Arc::clone(&conn_arc));
+        let skill_repo = SkillRepo::new(Arc::clone(&conn_arc));
         let event_bus = EventBus::new(16);
         let state = AppState::new(
             Arc::new(agent_repo),
             Arc::new(session_repo),
             Arc::new(event_repo),
             Arc::new(event_bus),
+            Arc::new(skill_repo),
         );
 
         let app = app(state);
@@ -186,7 +224,7 @@ mod tests {
         use axum::body::Body;
         use forge_core::EventBus;
         use forge_agent::model::NewAgent;
-        use forge_db::{AgentRepo, EventRepo, Migrator, DbPool, SessionRepo};
+        use forge_db::{AgentRepo, EventRepo, Migrator, DbPool, SessionRepo, SkillRepo};
         use http::{Request, StatusCode};
         use std::sync::Arc;
         use tower::ServiceExt;
@@ -214,12 +252,14 @@ mod tests {
 
         let session_repo = SessionRepo::new(Arc::clone(&conn_arc));
         let event_repo = EventRepo::new(Arc::clone(&conn_arc));
+        let skill_repo = SkillRepo::new(Arc::clone(&conn_arc));
         let event_bus = EventBus::new(16);
         let state = AppState::new(
             Arc::new(agent_repo),
             Arc::new(session_repo),
             Arc::new(event_repo),
             Arc::new(event_bus),
+            Arc::new(skill_repo),
         );
 
         let app = app(state);

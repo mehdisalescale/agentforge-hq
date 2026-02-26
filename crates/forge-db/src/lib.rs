@@ -12,6 +12,7 @@ pub use pool::DbPool;
 pub use repos::agents::AgentRepo;
 pub use repos::events::{EventRepo, StoredEvent};
 pub use repos::sessions::{NewSession, Session, SessionRepo};
+pub use repos::skills::{Skill, SkillRepo};
 
 #[cfg(test)]
 mod tests {
@@ -158,6 +159,16 @@ mod tests {
 
         let updated2 = session_repo.update_claude_session_id(&session.id, "claude-abc-123").unwrap();
         assert_eq!(updated2.claude_session_id.as_deref(), Some("claude-abc-123"));
+    }
+
+    #[test]
+    fn skill_repo_list_empty_after_migration() {
+        use crate::SkillRepo;
+
+        let conn = setup_test_db();
+        let repo = SkillRepo::new(Arc::clone(&conn));
+        let list = repo.list().unwrap();
+        assert!(list.is_empty());
     }
 
     #[test]

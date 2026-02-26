@@ -3,7 +3,7 @@
 
 use forge_api::{serve, AppState};
 use forge_core::EventBus;
-use forge_db::{AgentRepo, BatchWriter, DbPool, EventRepo, Migrator, SessionRepo};
+use forge_db::{AgentRepo, BatchWriter, DbPool, EventRepo, Migrator, SessionRepo, SkillRepo};
 use std::env;
 use std::net::SocketAddr;
 use std::path::Path;
@@ -42,6 +42,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let agent_repo = AgentRepo::new(Arc::clone(&conn_arc));
     let session_repo = SessionRepo::new(Arc::clone(&conn_arc));
     let event_repo = EventRepo::new(Arc::clone(&conn_arc));
+    let skill_repo = SkillRepo::new(Arc::clone(&conn_arc));
     let event_bus = EventBus::new(256);
 
     // S1: Wire BatchWriter to EventBus — persist all events to SQLite.
@@ -73,6 +74,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         Arc::new(session_repo),
         Arc::new(event_repo),
         Arc::new(event_bus),
+        Arc::new(skill_repo),
     );
 
     let addr: SocketAddr = "127.0.0.1:4173".parse()?;

@@ -23,6 +23,7 @@ pub fn api_error(e: ForgeError) -> Response {
         ForgeError::Serialization(_) => (StatusCode::INTERNAL_SERVER_ERROR, "serialization"),
         ForgeError::EventBus(_) => (StatusCode::INTERNAL_SERVER_ERROR, "event_bus"),
         ForgeError::SessionNotFound(_) => (StatusCode::NOT_FOUND, "session_not_found"),
+        ForgeError::SkillNotFound(_) => (StatusCode::NOT_FOUND, "skill_not_found"),
         ForgeError::Io(_) => (StatusCode::INTERNAL_SERVER_ERROR, "io"),
         ForgeError::Internal(_) => (StatusCode::INTERNAL_SERVER_ERROR, "internal"),
     };
@@ -40,6 +41,7 @@ pub fn api_error(e: ForgeError) -> Response {
 }
 
 /// Parse a UUID string, returning a 400 BAD_REQUEST response on failure.
+#[allow(clippy::result_large_err)]
 pub fn parse_uuid(s: &str) -> Result<uuid::Uuid, Response> {
     uuid::Uuid::parse_str(s).map_err(|_| {
         (

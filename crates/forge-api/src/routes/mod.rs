@@ -4,6 +4,7 @@ mod agents;
 mod health;
 mod run;
 mod sessions;
+mod skills;
 mod ws;
 
 use axum::Router;
@@ -16,5 +17,6 @@ pub fn router() -> Router<AppState> {
         .merge(agents::routes())
         .merge(run::routes())
         .merge(sessions::routes())
+        .merge(skills::routes())
         .merge(ws::routes())
 }

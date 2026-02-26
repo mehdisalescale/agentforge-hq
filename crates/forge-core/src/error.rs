@@ -17,6 +17,9 @@ pub enum ForgeError {
     #[error("Session not found: {0}")]
     SessionNotFound(SessionId),
 
+    #[error("Skill not found: {0}")]
+    SkillNotFound(String),
+
     #[error("Validation error: {0}")]
     Validation(String),
 
