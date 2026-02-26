@@ -5,7 +5,14 @@ use forge_db::{AgentRepo, EventRepo, SessionRepo, SkillRepo, WorkflowRepo};
 use forge_safety::{CircuitBreaker, RateLimiter};
 use std::sync::Arc;
 
-/// Shared state for the API: repositories, event bus, circuit breaker, and rate limiter.
+/// Circuit breaker and rate limiter for run handler.
+#[derive(Clone)]
+pub struct SafetyState {
+    pub circuit_breaker: Arc<CircuitBreaker>,
+    pub rate_limiter: Arc<RateLimiter>,
+}
+
+/// Shared state for the API: repositories, event bus, and safety controls.
 #[derive(Clone)]
 pub struct AppState {
     pub agent_repo: Arc<AgentRepo>,
@@ -14,8 +21,7 @@ pub struct AppState {
     pub event_bus: Arc<EventBus>,
     pub skill_repo: Arc<SkillRepo>,
     pub workflow_repo: Arc<WorkflowRepo>,
-    pub circuit_breaker: Arc<CircuitBreaker>,
-    pub rate_limiter: Arc<RateLimiter>,
+    pub safety: SafetyState,
 }
 
 impl AppState {
@@ -26,8 +32,7 @@ impl AppState {
         event_bus: Arc<EventBus>,
         skill_repo: Arc<SkillRepo>,
         workflow_repo: Arc<WorkflowRepo>,
-        circuit_breaker: Arc<CircuitBreaker>,
-        rate_limiter: Arc<RateLimiter>,
+        safety: SafetyState,
     ) -> Self {
         Self {
             agent_repo,
@@ -36,8 +41,7 @@ impl AppState {
             event_bus,
             skill_repo,
             workflow_repo,
-            circuit_breaker,
-            rate_limiter,
+            safety,
         }
     }
 }

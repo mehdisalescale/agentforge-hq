@@ -4,6 +4,7 @@
 use forge_api::{serve_until_signal, AppState};
 use forge_core::EventBus;
 use forge_db::{AgentRepo, BatchWriter, DbPool, EventRepo, Migrator, SessionRepo, SkillRepo, WorkflowRepo};
+use forge_api::state::SafetyState;
 use forge_safety::{CircuitBreaker, RateLimiter};
 use std::env;
 use std::net::SocketAddr;
@@ -90,6 +91,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         rate_limit_max,
         std::time::Duration::from_millis(rate_limit_refill_ms),
     ));
+    let safety = SafetyState {
+        circuit_breaker: Arc::new(CircuitBreaker::default()),
+        rate_limiter,
+    };
 
     let state = AppState::new(
         Arc::new(agent_repo),
@@ -98,8 +103,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         Arc::new(event_bus),
         Arc::new(skill_repo),
         Arc::new(workflow_repo),
-        Arc::new(CircuitBreaker::default()),
-        rate_limiter,
+        safety,
     );
 
     let host = env::var("FORGE_HOST").unwrap_or_else(|_| "127.0.0.1".into());

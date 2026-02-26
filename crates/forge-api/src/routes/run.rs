@@ -65,11 +65,12 @@ async fn run_handler(
     };
     let session_id = session.id.clone();
 
-    if !state.rate_limiter.try_acquire() {
+    if !state.safety.rate_limiter.try_acquire() {
         return Err(rate_limit_exceeded());
     }
 
     state
+        .safety
         .circuit_breaker
         .check()
         .map_err(|_| api_error(ForgeError::Internal("circuit breaker open".into())))?;
@@ -89,7 +90,7 @@ async fn run_handler(
 
     let event_bus = Arc::clone(&state.event_bus);
     let session_repo = Arc::clone(&state.session_repo);
-    let circuit_breaker = Arc::clone(&state.circuit_breaker);
+    let circuit_breaker = Arc::clone(&state.safety.circuit_breaker);
     let sid = session_id.clone();
     let aid = agent_id.clone();
     tokio::spawn(async move {

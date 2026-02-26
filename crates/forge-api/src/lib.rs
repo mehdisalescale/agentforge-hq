@@ -144,6 +144,7 @@ mod tests {
     use axum::body::Body;
     use forge_core::EventBus;
     use forge_db::{AgentRepo, EventRepo, Migrator, DbPool, SessionRepo, SkillRepo, WorkflowRepo};
+    use crate::state::SafetyState;
     use forge_safety::{CircuitBreaker, RateLimiter};
     use std::time::Duration;
     use http::{Request, StatusCode};
@@ -172,8 +173,10 @@ mod tests {
             Arc::new(event_bus),
             Arc::new(skill_repo),
             Arc::new(workflow_repo),
-            Arc::new(CircuitBreaker::default()),
-            Arc::new(RateLimiter::new(100, Duration::from_secs(1))),
+            SafetyState {
+                circuit_breaker: Arc::new(CircuitBreaker::default()),
+                rate_limiter: Arc::new(RateLimiter::new(100, Duration::from_secs(1))),
+            },
         );
         let app = app(state);
         let request = Request::builder()
@@ -210,8 +213,10 @@ mod tests {
             Arc::new(event_bus),
             Arc::new(skill_repo),
             Arc::new(workflow_repo),
-            Arc::new(CircuitBreaker::default()),
-            Arc::new(RateLimiter::new(100, Duration::from_secs(1))),
+            SafetyState {
+                circuit_breaker: Arc::new(CircuitBreaker::default()),
+                rate_limiter: Arc::new(RateLimiter::new(100, Duration::from_secs(1))),
+            },
         );
         let app = app(state);
         let request = Request::builder()
@@ -247,8 +252,10 @@ mod tests {
             Arc::new(event_bus),
             Arc::new(skill_repo),
             Arc::new(workflow_repo),
-            Arc::new(CircuitBreaker::default()),
-            Arc::new(RateLimiter::new(100, Duration::from_secs(1))),
+            SafetyState {
+                circuit_breaker: Arc::new(CircuitBreaker::default()),
+                rate_limiter: Arc::new(RateLimiter::new(100, Duration::from_secs(1))),
+            },
         );
 
         let app = app(state);
@@ -306,8 +313,10 @@ mod tests {
             Arc::new(event_bus),
             Arc::new(skill_repo),
             Arc::new(workflow_repo),
-            Arc::new(CircuitBreaker::default()),
-            Arc::new(RateLimiter::new(100, Duration::from_secs(1))),
+            SafetyState {
+                circuit_breaker: Arc::new(CircuitBreaker::default()),
+                rate_limiter: Arc::new(RateLimiter::new(100, Duration::from_secs(1))),
+            },
         );
 
         let app = app(state);
@@ -410,8 +419,10 @@ mod tests {
             Arc::new(event_bus),
             Arc::new(skill_repo),
             Arc::new(workflow_repo),
-            Arc::new(CircuitBreaker::default()),
-            Arc::new(RateLimiter::new(100, Duration::from_secs(1))),
+            SafetyState {
+                circuit_breaker: Arc::new(CircuitBreaker::default()),
+                rate_limiter: Arc::new(RateLimiter::new(100, Duration::from_secs(1))),
+            },
         );
 
         let app = app(state);
