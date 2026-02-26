@@ -1,14 +1,14 @@
 # Claude Forge -- North Star
 
 > **Read this first in every session.** This is the single source of truth.
-> Last updated: 2026-02-25
+> Last updated: 2026-02-26
 
 ---
 
 ## What We're Building
 
 A multi-agent Claude Code orchestrator: Rust/Axum + Svelte 5, single binary.
-Absorbs the best of 61 community repos into one coherent tool.
+Absorbs the best of 62 community repos into one coherent tool.
 
 **One-liner**: The IDE for agentic coding -- what VS Code is to text editing, Forge is to AI-assisted development.
 
@@ -18,28 +18,57 @@ Absorbs the best of 61 community repos into one coherent tool.
 
 ### Approach: From Scratch (Informed)
 We are building Forge from scratch -- not refactoring old code. The existing Forge prototype
-and 61 reference repos are **reference material**, not starting points.
+and 62 reference repos are **reference material**, not starting points.
 
 ### What Exists (Reference Only)
 - Old Forge prototype: Agent CRUD, WebSocket streaming, SQLite persistence, multi-pane UI
 - 34 design docs in `forge-project/` (vision through reference)
-- 61 reference repos in `refrence-repo/` with upstream tracking
+- 62 reference repos in `refrence-repo/` with upstream tracking
 - CI/CD spec, submodule tracking spec (written, not implemented)
 
 ### What's Built (New Codebase)
-_Nothing yet. Phase 0 starts fresh._
+Located in `forge-project/crates/` with workspace `Cargo.toml`:
+
+**forge-core** (5 files) -- IDs, events, event bus, errors
+- 5 newtype ID wrappers (AgentId, SessionId, EventId, WorkflowId, SkillId)
+- 20 ForgeEvent variants (system, agent, process, session, workflow, safety)
+- EventBus (tokio broadcast) + EventSink trait
+- ForgeError hierarchy + ForgeResult type alias
+- 6 tests passing
+
+**forge-agent** (4 files) -- Agent model, presets, validation
+- Agent/NewAgent/UpdateAgent structs (Option<Option<T>> PATCH pattern)
+- 9 presets: CodeWriter, Reviewer, Tester, Debugger, Architect, Documenter, SecurityAuditor, Refactorer, Explorer
+- Input validation (name length, system prompt size)
+- 7 tests passing
+
+**forge-db** (6 files) -- Pool, migrations, batch writer, repos
+- DbPool (WAL mode, in-memory for tests)
+- Migrator with version tracking, full Phase 0-5 schema in `migrations/0001_init.sql`
+- BatchWriter: crossbeam-channel, flush at 50 events or 2s
+- AgentRepo (full CRUD) + EventRepo (query by session/type, count)
+- 3 FTS5 tables (skills_fts, sessions_fts, events_fts)
+- 12 tests passing
+
+**Known issues to fix:**
+- `forge-core` depends on `rusqlite` (layering violation via ForgeError)
+- `validate_update_agent` defined but not exported or called by AgentRepo::update()
+- No `[workspace.dependencies]` in workspace Cargo.toml
+- Preset serialization uses `Debug` format (brittle)
+
+**Not yet built:** forge-api, forge-app, forge-process, forge-safety, forge-mcp (5 of 8 planned crates). **Next:** [PHASE0_REMAINING.md](PHASE0_REMAINING.md) — foundational fixes → 5 crates → frontend shell + single binary (3–4 sessions).
 
 ---
 
 ## Development Priorities (Ordered)
 
-| Priority | Task | Why First | Est. |
-|----------|------|-----------|------|
-| **P0** | Run `migrate-to-submodules.sh --apply` | Formalize 61 repos as submodules | 1 session |
-| **P1** | Set up CI/CD (GitHub Actions) | Need cross-platform builds before users | 1-2 sessions |
-| **P2** | Phase 0: Foundation Build | Workspace crates, event bus, DB schema, API+UI skeleton | 4-6 sessions |
-| **P3** | Phase 1: Agent Engine | Agent CRUD, process spawn, streaming, sessions | 4-6 sessions |
-| **P4** | Phase 2+4 parallel: Workflows + Safety | Workflow engine, skills, MCP, circuit breaker | 5-8 sessions |
+| Priority | Task | Status | Est. |
+|----------|------|--------|------|
+| **P0** | **Phase 0: Finish foundation** | **~40% done.** 3/8 crates (core, agent, db). Next: (1) foundational fixes, (2) 5 crates (process, safety, mcp, api, app), (3) frontend shell + single binary. See [PHASE0_REMAINING.md](PHASE0_REMAINING.md). | 3-4 sessions |
+| **P1** | Phase 1: Agent Engine | Blocked by P0. Weeks 5-8: agent CRUD wired to UI, process spawning, real-time streaming, session management. | 4-6 sessions |
+| **P2** | Phase 2+4 parallel: Workflows + Safety | Blocked by P0+P1 | 5-8 sessions |
+| **P3** | Run `migrate-to-submodules.sh --apply` | Not started | 1 session |
+| **P4** | Set up CI/CD (GitHub Actions) | Not started | 1-2 sessions |
 
 ---
 
@@ -109,7 +138,7 @@ When finishing a session:
 |----------|-----------|------|
 | Rust + Svelte 5 single binary | Performance, no runtime deps, `rust-embed` | Pre-project |
 | SQLite WAL mode | Single-file, concurrent reads, no server | Pre-project |
-| **Start from scratch (not refactor)** | 61-repo analysis revealed architecture needs differ from prototype | 2026-02-25 |
+| **Start from scratch (not refactor)** | 62-repo analysis revealed architecture needs differ from prototype | 2026-02-25 |
 | Existing Forge = reference only | Study patterns (process spawn, WS streaming), don't copy code | 2026-02-25 |
 | 8 crates initially (not 12) | Fewer crates = faster builds; split later if needed | 2026-02-25 |
 | Schema designed upfront in Phase 0 | Covers all phases; avoids migration pain | 2026-02-25 |
