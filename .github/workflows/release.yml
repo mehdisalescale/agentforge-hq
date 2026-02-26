@@ -1,20 +1,3 @@
-# TASK 13 — GitHub Release workflow
-
-**Status:** pending
-**Priority:** high
-**Track:** Phase A — ship
-
----
-
-## Context
-
-CI exists (`.github/workflows/ci.yml`). We need a release workflow that builds binaries when a tag is pushed.
-
-## Task
-
-Create `.github/workflows/release.yml`:
-
-```yaml
 name: Release
 on:
   push:
@@ -66,22 +49,3 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           files: ${{ matrix.name }}
-```
-
-## Files to create
-
-- `.github/workflows/release.yml`
-
-## Verify
-
-After committing, push a tag like `v0.1.1-test` to trigger the workflow. Check GitHub Actions tab and Releases page. Delete the test tag/release after verifying.
-
----
-
-## Report
-
-*Agent: fill this in when done.*
-
-- [x] What was changed: Created .github/workflows/release.yml; on tag v* builds frontend, then release binary for macos-arm64, macos-x64, linux-x64; uploads to GitHub Release.
-- [ ] Workflow runs: yes/no (trigger on tag push)
-- [ ] Notes:
