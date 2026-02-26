@@ -1,20 +1,3 @@
-# TASK 12 — E2E smoke test script
-
-**Status:** pending
-**Priority:** medium
-**Track:** Phase A polish
-
----
-
-## Context
-
-There's a `docs/E2E_SMOKE_TEST.md` with curl examples, but no runnable script. We need an automated script that exercises the full flow.
-
-## Task
-
-Create `scripts/e2e-smoke.sh`:
-
-```bash
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -58,24 +41,3 @@ curl -sf -X DELETE "$BASE/agents/$AGENT_ID"
 
 echo ""
 echo "=== SMOKE TEST PASSED ==="
-```
-
-Make it executable: `chmod +x scripts/e2e-smoke.sh`
-
-## Files to create
-
-- `scripts/e2e-smoke.sh`
-
-## Verify
-
-Start the server in one terminal (`cargo run -p forge-app`), run `bash scripts/e2e-smoke.sh` in another. Should print "SMOKE TEST PASSED".
-
----
-
-## Report
-
-*Agent: fill this in when done.*
-
-- [x] What was changed: Created scripts/e2e-smoke.sh with health, create agent, run agent, wait, list sessions, export JSON, list skills/workflows, cleanup; chmod +x.
-- [x] Script runs: yes (with server running)
-- [ ] Notes:
