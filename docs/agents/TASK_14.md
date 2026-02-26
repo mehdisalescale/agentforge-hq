@@ -55,5 +55,5 @@ Looks good when viewed on GitHub.
 
 *Agent: fill this in when done.*
 
-- [ ] What was changed:
+- [x] What was changed: Created root README.md with title, one-liner, what it does, quick start, build from source, configuration table, architecture (8 crates), license placeholder. Under 100 lines, no emojis.
 - [ ] Notes:
