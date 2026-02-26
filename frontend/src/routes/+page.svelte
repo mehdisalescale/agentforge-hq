@@ -21,6 +21,18 @@
     return DOMPurify.sanitize(html);
   }
 
+  interface OutputBlock {
+    kind: 'assistant' | 'tool_use' | 'tool_result' | 'thinking' | 'result';
+    content: string;
+  }
+  function normalizeBlockKind(k: string): OutputBlock['kind'] {
+    const s = (k ?? 'assistant').toString().toLowerCase();
+    if (s === 'tooluse') return 'tool_use';
+    if (s === 'toolresult') return 'tool_result';
+    if (s === 'thinking' || s === 'result') return s;
+    return 'assistant';
+  }
+
   setContext('pageTitle', 'Dashboard');
 
   let agents: Agent[] = [];
@@ -30,7 +42,7 @@
   let directory = '';
   let running = false;
   let runError = '';
-  let streamContent = '';
+  let outputBlocks: OutputBlock[] = [];
   let streamStatus: 'idle' | 'connecting' | 'streaming' | 'completed' | 'failed' = 'idle';
   let streamStatusDetail = '';
   let currentSessionId: string | null = null;
@@ -62,8 +74,16 @@
       ws.onmessage = (event) => {
         try {
           const ev: ForgeEventWire = JSON.parse(event.data);
-          if (currentSessionId && isProcessOutputEvent(ev, currentSessionId) && ev.data?.content) {
-            streamContent += ev.data.content;
+          if (currentSessionId && isProcessOutputEvent(ev, currentSessionId) && ev.data?.content !== undefined) {
+            const kind = normalizeBlockKind(ev.data.kind ?? 'assistant');
+            const content = typeof ev.data.content === 'string' ? ev.data.content : String(ev.data.content);
+            const last = outputBlocks[outputBlocks.length - 1];
+            if (last && last.kind === kind) {
+              last.content += content;
+              outputBlocks = outputBlocks;
+            } else {
+              outputBlocks = [...outputBlocks, { kind, content }];
+            }
             streamStatus = 'streaming';
           }
           if (currentSessionId && isProcessLifecycleEvent(ev, currentSessionId)) {
@@ -115,7 +135,7 @@
       return;
     }
     runError = '';
-    streamContent = '';
+      outputBlocks = [];
     streamStatus = 'connecting';
     streamStatusDetail = resumeSessionId ? 'Resuming…' : 'Starting…';
     running = true;
@@ -142,7 +162,7 @@
   }
 
   function clearStream() {
-    streamContent = '';
+    outputBlocks = [];
     streamStatus = 'idle';
     streamStatusDetail = '';
     currentSessionId = null;
@@ -198,7 +218,7 @@
           <button type="button" class="primary" on:click={run} disabled={running || agents.length === 0}>
             {running ? 'Running…' : 'Run'}
           </button>
-          {#if streamContent || streamStatus !== 'idle'}
+          {#if outputBlocks.length > 0 || streamStatus !== 'idle'}
             <button type="button" class="secondary" on:click={clearStream}>Clear</button>
           {/if}
         </div>
@@ -216,9 +236,28 @@
         {streamStatusDetail}
       </p>
     {/if}
-    <div class="stream-output" class:empty={!streamContent}>
-      {#if streamContent}
-        <div class="stream-rendered">{@html renderStreamMarkdown(streamContent)}</div>
+    <div class="stream-output" class:empty={outputBlocks.length === 0}>
+      {#if outputBlocks.length > 0}
+        {#each outputBlocks as block}
+          {#if block.kind === 'assistant' || block.kind === 'result'}
+            <div class="block-assistant stream-rendered">{@html renderStreamMarkdown(block.content)}</div>
+          {:else if block.kind === 'tool_use'}
+            <details class="block-tool">
+              <summary>Tool Call</summary>
+              <pre><code>{block.content}</code></pre>
+            </details>
+          {:else if block.kind === 'tool_result'}
+            <details class="block-tool result">
+              <summary>Tool Result</summary>
+              <pre><code>{block.content}</code></pre>
+            </details>
+          {:else if block.kind === 'thinking'}
+            <details class="block-thinking">
+              <summary>Thinking…</summary>
+              <pre class="dimmed">{block.content}</pre>
+            </details>
+          {/if}
+        {/each}
       {:else}
         <span class="muted">Run an agent to see streaming output here.</span>
       {/if}
@@ -347,6 +386,34 @@
     font-family: ui-monospace, monospace;
   }
   .stream-rendered :global(p) { margin: 0.5rem 0; }
+  .block-tool {
+    border-left: 3px solid var(--accent);
+    margin: 0.5rem 0;
+    padding-left: 0.75rem;
+  }
+  .block-tool.result {
+    border-left-color: #86efac;
+  }
+  .block-tool summary,
+  .block-thinking summary {
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
+  .block-tool pre,
+  .block-thinking pre {
+    margin: 0.25rem 0 0 0;
+    font-size: 0.85rem;
+    overflow-x: auto;
+  }
+  .block-thinking {
+    border-left: 3px solid var(--border);
+    margin: 0.5rem 0;
+    padding-left: 0.75rem;
+  }
+  .block-thinking .dimmed {
+    color: var(--muted);
+  }
   .muted {
     color: var(--muted);
   }

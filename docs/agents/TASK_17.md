@@ -82,6 +82,6 @@ Manual: run an agent that uses tools. Tool calls appear as collapsible panels.
 
 *Agent: fill this in when done.*
 
-- [ ] What was changed:
-- [ ] Build passes: yes/no
+- [x] What was changed: Replaced streamContent with outputBlocks (OutputBlock[]); WS handler appends to last block if same kind or pushes new block; normalizeBlockKind maps backend kind to assistant/tool_use/tool_result/thinking/result; render each block with details/summary for tool_use, tool_result, thinking and markdown for assistant/result; CSS for .block-tool, .block-tool.result, .block-thinking.
+- [x] Build passes: yes
 - [ ] Notes:
