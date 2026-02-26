@@ -4,7 +4,8 @@ use forge_core::error::{ForgeError, ForgeResult};
 use rusqlite::Connection;
 use tracing::info;
 
-const MIGRATION_SQL: &str = include_str!("../../../migrations/0001_init.sql");
+const MIGRATION_001: &str = include_str!("../../../migrations/0001_init.sql");
+const MIGRATION_002: &str = include_str!("../../../migrations/0002_add_cost.sql");
 
 pub struct Migrator<'a> {
     conn: &'a Connection,
@@ -42,19 +43,32 @@ impl<'a> Migrator<'a> {
     }
 
     pub fn apply_pending(&self) -> ForgeResult<u32> {
-        let current = self.current_version()?;
+        let mut current = self.current_version()?;
+        let mut applied = 0;
 
-        if current >= 1 {
-            info!(version = current, "schema already at latest version");
-            return Ok(0);
+        if current < 1 {
+            info!("applying migration 0001_init.sql");
+            self.conn
+                .execute_batch(MIGRATION_001)
+                .map_err(|e| ForgeError::Database(Box::new(e)))?;
+            current = 1;
+            applied += 1;
+            info!("migration 0001 applied, now at version 1");
         }
 
-        info!("applying migration 0001_init.sql");
-        self.conn
-            .execute_batch(MIGRATION_SQL)
-            .map_err(|e| ForgeError::Database(Box::new(e)))?;
-        info!("migration applied, now at version 1");
+        if current < 2 {
+            info!("applying migration 0002_add_cost.sql");
+            self.conn
+                .execute_batch(MIGRATION_002)
+                .map_err(|e| ForgeError::Database(Box::new(e)))?;
+            applied += 1;
+            info!("migration 0002 applied, now at version 2");
+        }
 
-        Ok(1)
+        if applied == 0 {
+            info!(version = current, "schema already at latest version");
+        }
+
+        Ok(applied)
     }
 }

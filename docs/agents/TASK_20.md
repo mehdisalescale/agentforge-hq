@@ -63,7 +63,7 @@ cd frontend && pnpm build
 
 *Agent: fill this in when done.*
 
-- [ ] What was changed:
-- [ ] Tests pass: yes/no
-- [ ] Clippy clean: yes/no
+- [x] What was changed: ResultPayload already had cost_usd. Added migration 0002_add_cost.sql (ALTER sessions ADD cost_usd REAL DEFAULT 0.0); Migrator applies 0002 when current < 2; Session struct + cost_usd, SessionRepo update_cost, SELECTs/row_to_session updated; run handler on StreamJsonEvent::Result(payload) with cost_usd calls session_repo.update_cost; Session API exposes cost_usd; frontend Session type + cost_usd, sessions detail shows Cost when present. Budget enforcement (FORGE_BUDGET_*) not implemented (optional stretch).
+- [x] Tests pass: yes
+- [x] Clippy clean: yes
 - [ ] Notes:

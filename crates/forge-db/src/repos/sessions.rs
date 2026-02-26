@@ -14,6 +14,8 @@ pub struct Session {
     pub claude_session_id: Option<String>,
     pub directory: String,
     pub status: String,
+    #[serde(default)]
+    pub cost_usd: f64,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -59,7 +61,7 @@ impl SessionRepo {
         let conn = self.conn.lock().expect("db mutex poisoned");
         let mut stmt = conn
             .prepare(
-                "SELECT id, agent_id, claude_session_id, directory, status, created_at, updated_at
+                "SELECT id, agent_id, claude_session_id, directory, status, cost_usd, created_at, updated_at
                  FROM sessions WHERE id = ?1",
             )
             .map_err(|e| ForgeError::Database(Box::new(e)))?;
@@ -74,7 +76,7 @@ impl SessionRepo {
         let conn = self.conn.lock().expect("db mutex poisoned");
         let mut stmt = conn
             .prepare(
-                "SELECT id, agent_id, claude_session_id, directory, status, created_at, updated_at
+                "SELECT id, agent_id, claude_session_id, directory, status, cost_usd, created_at, updated_at
                  FROM sessions ORDER BY created_at DESC",
             )
             .map_err(|e| ForgeError::Database(Box::new(e)))?;
@@ -93,6 +95,22 @@ impl SessionRepo {
             .execute(
                 "UPDATE sessions SET status = ?1, updated_at = ?2 WHERE id = ?3",
                 rusqlite::params![status, now.to_rfc3339(), id.0.to_string()],
+            )
+            .map_err(|e| ForgeError::Database(Box::new(e)))?;
+        if rows == 0 {
+            return Err(ForgeError::SessionNotFound(id.clone()));
+        }
+        drop(conn);
+        self.get(id)
+    }
+
+    pub fn update_cost(&self, id: &SessionId, cost_usd: f64) -> ForgeResult<Session> {
+        let conn = self.conn.lock().expect("db mutex poisoned");
+        let now = Utc::now();
+        let rows = conn
+            .execute(
+                "UPDATE sessions SET cost_usd = ?1, updated_at = ?2 WHERE id = ?3",
+                rusqlite::params![cost_usd, now.to_rfc3339(), id.0.to_string()],
             )
             .map_err(|e| ForgeError::Database(Box::new(e)))?;
         if rows == 0 {
@@ -148,8 +166,9 @@ fn row_to_session(row: &rusqlite::Row<'_>) -> Result<Session, rusqlite::Error> {
     let claude_session_id: Option<String> = row.get(2)?;
     let directory: String = row.get(3)?;
     let status: String = row.get(4)?;
-    let created_at: String = row.get(5)?;
-    let updated_at: String = row.get(6)?;
+    let cost_usd: f64 = row.get(5)?;
+    let created_at: String = row.get(6)?;
+    let updated_at: String = row.get(7)?;
     let created_at = DateTime::parse_from_rfc3339(&created_at)
         .map_err(|_| rusqlite::Error::InvalidParameterName(created_at.clone()))?
         .with_timezone(&Utc);
@@ -163,6 +182,7 @@ fn row_to_session(row: &rusqlite::Row<'_>) -> Result<Session, rusqlite::Error> {
         claude_session_id,
         directory,
         status,
+        cost_usd,
         created_at,
         updated_at,
     })

@@ -148,6 +148,7 @@ export interface Session {
   claude_session_id: string | null;
   directory: string;
   status: string;
+  cost_usd?: number;
   created_at: string;
   updated_at: string;
 }

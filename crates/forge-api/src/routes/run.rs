@@ -11,6 +11,7 @@ use forge_core::error::ForgeError;
 use forge_core::events::ForgeEvent;
 use forge_core::ids::{AgentId, SessionId};
 use forge_db::NewSession;
+use forge_process::stream_event::StreamJsonEvent;
 use forge_process::{parse_line, ProcessRunner, spawn, SpawnConfig, SpawnError};
 use serde::Deserialize;
 use std::sync::Arc;
@@ -126,6 +127,13 @@ async fn run_handler(
                 _ => {}
             }
             if let Ok(Some(ev)) = parse_line(buf.trim()) {
+                if let StreamJsonEvent::Result(payload) = &ev {
+                    if let Some(cost) = payload.cost_usd {
+                        if session_repo.update_cost(&sid, cost).is_err() {
+                            tracing::warn!(session_id = %sid, "run task: failed to update session cost");
+                        }
+                    }
+                }
                 if runner.emit_parsed_event(&sid, &aid, &ev).is_err() {
                     tracing::warn!("run task: emit_parsed_event failed");
                 }

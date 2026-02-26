@@ -108,6 +108,10 @@
             <dd><code>{detail.directory || '—'}</code></dd>
             <dt>Status</dt>
             <dd><span class="status-badge" class:running={detail.status === 'running'} class:completed={detail.status === 'completed'} class:failed={detail.status === 'failed'}>{detail.status}</span></dd>
+            {#if detail.cost_usd != null && detail.cost_usd !== undefined}
+              <dt>Cost</dt>
+              <dd>${detail.cost_usd.toFixed(4)}</dd>
+            {/if}
             <dt>Created</dt>
             <dd>{detail.created_at}</dd>
           </dl>
