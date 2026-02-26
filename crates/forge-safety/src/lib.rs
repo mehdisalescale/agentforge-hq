@@ -126,19 +126,62 @@ impl CircuitBreaker {
     }
 }
 
-/// Rate limiter for API / agent calls. Stub for Phase 4.
-#[derive(Debug, Clone, Default)]
-pub struct RateLimiter;
+/// Token-bucket rate limiter: refill at refill_interval, up to max_tokens.
+pub struct RateLimiter {
+    tokens: AtomicU32,
+    max_tokens: u32,
+    refill_interval: Duration,
+    last_refill: Mutex<Instant>,
+}
+
+impl RateLimiter {
+    /// Create a rate limiter. Refills one token every refill_interval.
+    pub fn new(max_tokens: u32, refill_interval: Duration) -> Self {
+        Self {
+            tokens: AtomicU32::new(max_tokens),
+            max_tokens,
+            refill_interval,
+            last_refill: Mutex::new(Instant::now()),
+        }
+    }
+
+    /// Refill tokens based on elapsed time, then try to take one token. Returns true if acquired.
+    pub fn try_acquire(&self) -> bool {
+        let mut last = self.last_refill.lock().unwrap();
+        let now = Instant::now();
+        let elapsed = last.elapsed();
+        if elapsed >= self.refill_interval && self.refill_interval.as_nanos() > 0 {
+            let refills = (elapsed.as_nanos() / self.refill_interval.as_nanos()) as u32;
+            *last = now;
+            drop(last);
+            let current = self.tokens.load(Ordering::SeqCst);
+            let added = refills.min(self.max_tokens.saturating_sub(current));
+            self.tokens.fetch_add(added, Ordering::SeqCst);
+        }
+        self.tokens
+            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |t| {
+                if t > 0 {
+                    Some(t - 1)
+                } else {
+                    None
+                }
+            })
+            .is_ok()
+    }
+}
+
+impl std::fmt::Debug for RateLimiter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RateLimiter")
+            .field("max_tokens", &self.max_tokens)
+            .field("refill_interval", &self.refill_interval)
+            .finish_non_exhaustive()
+    }
+}
 
 /// Tracks cost/budget for agent usage. Stub for Phase 4.
 #[derive(Debug, Clone, Default)]
 pub struct CostTracker;
-
-impl RateLimiter {
-    pub fn new() -> Self {
-        Self
-    }
-}
 
 impl CostTracker {
     pub fn new() -> Self {
@@ -223,5 +266,31 @@ mod tests {
         cb.reset();
         assert_eq!(cb.state(), CircuitState::Closed);
         assert!(cb.check().is_ok());
+    }
+
+    #[test]
+    fn rate_limiter_allows_up_to_max_tokens() {
+        let rl = RateLimiter::new(3, Duration::from_secs(60));
+        assert!(rl.try_acquire());
+        assert!(rl.try_acquire());
+        assert!(rl.try_acquire());
+        assert!(!rl.try_acquire());
+    }
+
+    #[test]
+    fn rate_limiter_rejects_after_exhaustion() {
+        let rl = RateLimiter::new(1, Duration::from_secs(60));
+        assert!(rl.try_acquire());
+        assert!(!rl.try_acquire());
+        assert!(!rl.try_acquire());
+    }
+
+    #[test]
+    fn rate_limiter_refills_over_time() {
+        let rl = RateLimiter::new(1, Duration::from_millis(50));
+        assert!(rl.try_acquire());
+        assert!(!rl.try_acquire());
+        thread::sleep(Duration::from_millis(60));
+        assert!(rl.try_acquire());
     }
 }

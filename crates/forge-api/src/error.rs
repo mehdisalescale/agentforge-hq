@@ -41,6 +41,18 @@ pub fn api_error(e: ForgeError) -> Response {
         .into_response()
 }
 
+/// Return 429 Too Many Requests for rate limiting.
+pub fn rate_limit_exceeded() -> Response {
+    (
+        StatusCode::TOO_MANY_REQUESTS,
+        Json(ErrorBody {
+            error: "rate limit exceeded".to_string(),
+            code: "rate_limit".to_string(),
+        }),
+    )
+        .into_response()
+}
+
 /// Parse a UUID string, returning a 400 BAD_REQUEST response on failure.
 #[allow(clippy::result_large_err)]
 pub fn parse_uuid(s: &str) -> Result<uuid::Uuid, Response> {

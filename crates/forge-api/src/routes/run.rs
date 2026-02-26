@@ -16,7 +16,7 @@ use serde::Deserialize;
 use std::sync::Arc;
 use tokio::io::AsyncBufReadExt;
 
-use crate::error::{api_error, parse_uuid};
+use crate::error::{api_error, parse_uuid, rate_limit_exceeded};
 use crate::state::AppState;
 
 #[derive(Debug, Deserialize)]
@@ -63,6 +63,10 @@ async fn run_handler(
         state.session_repo.create(&input).map_err(api_error)?
     };
     let session_id = session.id.clone();
+
+    if !state.rate_limiter.try_acquire() {
+        return Err(rate_limit_exceeded());
+    }
 
     state
         .circuit_breaker

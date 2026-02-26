@@ -4,7 +4,7 @@
 use forge_api::{serve_until_signal, AppState};
 use forge_core::EventBus;
 use forge_db::{AgentRepo, BatchWriter, DbPool, EventRepo, Migrator, SessionRepo, SkillRepo, WorkflowRepo};
-use forge_safety::CircuitBreaker;
+use forge_safety::{CircuitBreaker, RateLimiter};
 use std::env;
 use std::net::SocketAddr;
 use std::path::Path;
@@ -78,6 +78,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     });
     info!("event persistence wired (BatchWriter → EventBus)");
 
+    let rate_limit_max: u32 = env::var("FORGE_RATE_LIMIT_MAX")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(10);
+    let rate_limit_refill_ms: u64 = env::var("FORGE_RATE_LIMIT_REFILL_MS")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(1000);
+    let rate_limiter = Arc::new(RateLimiter::new(
+        rate_limit_max,
+        std::time::Duration::from_millis(rate_limit_refill_ms),
+    ));
+
     let state = AppState::new(
         Arc::new(agent_repo),
         Arc::new(session_repo),
@@ -86,6 +99,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         Arc::new(skill_repo),
         Arc::new(workflow_repo),
         Arc::new(CircuitBreaker::default()),
+        rate_limiter,
     );
 
     let host = env::var("FORGE_HOST").unwrap_or_else(|_| "127.0.0.1".into());

@@ -67,7 +67,7 @@ cargo clippy --workspace
 
 *Agent: fill this in when done.*
 
-- [ ] What was changed:
-- [ ] Tests pass: yes/no
-- [ ] Clippy clean: yes/no
+- [x] What was changed: Implemented token-bucket RateLimiter in forge-safety (tokens, max_tokens, refill_interval, last_refill); try_acquire() refills then takes one token; FORGE_RATE_LIMIT_MAX (10), FORGE_RATE_LIMIT_REFILL_MS (1000) in forge-app; added rate_limiter to AppState; run_handler returns 429 via rate_limit_exceeded() before circuit breaker; 3 tests (allows up to max, rejects after exhaustion, refills over time); all AppState test call sites updated.
+- [x] Tests pass: yes
+- [x] Clippy clean: yes
 - [ ] Notes:
