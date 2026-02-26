@@ -8,16 +8,40 @@ pub use state::AppState;
 pub use routes::router;
 
 use axum::Router;
+use http::{header::AUTHORIZATION, header::CONTENT_TYPE, Method};
+use std::env;
 use std::net::SocketAddr;
-use tower_http::cors::{Any, CorsLayer};
+use tower_http::cors::{AllowOrigin, Any, CorsLayer};
 use tracing::info;
 
 /// Build the application router with CORS and API routes.
+/// CORS origin: set `FORGE_CORS_ORIGIN` to a specific origin (e.g. `https://app.example.com`)
+/// or leave unset for `*` (permissive, suitable for local dev).
 pub fn app(state: AppState) -> Router {
-    let cors = CorsLayer::new()
-        .allow_origin(Any)
-        .allow_methods(Any)
-        .allow_headers(Any);
+    let cors_origin = env::var("FORGE_CORS_ORIGIN").unwrap_or_else(|_| "*".into());
+    let methods = [
+        Method::GET,
+        Method::POST,
+        Method::PUT,
+        Method::DELETE,
+        Method::OPTIONS,
+    ];
+    let headers = [CONTENT_TYPE, AUTHORIZATION];
+
+    let cors = if cors_origin == "*" {
+        CorsLayer::new()
+            .allow_origin(Any)
+            .allow_methods(methods)
+            .allow_headers(headers)
+    } else {
+        let origin = cors_origin
+            .parse()
+            .expect("FORGE_CORS_ORIGIN must be a valid HTTP header value");
+        CorsLayer::new()
+            .allow_origin(AllowOrigin::exact(origin))
+            .allow_methods(methods)
+            .allow_headers(headers)
+    };
 
     Router::new()
         .nest("/api/v1", routes::router())
