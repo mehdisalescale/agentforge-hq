@@ -1,4 +1,4 @@
-//! Forge binary: DB, migrations, EventBus, BatchWriter, AgentRepo, API server on 127.0.0.1:4173.
+//! Forge binary: DB, migrations, EventBus, BatchWriter, AgentRepo, API server (FORGE_HOST:FORGE_PORT).
 //! Graceful shutdown on Ctrl+C: server stops accepting, then BatchWriter flushes and exits.
 
 use forge_api::{serve_until_signal, AppState};
@@ -86,7 +86,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         Arc::new(workflow_repo),
     );
 
-    let addr: SocketAddr = "127.0.0.1:4173".parse()?;
+    let host = env::var("FORGE_HOST").unwrap_or_else(|_| "127.0.0.1".into());
+    let port = env::var("FORGE_PORT").unwrap_or_else(|_| "4173".into());
+    let addr: SocketAddr = format!("{}:{}", host, port).parse()?;
     info!(%addr, "starting forge server");
     serve_until_signal(addr, state, shutdown_signal()).await?;
 

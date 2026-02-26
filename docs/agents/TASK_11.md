@@ -39,6 +39,6 @@ FORGE_PORT=8080 cargo run -p forge-app  # should start on 8080
 
 *Agent: fill this in when done.*
 
-- [ ] What was changed:
-- [ ] Tests pass: yes/no
+- [x] What was changed: main.rs now reads FORGE_HOST (default 127.0.0.1) and FORGE_PORT (default 4173), parses SocketAddr, logs the address; module doc updated.
+- [x] Tests pass: yes
 - [ ] Notes:
