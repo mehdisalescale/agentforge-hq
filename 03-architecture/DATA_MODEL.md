@@ -3,6 +3,8 @@
 > Complete SQLite schema, entity relationships, migration strategy, query patterns, and FTS5 configuration.
 > Database location: `~/.claude-forge/forge.db` | Journal mode: WAL
 
+**Phase 0 / current implementation:** The Phase 0 build uses a single migration with denormalized `agents` columns (e.g. `name`, `system_prompt`, `model` as columns) and **three** FTS5 virtual tables: `skills_fts`, `sessions_fts`, `events_fts`. See `PHASE0_IMPLEMENTATION_PLAN.md` and `migrations/0001_init.sql` for the canonical schema. The "Current Schema (v1)" and "Target Schema (v5)" sections describe alternative/legacy shapes.
+
 ---
 
 ## Table of Contents

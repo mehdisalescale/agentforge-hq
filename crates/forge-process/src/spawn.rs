@@ -2,6 +2,7 @@
 
 use std::path::Path;
 use std::process::Stdio;
+use std::time::Duration;
 use thiserror::Error;
 use tokio::process::{Child, Command};
 
@@ -27,6 +28,8 @@ pub struct SpawnConfig {
     pub env_remove: Vec<String>,
     /// Env vars to set (key, value).
     pub env_set: Vec<(String, String)>,
+    /// Maximum time the process may run before being killed. Default: 5 minutes.
+    pub timeout: Option<Duration>,
 }
 
 impl Default for SpawnConfig {
@@ -41,13 +44,59 @@ impl Default for SpawnConfig {
             working_dir: None,
             env_remove: vec!["CLAUDECODE".to_string()],
             env_set: vec![],
+            timeout: Some(Duration::from_secs(300)),
         }
     }
 }
 
+/// Environment variable names for SpawnConfig overrides.
+pub const ENV_CLI_COMMAND: &str = "FORGE_CLI_COMMAND";
+pub const ENV_CLI_ARGS: &str = "FORGE_CLI_ARGS";
+
+/// Build SpawnConfig from defaults and override with environment variables.
+/// - `FORGE_CLI_COMMAND`: executable (e.g. "claude" or "/path/to/claude").
+/// - `FORGE_CLI_ARGS`: space-separated args before prompt (e.g. "--output-format stream-json --verbose").
+/// Backward compatible: if env vars are unset, defaults are used.
+impl SpawnConfig {
+    pub fn from_env() -> Self {
+        let mut config = Self::default();
+        if let Ok(cmd) = std::env::var(ENV_CLI_COMMAND) {
+            if !cmd.is_empty() {
+                config.command = cmd;
+            }
+        }
+        if let Ok(args) = std::env::var(ENV_CLI_ARGS) {
+            let parsed: Vec<String> = args
+                .split_whitespace()
+                .map(|s| s.to_string())
+                .filter(|s| !s.is_empty())
+                .collect();
+            if !parsed.is_empty() {
+                config.args_before_prompt = parsed;
+            }
+        }
+        config
+    }
+
+    /// Set working directory (e.g. from session.directory or run request). Chainable.
+    pub fn with_working_dir(mut self, dir: impl AsRef<std::path::Path>) -> Self {
+        self.working_dir = Some(dir.as_ref().to_path_buf());
+        self
+    }
+}
+
 /// Handle to a spawned process. Caller can take stdout and parse stream-json lines; kill or wait for exit.
+/// On drop, the child process is killed to prevent zombies.
 pub struct ProcessHandle {
     pub(crate) child: Child,
+}
+
+impl Drop for ProcessHandle {
+    fn drop(&mut self) {
+        if let Err(e) = self.child.start_kill() {
+            tracing::warn!("failed to kill child process on drop: {}", e);
+        }
+    }
 }
 
 impl ProcessHandle {
@@ -113,6 +162,39 @@ mod tests {
     use super::*;
     use crate::parse::parse_line;
     use tokio::io::AsyncBufReadExt;
+
+    /// Spawn with working_dir set; child runs in that directory (verify via pwd/cd).
+    #[tokio::test]
+    async fn spawn_uses_working_dir_when_set() {
+        let temp = std::env::temp_dir().join("forge_process_wd_test");
+        let _ = std::fs::create_dir_all(&temp);
+        let config = SpawnConfig {
+            command: if cfg!(target_os = "windows") {
+                "cmd".to_string()
+            } else {
+                "sh".to_string()
+            },
+            args_before_prompt: if cfg!(target_os = "windows") {
+                vec!["/c".into(), "cd".into()]
+            } else {
+                vec!["-c".into(), "pwd".into()]
+            },
+            working_dir: Some(temp.clone()),
+            ..Default::default()
+        };
+        let mut handle = spawn(&config, "", None).await.unwrap();
+        let mut stdout = handle.take_stdout().expect("stdout");
+        let mut buf = String::new();
+        let _ = tokio::io::AsyncReadExt::read_to_string(&mut stdout, &mut buf).await;
+        let _ = handle.wait().await;
+        let got = buf.trim();
+        // Child CWD should be our temp dir (path may use / or \)
+        assert!(
+            got.contains("forge_process_wd_test"),
+            "expected cwd output to contain forge_process_wd_test, got {:?}",
+            got
+        );
+    }
 
     /// Spawn a command that prints one stream-json line and exits; parse the line.
     #[tokio::test]

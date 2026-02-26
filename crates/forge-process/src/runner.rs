@@ -160,62 +160,70 @@ impl ProcessRunner {
     }
 
     /// Map a parsed stream-json event (from Agent A's parser) to ForgeEvent and emit.
-    /// Use when reading from process stdout and parsing with parse::parse_line.
+    /// Emits one ForgeEvent per content block, preserving ToolUse/ToolResult/Thinking kinds.
     pub fn emit_parsed_event(
         &self,
         session_id: &SessionId,
         _agent_id: &AgentId,
         event: &ParsedEvent,
     ) -> ForgeResult<()> {
-        let now = Utc::now();
-        let forge_event = match event {
+        match event {
             ParsedEvent::System(_) => {
                 // First system can be treated as process started; we emit only once per run elsewhere
-                return Ok(());
+                Ok(())
             }
             ParsedEvent::Assistant(p) => {
-                let content = p
-                    .message
-                    .as_ref()
-                    .map(|m| {
-                        m.content
-                            .iter()
-                            .filter_map(|c| content_block_text(c))
-                            .collect::<Vec<_>>()
-                            .join("")
-                    })
-                    .unwrap_or_default();
-                if content.is_empty() {
-                    return Ok(());
+                if let Some(ref msg) = p.message {
+                    for block in &msg.content {
+                        if let Some((kind, content)) = content_block_output(block) {
+                            self.event_bus.emit(ForgeEvent::ProcessOutput {
+                                session_id: session_id.clone(),
+                                kind,
+                                content,
+                                timestamp: Utc::now(),
+                            })?;
+                        }
+                    }
                 }
-                ForgeEvent::ProcessOutput {
-                    session_id: session_id.clone(),
-                    kind: OutputKind::Assistant,
-                    content,
-                    timestamp: now,
-                }
+                Ok(())
             }
-            ParsedEvent::User(_) => return Ok(()),
-            ParsedEvent::Result(_) => ForgeEvent::ProcessCompleted {
+            ParsedEvent::User(_) => Ok(()),
+            ParsedEvent::Result(_) => self.event_bus.emit(ForgeEvent::ProcessCompleted {
                 session_id: session_id.clone(),
                 exit_code: 0,
-                timestamp: now,
-            },
-            ParsedEvent::Error(p) => ForgeEvent::ProcessFailed {
+                timestamp: Utc::now(),
+            }),
+            ParsedEvent::Error(p) => self.event_bus.emit(ForgeEvent::ProcessFailed {
                 session_id: session_id.clone(),
                 error: p.message.clone().unwrap_or_else(|| "unknown error".into()),
-                timestamp: now,
-            },
-        };
-        self.event_bus.emit(forge_event)
+                timestamp: Utc::now(),
+            }),
+        }
     }
 }
 
-fn content_block_text(block: &ContentBlock) -> Option<String> {
+/// Map a ContentBlock to (OutputKind, content string). Returns None for empty blocks.
+fn content_block_output(block: &ContentBlock) -> Option<(OutputKind, String)> {
     match block {
-        ContentBlock::Text { text } => Some(text.clone()),
-        ContentBlock::Thinking { thinking } => Some(thinking.clone()),
-        ContentBlock::ToolUse { .. } | ContentBlock::ToolResult { .. } => None,
+        ContentBlock::Text { text } if !text.is_empty() => {
+            Some((OutputKind::Assistant, text.clone()))
+        }
+        ContentBlock::Thinking { thinking } if !thinking.is_empty() => {
+            Some((OutputKind::Thinking, thinking.clone()))
+        }
+        ContentBlock::ToolUse { name, input, .. } => {
+            let tool_name = name.as_deref().unwrap_or("unknown");
+            let input_str = input
+                .as_ref()
+                .map(|v| serde_json::to_string(v).unwrap_or_default())
+                .unwrap_or_default();
+            Some((OutputKind::ToolUse, format!("{}({})", tool_name, input_str)))
+        }
+        ContentBlock::ToolResult { content, is_error, .. } => {
+            let prefix = if *is_error == Some(true) { "[error] " } else { "" };
+            Some((OutputKind::ToolResult, format!("{}{}", prefix, content)))
+        }
+        _ => None,
     }
 }
 

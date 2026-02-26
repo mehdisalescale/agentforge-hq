@@ -1,8 +1,22 @@
 # Claude Forge -- Reference Repository Registry
 
-> Canonical registry of all 61 repos. Tracks what to extract and absorption status.
+> Canonical registry of all 62 repos. Tracks what to extract and absorption status.
 > Source: `/Users/bm/claude-parent/refrence-repo/`
 > All repos: `origin` = `git@github.com:zixelfreelance/<name>.git`, `upstream` = original author
+
+---
+
+## Trend (26-feb) enhancement repos
+
+Additional repos from a separate trend set (**26-feb**) can enhance Forge with patterns, skills, and design — not part of the 62 submodule set. **Full map:** [08-reference/TREND_26FEB_ENHANCEMENT_MAP.md](08-reference/TREND_26FEB_ENHANCEMENT_MAP.md).
+
+**Suggested order:** Use **claude-flow** and **Agent-Skills-for-Context-Engineering** (and **superpowers**) first for design and skill content; then **ruvector** for semantic search and **Scrapling** for an MCP scrape tool in Phase 2.
+
+| Impact | Repos |
+|--------|--------|
+| High | claude-flow (orchestration, plugin microkernel, MCP-first, event sourcing), ruvector (Rust vector/semantic search), deer-flow (sub-agent, skills, context), superpowers (spec→TDD workflow, skills), Agent-Skills-for-Context-Engineering (skill content, context optimization) |
+| Medium | cc-switch (multi-provider UX), Scrapling (MCP fetch/scrape tool) |
+| Later | SpacetimeDB (real-time DB), moonshine (voice), learning/ (minibooks per repo) |
 
 ---
 
@@ -143,3 +157,4 @@ When a repo's patterns are absorbed into Forge:
 
 ### Absorbed So Far
 _None yet. Absorption begins with Phase 0._
+

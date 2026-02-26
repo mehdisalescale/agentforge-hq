@@ -323,8 +323,8 @@ Example: forge_create_agent({ name: "reviewer", model: "sonnet" }) -> { id: "abc
 
 | # | Criterion | Pass Condition |
 |---|-----------|----------------|
-| 6.1 | Dark theme works | Component renders correctly in dark mode |
-| 6.2 | Light theme works | Component renders correctly in light mode |
+| 6.1 | Dark theme works | Component renders correctly in dark mode (Phase 0 canonical: dark only) |
+| 6.2 | Light theme works | Component renders correctly in light mode (Phase 2+; optional for Phase 0) |
 | 6.3 | Keyboard navigable | All interactive elements are reachable via keyboard |
 | 6.4 | Focus visible | Focused elements have visible focus indicators |
 | 6.5 | Responsive layout | Component works at 1024px, 1440px, and 1920px widths |

@@ -1,0 +1,19 @@
+# Rust
+target/
+
+# Environment / secrets
+.env
+.env.*
+*.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Svelte / Node (root-level if any)
+node_modules/
+dist/
+.svelte-kit/

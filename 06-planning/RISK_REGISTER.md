@@ -156,7 +156,7 @@ Legend:
 |-------|-------|
 | **ID** | R09 |
 | **Category** | Strategic |
-| **Description** | Absorbing 61 reference repos into ~33K LOC creates pressure to implement every feature from every repo. This could balloon the scope far beyond 32 weeks, resulting in a perpetually unfinished project. |
+| **Description** | Absorbing 62 reference repos into ~33K LOC creates pressure to implement every feature from every repo. This could balloon the scope far beyond 32 weeks, resulting in a perpetually unfinished project. |
 | **Likelihood** | 3 (Possible) |
 | **Impact** | 3 (Moderate) |
 | **Risk Score** | 9 |

@@ -6,7 +6,7 @@ pub mod validation;
 
 pub use model::{Agent, NewAgent, UpdateAgent, DEFAULT_MODEL};
 pub use preset::{AgentPreset, PresetDefaults};
-pub use validation::validate_new_agent;
+pub use validation::{validate_new_agent, validate_update_agent};
 
 #[cfg(test)]
 mod tests {

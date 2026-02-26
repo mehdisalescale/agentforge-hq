@@ -1,0 +1,21 @@
+[package]
+name = "forge-api"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+forge-core = { path = "../forge-core" }
+forge-agent = { path = "../forge-agent" }
+forge-db = { path = "../forge-db" }
+forge-process = { path = "../forge-process" }
+axum = { workspace = true }
+tower-http = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+tracing = "0.1"
+futures-util = "0.3"
+tower = { version = "0.4", features = ["util"] }
+http = "1"

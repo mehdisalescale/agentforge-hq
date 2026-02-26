@@ -343,7 +343,7 @@ No direct competitor has a comprehensive safety engine with circuit breakers, co
 
 ### 5.4 The Absorption Strategy
 
-No competitor has systematically analyzed and absorbed the patterns from 61+ reference repositories. Others build from scratch or from their own narrow experience. Forge stands on the shoulders of 200K+ lines of community-proven code.
+No competitor has systematically analyzed and absorbed the patterns from 62 reference repositories. Others build from scratch or from their own narrow experience. Forge stands on the shoulders of 200K+ lines of community-proven code.
 
 **Why it matters:** This is a 12-18 month head start on feature development. Reimplementing these patterns from scratch would require a team of 10+ engineers working for a year.
 
@@ -407,7 +407,7 @@ Honest assessment of competitive disadvantages:
 
 1. **Open source trust:** Auditable code for a tool that has root access to codebases
 2. **Single-binary distribution:** Architecturally difficult to replicate without ground-up rewrite
-3. **61-repo absorption:** 12-18 month head start on feature consolidation
+3. **62-repo absorption:** 12-18 month head start on feature consolidation
 4. **Safety-first architecture:** Structural safety that cannot be easily retrofitted
 5. **MCP dual-mode:** Both platform and tool, doubling addressable market
 

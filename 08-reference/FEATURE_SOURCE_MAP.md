@@ -1,6 +1,6 @@
 # Feature Source Map
 
-> Complete mapping of all 61 reference repositories to the features they contribute to Claude Forge.
+> Complete mapping of all 62 reference repositories to the features they contribute to Claude Forge.
 
 ---
 
@@ -70,7 +70,7 @@
 | 60 | claude-coder | 13-Misc | Mockup-to-code, all-level UX | UI Framework | UI | P3 |
 | 61 | -- | -- | -- | -- | -- | -- |
 
-Note: Row 61 is a placeholder. The 61st repo count includes the category README files and overlapping entries. All unique repos are listed above (60 individual repositories).
+Note: Row 61 is a placeholder. The 62nd repo count includes the category README files and overlapping entries. All unique repos are listed above (60 individual repositories).
 
 ---
 

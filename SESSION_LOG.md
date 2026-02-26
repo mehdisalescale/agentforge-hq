@@ -5,6 +5,48 @@
 
 ---
 
+### Session 9 -- 2026-02-26 -- Agent A handoff (Track A: spawn + stream-json)
+- **Branch**: `main`
+- **What was done** (Agent A summary recorded):
+  - **forge-process**: SpawnConfig (command, args_before_prompt, working_dir, env_remove, env_set), spawn(config, prompt, session_id) → ProcessHandle (take_stdout, kill, wait, id). stream_event.rs + parse.rs: StreamJsonEvent (System, Assistant, User, Result, Error), ContentBlock, parse_line(). No EventBus in crate; runner (B) maps via emit_parsed_event. 11 tests (parse + spawn).
+- **Commit**: 5c19ea7 feat(process): spawn + stream-json parsing (Agent A)
+- **Next sprint**: Agent A = SpawnConfig overrides (env/agent), working_dir from session/request. See NEXT_SPRINT_AGENT_TASKS.md.
+
+---
+
+### Session 8 -- 2026-02-26 -- Run endpoint (Track D) implementation
+- **Branch**: `main`
+- **Duration**: ~15m
+- **What was done**:
+  - forge-api: added `forge-process` dep, `routes/run.rs` — POST `/api/v1/run` (RunRequest: agent_id, prompt, session_id?); create or resolve session, ProcessRunner::emit_stub_run, 202 + session_id
+  - Test `run_returns_202_and_session_id`; workspace tests and clippy pass
+  - PHASE1_6_AGENT_SPRINT: Track D and implementation status set to Done; E2E note updated
+- **What's next**:
+  - Wire real spawn in run handler (spawn CLI, parse stdout, emit_parsed_event) for live streaming
+  - E2E smoke: create agent → run prompt → see stream → list session → resume/export
+- **Blockers**: None
+- **Files touched**: forge-api (Cargo.toml, routes/run.rs, routes/mod.rs, lib.rs), PHASE1_6_AGENT_SPRINT.md
+- **Commit**: efcd83c feat(api): add POST /api/v1/run endpoint (Track D)
+
+---
+
+### Session 7 -- 2026-02-26 -- Phase 1 code audit and doc sync
+- **Branch**: `main`
+- **Duration**: ~15m
+- **What was done**:
+  - Inspected forge-project codebase (no reliance on docs): forge-process (spawn, stream_event, parse, runner), forge-db (SessionRepo), forge-api (routes: health, agents, sessions, ws), frontend (agents, run, sessions pages, api.ts)
+  - Track C (Sessions): confirmed implemented — SessionRepo + session routes + export; documented in PHASE1_6_AGENT_SPRINT
+  - Track D (Run endpoint): not present — no POST /api/v1/run; frontend runAgent() expects it; table and Section 2 updated to "Not implemented"
+  - Added "Implementation status (code audit)" table to PHASE1_6_AGENT_SPRINT (date, file refs, blocker note)
+  - NORTH_STAR: added "Phase 1 sprint status (forge-project codebase)" with audit summary and link to sprint doc
+- **What's next**:
+  - Implement POST /api/v1/run (done in Session 8); then wire real spawn for live streaming
+  - E2E: create agent → run prompt → stream → list session → resume/export
+- **Blockers**: None
+- **Files touched**: PHASE1_6_AGENT_SPRINT.md, NORTH_STAR.md, SESSION_LOG.md
+
+---
+
 ## Session Format
 
 ```
@@ -21,18 +63,82 @@
 
 ---
 
+### Session 6 -- 2026-02-26 -- Audit Remediation (docs)
+- **Branch**: `main`
+- **Duration**: ~20m
+- **What was done**:
+  - Global 61 → 62 repo count across 15+ docs (NORTH_STAR, ROADMAP, PRD, REFERENCE_REPOS, SESSION_LOG, RISK_REGISTER, TECH_REFERENCES, FEATURE_SOURCE_MAP, WARDLEY_MAP, VALUE_PROPOSITION, ABSORPTION_PIPELINE, COMPETITIVE_LANDSCAPE, MARKET_ANALYSIS, PRODUCT_PRINCIPLES, VISION_AND_MISSION, FEATURE_CATALOG)
+  - Removed 3 redundant files: PHASE0_PLAN_FOR_CLAUDE.md, PHASE0_PARALLEL_TRACKS.md, PARALLEL_AGENTS.md
+  - SPRINT_PLAN.md: Sprint Calendar and S1/S2 aligned with ROADMAP; from-scratch language; deliverables 8 crates
+  - MILESTONES.md: 9 milestones (M0–M8); added M1 Agent Engine; renumbered M2–M8; from-scratch deliverables; dependency chain updated
+  - FEATURE_CATALOG.md: Total 213 → 305; SK-002 "500+ skills" → "1,500+ skills"; all summary tables updated
+  - NORTH_STAR already had "What's Built" (forge-core, forge-agent, forge-db); SESSION_LOG appended Sessions 5 and 6
+- **What's next**:
+  - Finish SPRINT_PLAN S3–S12 from-scratch alignment
+  - Rust/workspace fixes (Cargo.toml, rusqlite, batch_writer, agents.rs, validation)
+  - Architecture doc conflicts (API v1, FTS5=3, DATA_MODEL/EVENT_SYSTEM Phase 0 notes, PRD Rust 1.85+, theme)
+  - AUDIT_REMEDIATION checkboxes and completion
+- **Blockers**: None
+- **Files touched**: Multiple docs; AUDIT_REMEDIATION.md (checkboxes updated)
+
+---
+
+### Session 5 -- 2026-02-26 -- 4-Agent Phase 0 Delivery
+- **Branch**: `main` (or feat/phase0)
+- **Duration**: ~multi-session
+- **What was done**:
+  - Agent D: Scaffold (workspace, Cargo.toml, crate stubs)
+  - Agent A: forge-core (IDs, ForgeEvent, EventBus, EventSink, ForgeError)
+  - Agent B: forge-agent (Agent, NewAgent, UpdateAgent, 9 presets, validation)
+  - Agent C: forge-db (DbPool, migrations, BatchWriter, AgentRepo, EventRepo, FTS5)
+  - Fixes applied: forge-agent preset.rs duplicate block removed; forge-db migration path and AgentRepo::get() return type fixed
+  - AGENT_WORK_CHECK.md and PHASE0_SHARED_CONTRACT.md / CURSOR_AGENT_PROMPTS.md used for coordination
+- **What's next**:
+  - Agent D (second pass): forge-api, forge-app, frontend shell
+  - Phase 0 completion: layering fixes, workspace.dependencies, remaining crates
+- **Blockers**: None
+- **Files touched**: `crates/forge-core`, `crates/forge-agent`, `crates/forge-db`, migrations, AGENT_WORK_CHECK.md
+
+---
+
+### Session 4 -- 2026-02-26 -- Code Audit & Doc Update
+- **Branch**: `main`
+- **Duration**: ~15m
+- **What was done**:
+  - Discovered Phase 0 code already exists in `forge-project/crates/` (3 of 8 crates)
+  - Full audit of forge-core (IDs, events, event bus, errors), forge-agent (model, presets, validation), forge-db (pool, migrations, batch writer, repos)
+  - Migration SQL reviewed: covers all phases (agents, sessions, events, workflows, skills, schedules, audit_log, config, 3 FTS5 tables)
+  - Identified 7 issues:
+    1. forge-core depends on rusqlite (layering violation)
+    2. validate_update_agent not exported/used
+    3. No workspace.dependencies in Cargo.toml
+    4. Preset serialization uses Debug format
+    5. DbPool is single-connection Mutex, not a pool
+    6. StoredEvent uses raw String IDs
+    7. 5 of 8 planned crates not yet built
+  - Updated NORTH_STAR.md: "What's Built" section, priority table with actual status
+- **What's next**:
+  - Fix layering: extract rusqlite from forge-core error type
+  - Wire up validate_update_agent in AgentRepo::update
+  - Add [workspace.dependencies] to Cargo.toml
+  - Build remaining 5 crates (forge-api, forge-app, forge-process, forge-safety, forge-mcp)
+- **Blockers**: None
+- **Files touched**: `NORTH_STAR.md`, `SESSION_LOG.md`
+
+---
+
 ### Session 3 -- 2026-02-25 -- Development Control System
 - **Branch**: `main`
 - **Duration**: ~20m
 - **What was done**:
   - Created `NORTH_STAR.md` (single source of truth for all sessions)
   - Created `SESSION_LOG.md` (this file)
-  - Created `REFERENCE_REPOS.md` (canonical 61-repo registry with absorption status)
+  - Created `REFERENCE_REPOS.md` (canonical 62-repo registry with absorption status)
   - Designed session protocol for parallel development
   - Reviewed all 34 forge-project docs for quality (found 12 specific gaps)
   - Identified top 10 Tier-1 repos for immediate extraction
 - **What's next**:
-  - Implement `.gitmodules` for the 61 reference repos
+  - Implement `.gitmodules` for the 62 reference repos
   - Set up CI/CD GitHub Actions (from `05-engineering/CI_CD.md` spec)
   - Finish session browser frontend (P0)
 - **Blockers**: None
@@ -65,7 +171,7 @@
 - **What was done**:
   - Initialized repository structure
   - Set up MkDocs Material configuration
-  - Extracted reference data from 61 repos into `docs/reference/`
+  - Extracted reference data from 62 repos into `docs/reference/`
   - Created `scripts/` for repo management
   - Added `PLAN.md`, `README.md`, capability map
 - **What's next**:

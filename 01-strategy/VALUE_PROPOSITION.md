@@ -140,7 +140,7 @@ Open source means:
 
 ### The Community Argument
 
-The 61 reference repositories represent hundreds of developers who have invested time solving agentic coding problems. Open source means:
+The 62 reference repositories represent hundreds of developers who have invested time solving agentic coding problems. Open source means:
 - Those developers can contribute their patterns directly to Forge
 - Bug fixes and improvements come from the community, not just one team
 - Edge cases are discovered and resolved by the users who encounter them

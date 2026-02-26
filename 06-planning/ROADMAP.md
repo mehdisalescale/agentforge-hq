@@ -1,6 +1,6 @@
 # Claude Forge -- Roadmap
 
-> **From scratch, informed by everything.** 61 reference repos, 34 design docs, existing Forge as reference.
+> **From scratch, informed by everything.** 62 reference repos, 34 design docs, existing Forge as reference.
 > 7 phases. Phases 0-5 = 1.0 release (~27 weeks). Phase 6 = post-1.0.
 > Each phase delivers a shippable binary. No phase depends on old code.
 
@@ -56,7 +56,7 @@ Week   28 29 30 31 32
 Build the workspace structure, core types, event bus, database, API skeleton, and embedded frontend shell from scratch. At the end of Phase 0, `cargo build --release` produces a single binary that serves a working (but empty) web UI.
 
 ### What We're Building New (Not Refactoring)
-This is a greenfield build. The existing Forge code and 61 reference repos are **reference material**, not starting points.
+This is a greenfield build. The existing Forge code and 62 reference repos are **reference material**, not starting points.
 
 ### Reference Material
 - **Architecture**: `03-architecture/SYSTEM_ARCHITECTURE.md` (crate map, event types, data model)
@@ -123,9 +123,12 @@ This is a greenfield build. The existing Forge code and 61 reference repos are *
    - Single binary serves UI at `http://localhost:4173`
 
 ### Deliverables
-- [ ] 8 workspace crates compile and pass tests
-- [ ] Event bus operational with batch writer
-- [ ] Full database schema with FTS5 (designed for all phases)
+- [x] ~~8~~ 3 workspace crates compile and pass tests (forge-core, forge-agent, forge-db)
+- [x] Event bus operational with batch writer
+- [x] Full database schema with FTS5 (designed for all phases)
+- [ ] Remaining 5 crates (forge-api, forge-app, forge-process, forge-safety, forge-mcp)
+- [ ] Fix forge-core rusqlite layering violation
+- [ ] Add [workspace.dependencies] for shared dep versions
 - [ ] API skeleton with health check and WebSocket
 - [ ] Frontend shell served from single binary
 - [ ] CI pipeline green (`cargo test`, `cargo clippy`, `cargo build --release`)
@@ -586,7 +589,7 @@ Weeks  19-24: Phase 5 (Plugins + Polish + 1.0 Release)
 
 | Decision | Rationale | Date |
 |----------|-----------|------|
-| Start from scratch (not refactor) | 61-repo analysis revealed architecture needs new foundation; existing code designed before full knowledge | 2026-02-25 |
+| Start from scratch (not refactor) | 62-repo analysis revealed architecture needs new foundation; existing code designed before full knowledge | 2026-02-25 |
 | 8 crates initially (not 12) | Fewer crates = faster builds, cleaner boundaries; split later if needed | 2026-02-25 |
 | Phase 4 parallel with Phase 2 | Safety/MCP has no workflow dependency; saves 4 weeks on critical path | 2026-02-25 |
 | Schema designed upfront (Phase 0) | Avoid migration pain; study all phase requirements first | 2026-02-25 |

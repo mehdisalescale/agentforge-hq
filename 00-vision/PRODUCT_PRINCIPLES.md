@@ -8,7 +8,7 @@ These principles govern every design decision, feature prioritization, and code 
 
 **Statement:** Forge ships as one compiled binary with no external dependencies. `cargo install claude-forge` must produce a working system with embedded UI, SQLite database, MCP server, 100+ agent presets, and sane defaults -- requiring zero configuration files, no Docker, no Node.js runtime, no database server, and no reverse proxy.
 
-**Why it matters:** The #1 reason developers abandon tools is installation friction. Every dependency is a potential failure point, a version conflict, a platform incompatibility. The 61 reference repos collectively require Node.js, Python, Docker, PostgreSQL, Redis, and various system libraries. Forge requires `cargo install` or a downloaded binary.
+**Why it matters:** The #1 reason developers abandon tools is installation friction. Every dependency is a potential failure point, a version conflict, a platform incompatibility. The 62 reference repos collectively require Node.js, Python, Docker, PostgreSQL, Redis, and various system libraries. Forge requires `cargo install` or a downloaded binary.
 
 **In practice:**
 - The Svelte frontend is compiled to static assets and embedded via `rust-embed` at build time
@@ -77,7 +77,7 @@ These principles govern every design decision, feature prioritization, and code 
 
 **Statement:** When a reference repository has solved a problem well, absorb its pattern into Forge. Do not reinvent from scratch. Give credit. Preserve the insight while improving the implementation.
 
-**Why it matters:** The 61 reference repos represent years of collective problem-solving. Reinventing their solutions wastes time and ignores hard-won knowledge. Our value is unification and polish, not novelty for its own sake. The best code is code someone else already debugged.
+**Why it matters:** The 62 reference repos represent years of collective problem-solving. Reinventing their solutions wastes time and ignores hard-won knowledge. Our value is unification and polish, not novelty for its own sake. The best code is code someone else already debugged.
 
 **In practice:**
 - Before building a feature, audit the reference repos for existing implementations

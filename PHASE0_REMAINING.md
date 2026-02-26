@@ -1,14 +1,13 @@
 # Phase 0 Remaining Work
 
-> Phase 0 is **~40% done**. This doc is the ordered checklist for the next 3–4 sessions.
-> After Phase 0, the roadmap continues with **Phase 1: Agent Engine** (weeks 5–8) — agent CRUD API wired to UI, process spawning, real-time streaming, session management.
+> **Phase 0 is complete.** Runnable stack: **claude-forge** (8 crates, binary `./forge`, port 4173). forge-project holds planning, frontend, and docs. Next: **Phase 1: Agent Engine** (weeks 5–8) — process spawning, real-time streaming, session management. Design refs: [docs/PHASE1_DESIGN_NOTES.md](docs/PHASE1_DESIGN_NOTES.md), [08-reference/TREND_26FEB_ENHANCEMENT_MAP.md](08-reference/TREND_26FEB_ENHANCEMENT_MAP.md).
 
 ---
 
 ## Progress
 
-- **Done:** forge-core, forge-agent, forge-db (3/8 crates), full schema, migrations, batch writer, AgentRepo, EventRepo, FTS5 stubs
-- **Remaining:** foundational fixes → 5 new crates → frontend shell + single binary
+- **Done:** Foundational fixes; 8 crates (forge-core, forge-agent, forge-db, forge-api, forge-process, forge-safety, forge-mcp, forge-app); **forge-app** binary (Agent A: main, migrations, EventBus, AgentRepo, `forge_api::serve` on 4173, API-only); frontend shell (Agent B: SvelteKit, `frontend/build/`); rust-embed + single binary (Agent C); Phase 0 checklist + Phase 1 design notes (Agent D). See [CHECKLIST_RESULTS.md](CHECKLIST_RESULTS.md).
+- **Remaining:** None for Phase 0. Next: Phase 1 (Agent Engine).
 
 ---
 
@@ -36,8 +35,8 @@
 - [x] **SvelteKit project** with `adapter-static` — `frontend/`, output in `frontend/build/` (Agent B).
 - [x] **Layout shell:** sidebar, main content area, status bar (Agent B).
 - [x] **Empty pages:** Dashboard, Agents, Sessions, Workflows, Skills, Settings (Agent B).
-- [ ] **rust-embed** to serve frontend from the binary (Agent C — use `frontend/build/`).
-- [ ] **`cargo build --release`** produces working single binary.
+- [x] **rust-embed** to serve frontend from the binary (Agent C — `frontend/build/`).
+- [x] **`cargo build --release`** produces working single binary (`./forge` in claude-forge).
 
 ---
 
@@ -48,7 +47,7 @@
 - [x] All 8 crates compile; `cargo test` + `cargo clippy` clean
 - [x] Health check `GET /api/v1/health` returns OK
 
-**Verification:** See [CHECKLIST_RESULTS.md](CHECKLIST_RESULTS.md). Runnable stack is in **claude-forge**; forge-project holds planning and crate stubs.
+**Verification:** See [CHECKLIST_RESULTS.md](CHECKLIST_RESULTS.md). Runnable stack is in **claude-forge**; forge-project holds planning, frontend, and docs. **Build order:** run `pnpm build` in `frontend/` (or `make build-frontend` in claude-forge) before `cargo build --release` so `frontend/build/` exists for rust-embed.
 
 ---
 

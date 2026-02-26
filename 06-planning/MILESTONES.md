@@ -1,6 +1,6 @@
 # Claude Forge -- Milestones
 
-> 8 milestones (M0-M7) with exit criteria, demo scenarios, and acceptance checklists.
+> 9 milestones (M0-M8) with exit criteria, demo scenarios, and acceptance checklists.
 > A milestone is complete only when ALL acceptance criteria are met.
 
 ---
@@ -9,60 +9,80 @@
 
 | ID | Name | Target Week | Phase | Status |
 |----|------|------------|-------|--------|
-| M0 | Foundation Complete | Week 3 | Phase 0 | Planned |
-| M1 | Safety + MCP | Week 7 | Phase 1 | Planned |
-| M2 | Workflows + Skills | Week 12 | Phase 2 | Planned |
-| M3 | Observability + Git | Week 17 | Phase 3 | Planned |
-| M4 | Notifications + Scheduler | Week 21 | Phase 4 | Planned |
-| M5 | Plugins + Security | Week 27 | Phase 5 | Planned |
-| M6 | Dev Environment | Week 32 | Phase 6 | Planned |
-| M7 | Production Ready | Week 32+ | Post-Phase 6 | Planned |
+| M0 | Foundation Complete | Week 4 | Phase 0 | Planned |
+| M1 | Agent Engine | Week 8 | Phase 1 | Planned |
+| M2 | Safety + MCP | Week 12 | Phase 1 | Planned |
+| M3 | Workflows + Skills | Week 13 | Phase 2 | Planned |
+| M4 | Observability + Git | Week 18 | Phase 3 | Planned |
+| M5 | Notifications + Scheduler | Week 21 | Phase 4 | Planned |
+| M6 | Plugins + Security | Week 24 | Phase 5 | Planned |
+| M7 | Dev Environment | Week 29 | Phase 6 | Planned |
+| M8 | Production Ready | Week 24+ | Phase 5 / 1.0 | Planned |
 
 ---
 
 ## M0: Foundation Complete
 
-**Target:** Week 3
-**Theme:** Clean workspace structure, event bus, and database schema supporting all future features.
+**Target:** Week 4
+**Theme:** From-scratch workspace: 8 crates, event bus, full database schema, API skeleton, frontend shell.
 
 ### Deliverables Checklist
 
-- [ ] 12 workspace crates created and compiling
-- [ ] `forge-core` crate: Event types, Agent/Session/Workflow types, traits (EventSink, Repository)
-- [ ] `forge-db` crate: SQLite connection pooling, WAL mode, migration runner
-- [ ] `forge-api` crate: Axum server with existing routes migrated
-- [ ] Database v2 schema with tables for: agents, sessions, events, workflows, skills, schedules, plugins, audit_log
-- [ ] FTS5 virtual tables for: skills, sessions, events
-- [ ] Event bus: broadcast channel with filtering, batch writer (50 events / 2s flush)
-- [ ] All existing features working: agent CRUD, process spawning, WebSocket streaming, session browser
-- [ ] `forge-test-utils` crate with TestDb, fixtures, builders
-- [ ] CI pipeline: fmt, clippy, nextest, build
+- [ ] 8 workspace crates created and compiling (forge-core, forge-db, forge-api, forge-agent, forge-process, forge-safety, forge-mcp, forge-app)
+- [ ] `forge-core`: ForgeEvent (all variants), IDs, ForgeError, EventBus, EventSink
+- [ ] `forge-db`: SQLite pool (WAL), migration runner, full schema (agents, sessions, events, workflows, skills, etc.), FTS5 (skills_fts, sessions_fts, events_fts), batch writer (50 events / 2s), AgentRepo
+- [ ] `forge-api`: Axum server, health, agent CRUD routes, WebSocket (event stream)
+- [ ] `forge-agent`: Agent, NewAgent, UpdateAgent, 9 presets, validation
+- [ ] `forge-app`: CLI, startup (migrations, EventBus, BatchWriter, routes), rust-embed frontend
+- [ ] Frontend shell: SvelteKit, layout, Agents CRUD page, WebSocket store
+- [ ] CI pipeline: fmt, clippy, test, build
 - [ ] `#![forbid(unsafe_code)]` in all workspace crates
 
 ### Demo Scenario
 
-> Start the Forge binary. Create an agent via the UI. Run the agent with a prompt.
-> See real-time output streaming via WebSocket. Verify the agent and events are
-> persisted in the database. Stop the binary and restart -- data is preserved.
-> Run `cargo test --workspace` -- all tests pass. Run `cargo clippy --workspace` -- no warnings.
+> Start the Forge binary. Create an agent via the UI. Verify the agent is persisted.
+> Open WebSocket; receive AgentCreated event. Restart binary; data is preserved.
+> Run `cargo test --workspace` — all tests pass. Run `cargo clippy --workspace` — no warnings.
 
 ### Acceptance Criteria
 
 1. `cargo build --release` produces a single binary under 40 MB.
 2. The binary starts and serves the UI at `http://localhost:4173`.
-3. All pre-refactor features pass manual smoke testing.
+3. Agent CRUD works via API and UI; events flow to WebSocket and batch writer.
 4. `cargo test --workspace` passes with zero failures.
 5. `cargo clippy --workspace -- -D warnings` produces zero warnings.
-6. Database migration from v1 to v2 succeeds without data loss (tested on a real DB).
+6. Database migration applies to empty DB and is idempotent.
 7. Event bus delivers events to WebSocket clients with < 10ms latency.
 8. Batch writer flushes 50 events in a single transaction in < 50ms.
 9. FTS5 search returns results for test queries in < 20ms.
 
 ---
 
-## M1: Safety + MCP
+## M1: Agent Engine
 
-**Target:** Week 7
+**Target:** Week 8
+**Theme:** Process spawning, real-time streaming, session management, multi-pane UI.
+
+### Deliverables Checklist
+
+- [ ] `forge-process`: spawn Claude CLI, stream-json parsing, lifecycle (start, complete, fail)
+- [ ] Process output → EventBus → WebSocket → frontend (Markdown, code blocks, tool calls)
+- [ ] Session CRUD, resume (--resume), export (JSON/Markdown)
+- [ ] Multi-pane layout: run multiple agents side-by-side
+- [ ] 9 agent presets usable; session browser
+
+### Acceptance Criteria
+
+1. Create agent, send prompt; streaming response appears within 2 seconds.
+2. Session resume continues previous conversation.
+3. Three agents run in parallel, each streaming independently.
+4. Export produces valid JSON and readable Markdown.
+
+---
+
+## M2: Safety + MCP
+
+**Target:** Week 12
 **Theme:** Agents operate within safety boundaries. External tools connect via MCP.
 
 ### Deliverables Checklist
@@ -108,9 +128,9 @@
 
 ---
 
-## M2: Workflows + Skills
+## M3: Workflows + Skills
 
-**Target:** Week 12
+**Target:** Week 13
 **Theme:** Multi-step automated workflows and a searchable catalog of 1,537 skills.
 
 ### Deliverables Checklist
@@ -162,9 +182,9 @@
 
 ---
 
-## M3: Observability + Git
+## M4: Observability + Git
 
-**Target:** Week 17
+**Target:** Week 18
 **Theme:** Full operational visibility and native git integration.
 
 ### Deliverables Checklist
@@ -215,7 +235,7 @@
 
 ---
 
-## M4: Notifications + Scheduler
+## M5: Notifications + Scheduler
 
 **Target:** Week 21
 **Theme:** Unattended operation with automatic notifications and scheduled executions.
@@ -268,9 +288,9 @@
 
 ---
 
-## M5: Plugins + Security
+## M6: Plugins + Security
 
-**Target:** Week 27
+**Target:** Week 24
 **Theme:** Community extensibility via WASM plugins, production-grade security, and polish.
 
 ### Deliverables Checklist
@@ -327,9 +347,9 @@
 
 ---
 
-## M6: Dev Environment
+## M7: Dev Environment
 
-**Target:** Week 32
+**Target:** Week 29
 **Theme:** Full development environment within Forge -- code viewing, terminal, and file exploration.
 
 ### Deliverables Checklist
@@ -381,9 +401,9 @@
 
 ---
 
-## M7: Production Ready
+## M8: Production Ready
 
-**Target:** Post-Week 32 (1.0 release prep)
+**Target:** Week 24+ (1.0 release prep)
 **Theme:** Production hardening, documentation, and release infrastructure.
 
 ### Deliverables Checklist
@@ -434,27 +454,23 @@
 ## Milestone Dependency Chain
 
 ```
-M0 (Foundation) ---- required for all subsequent milestones
+M0 (Foundation) ---- required for all
   |
-  +---> M1 (Safety + MCP)
+  +---> M1 (Agent Engine)
   |       |
-  |       +---> M2 (Workflows + Skills)
+  +---> M2 (Safety + MCP)     M3 (Workflows + Skills)  [parallel]
+  |       |                           |
+  |       +---> M4 (Observability + Git)
   |       |       |
-  |       |       +---> M3 (Observability + Git)
-  |       |       |       |
-  |       |       |       +---> M6 (Dev Environment)
-  |       |       |
-  |       |       +---> M4 (Notifications + Scheduler)
+  |       |       +---> M7 (Dev Environment)
   |       |
-  |       +---> M5 (Plugins + Security)
+  +---> M5 (Notifications)    M6 (Plugins + Security)
   |
-  +---> M7 (Production Ready) ---- requires ALL milestones M0-M6
+  +---> M8 (Production Ready) ---- requires M0–M7
 ```
 
-**Key constraints:**
-- M2 requires M1 (safety controls limit workflow costs)
-- M3 requires M1 (cost data flows from safety crate)
-- M4 requires M2 (scheduled workflows need workflow engine)
-- M5 requires M1 (plugin resource limits use safety infrastructure)
-- M6 requires M3 (diff viewer uses git integration)
-- M7 requires everything (production readiness validates all features)
+**Key constraints (aligned with ROADMAP):**
+- M1 requires M0. M2 and M3 can follow M1 in parallel (weeks 9–13).
+- M4 requires M1 (observability uses agent events).
+- M6 (Plugins) and M5 (Notifications) build on M2/M3.
+- M8 requires all prior milestones.

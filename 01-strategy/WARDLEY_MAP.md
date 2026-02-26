@@ -72,7 +72,7 @@ GENESIS (Invest heavily -- these ARE the moat)
 | Agent Coordination     - Multi-agent handoff, broadcast |
 |   Protocol               groups -- purpose-built for    |
 |                          coding workflows.              |
-| 61-Repo Absorption     - Systematic pattern extraction  |
+| 62-Repo Absorption     - Systematic pattern extraction  |
 |   Strategy               from entire ecosystem.         |
 |                          Unique methodology.            |
 |---------------------------------------------------------|
@@ -253,7 +253,7 @@ COMMODITY (Use off-the-shelf -- zero custom work)
 
 ### Move 2: Absorb the Reference Repos (Month 2 - Month 6)
 
-**What:** Systematically extract patterns from all 61 reference repos and implement them in Forge. Prioritize by user impact: presets and session management first, then git integration and plugins.
+**What:** Systematically extract patterns from all 62 reference repos and implement them in Forge. Prioritize by user impact: presets and session management first, then git integration and plugins.
 
 **Why:** The absorption strategy is Forge's primary feature development accelerator. Each absorbed pattern is a feature that would otherwise take weeks to design from scratch. The reference repos have already validated the design with real users.
 
@@ -355,4 +355,4 @@ The competitor who bridges the full gap first wins. Partial bridges (multi-agent
 | Market timing | Favorable | 18-24 month window, act now |
 | Competitive position | Unique combination | No single competitor matches all features |
 | Biggest risk | Execution speed | Must ship before window closes |
-| Biggest advantage | 61-repo absorption | 12-18 month feature head start |
+| Biggest advantage | 62-repo absorption | 12-18 month feature head start |

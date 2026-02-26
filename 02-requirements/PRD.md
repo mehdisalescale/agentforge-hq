@@ -22,14 +22,14 @@
 
 ### 1.1 Vision
 
-Claude Forge is the ultimate agentic coding platform -- a single Rust binary that absorbs the capabilities of 61 reference repositories in the Claude Code ecosystem into one unified tool. It operates in two modes simultaneously:
+Claude Forge is the ultimate agentic coding platform -- a single Rust binary that absorbs the capabilities of 62 reference repositories in the Claude Code ecosystem into one unified tool. It operates in two modes simultaneously:
 
 - **Direction A (Platform)**: A complete agentic coding environment with a Rust/Axum backend and embedded Svelte 5 UI, served as a single binary with no external dependencies.
 - **Direction B (MCP Server)**: A Model Context Protocol server that exposes all platform capabilities as tools, resources, and prompts -- enabling any other AI system to use Forge as a meta-agentic building block.
 
 ### 1.2 Problem Statement
 
-The Claude Code ecosystem contains 61+ community repositories, each solving a narrow slice of the agentic coding problem. Developers must discover, evaluate, install, and integrate multiple tools to get:
+The Claude Code ecosystem contains 62 community repositories, each solving a narrow slice of the agentic coding problem. Developers must discover, evaluate, install, and integrate multiple tools to get:
 
 - Agent orchestration with safety guardrails
 - Session management with search and scheduling
@@ -75,7 +75,7 @@ See [USER_PERSONAS.md](USER_PERSONAS.md) for detailed persona profiles.
 ### 1.6 Target State
 
 - ~33,000 lines of code
-- 200+ features absorbed from 61 reference repositories
+- 200+ features absorbed from 62 reference repositories
 - 12 bounded contexts fully implemented
 - Dual-mode operation: embedded UI + MCP server
 - Production-grade reliability: circuit breaker, rate limiter, file protection
@@ -86,7 +86,7 @@ See [USER_PERSONAS.md](USER_PERSONAS.md) for detailed persona profiles.
 
 ### OKR 1: Complete Feature Absorption
 
-**Objective**: Absorb all critical features from the 61-repository ecosystem into a single binary.
+**Objective**: Absorb all critical features from the 62-repository ecosystem into a single binary.
 
 | Key Result | Metric | Target |
 |------------|--------|--------|
@@ -1098,7 +1098,7 @@ Forge's MCP server shall be compatible with major MCP clients.
 
 | Tool | Purpose | Version |
 |------|---------|---------|
-| Rust / Cargo | Backend compilation | 1.75+ (2024 edition) |
+| Rust / Cargo | Backend compilation | 1.85+ (2024 edition) |
 | Node.js | Frontend build | 22+ (via mise) |
 | pnpm | Package management | Latest (via mise) |
 
@@ -1130,4 +1130,4 @@ Forge's MCP server shall be compatible with major MCP clients.
 | [USER_PERSONAS.md](USER_PERSONAS.md) | Detailed user persona profiles |
 | [USER_STORIES.md](USER_STORIES.md) | Comprehensive user stories organized by epic |
 | [FEATURE_CATALOG.md](FEATURE_CATALOG.md) | Complete catalog of 200+ features with priority and effort |
-| [Reference Repository Map](../../reference-map/README.md) | Analysis of all 61 source repositories |
+| [Reference Repository Map](../../reference-map/README.md) | Analysis of all 62 source repositories |

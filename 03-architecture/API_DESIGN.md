@@ -3,6 +3,8 @@
 > REST + WebSocket API specification for the multi-agent Claude Code orchestrator.
 > Base URL: `http://127.0.0.1:4173` | WebSocket: `ws://127.0.0.1:4173/ws`
 
+**Phase 0 canonical:** Implemented API uses versioned prefix `/api/v1/` (e.g. `GET /api/v1/health`, `GET/POST/PUT/DELETE /api/v1/agents`, `GET /api/v1/ws` for WebSocket). This document uses unversioned `/api/*` in examples; treat `/api/v1/` as the current standard.
+
 ---
 
 ## Table of Contents

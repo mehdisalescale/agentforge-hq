@@ -3,7 +3,7 @@
 
 use forge_api::{serve, AppState};
 use forge_core::EventBus;
-use forge_db::{AgentRepo, DbPool, Migrator};
+use forge_db::{AgentRepo, DbPool, EventRepo, Migrator, SessionRepo};
 use std::env;
 use std::path::Path;
 use std::sync::Arc;
@@ -38,9 +38,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         }
     }
 
-    let agent_repo = AgentRepo::new(db.conn_arc());
+    let conn_arc = db.conn_arc();
+    let agent_repo = AgentRepo::new(Arc::clone(&conn_arc));
+    let session_repo = SessionRepo::new(Arc::clone(&conn_arc));
+    let event_repo = EventRepo::new(Arc::clone(&conn_arc));
     let event_bus = EventBus::new(16);
-    let state = AppState::new(Arc::new(agent_repo), Arc::new(event_bus));
+    let state = AppState::new(
+        Arc::new(agent_repo),
+        Arc::new(session_repo),
+        Arc::new(event_repo),
+        Arc::new(event_bus),
+    );
 
     let addr: SocketAddr = "127.0.0.1:4173".parse()?;
     info!(%addr, "starting API server (no frontend)");

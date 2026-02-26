@@ -3,6 +3,8 @@
 > Event architecture: types, flows, persistence, streaming, replay, and cross-context contracts.
 > The event bus is the backbone of Forge -- every agent interaction is an immutable event.
 
+**Phase 0 / current implementation:** The canonical event type is the **ForgeEvent** typed enum (system, agent, process, session, workflow, safety variants). Events flow via `EventBus` (broadcast channel) and are persisted by `BatchWriter`. See `PHASE0_IMPLEMENTATION_PLAN.md` and `forge-core` for the implemented standard. The TaggedEvent and EventType sections below describe an alternative/legacy shape.
+
 ---
 
 ## Table of Contents

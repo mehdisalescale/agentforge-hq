@@ -1,0 +1,257 @@
+<script lang="ts">
+  import { setContext } from 'svelte';
+  import {
+    listAgents,
+    createAgent,
+    updateAgent,
+    deleteAgent,
+    getAgent,
+    type Agent,
+    type NewAgent,
+    type UpdateAgent,
+    PRESETS,
+  } from '$lib/api';
+
+  setContext('pageTitle', 'Agents');
+
+  let agents = $state<Agent[]>([]);
+  let loading = $state(true);
+  let error = $state<string | null>(null);
+  let formOpen = $state<'create' | 'edit' | null>(null);
+  let editId = $state<string | null>(null);
+  let deleteConfirmId = $state<string | null>(null);
+  let submitting = $state(false);
+  let formError = $state<string | null>(null);
+
+  // Form fields (shared for create/edit)
+  let formName = $state('');
+  let formModel = $state('');
+  let formSystemPrompt = $state('');
+  let formPreset = $state<string>('');
+  let formMaxTurns = $state<string>('');
+  let formUseMax = $state(false);
+
+  async function loadAgents() {
+    loading = true;
+    error = null;
+    try {
+      agents = await listAgents();
+    } catch (e) {
+      error = e instanceof Error ? e.message : String(e);
+    } finally {
+      loading = false;
+    }
+  }
+
+  function openCreate() {
+    editId = null;
+    formName = '';
+    formModel = 'claude-sonnet-4-20250514';
+    formSystemPrompt = '';
+    formPreset = '';
+    formMaxTurns = '';
+    formUseMax = false;
+    formError = null;
+    formOpen = 'create';
+  }
+
+  async function openEdit(id: string) {
+    formError = null;
+    try {
+      const a = await getAgent(id);
+      editId = id;
+      formName = a.name;
+      formModel = a.model;
+      formSystemPrompt = a.system_prompt ?? '';
+      formPreset = a.preset ?? '';
+      formMaxTurns = a.max_turns != null ? String(a.max_turns) : '';
+      formUseMax = a.use_max;
+      formOpen = 'edit';
+    } catch (e) {
+      formError = e instanceof Error ? e.message : String(e);
+    }
+  }
+
+  function closeForm() {
+    formOpen = null;
+    editId = null;
+    formError = null;
+  }
+
+  function getPayload(): NewAgent & UpdateAgent {
+    const payload: NewAgent & UpdateAgent = {
+      name: formName.trim(),
+      model: formModel.trim() || undefined,
+      system_prompt: formSystemPrompt.trim() || undefined,
+      preset: formPreset ? (formPreset as Agent['preset']) : undefined,
+      use_max: formUseMax,
+    };
+    const mt = formMaxTurns.trim();
+    if (mt) {
+      const n = parseInt(mt, 10);
+      if (!Number.isNaN(n)) payload.max_turns = n;
+    }
+    return payload;
+  }
+
+  async function submitCreate() {
+    if (!formName.trim()) {
+      formError = 'Name is required';
+      return;
+    }
+    submitting = true;
+    formError = null;
+    try {
+      await createAgent(getPayload());
+      closeForm();
+      await loadAgents();
+    } catch (e) {
+      formError = e instanceof Error ? e.message : String(e);
+    } finally {
+      submitting = false;
+    }
+  }
+
+  async function submitEdit() {
+    if (!editId || !formName.trim()) {
+      formError = editId ? 'Name is required' : 'Invalid agent';
+      return;
+    }
+    submitting = true;
+    formError = null;
+    try {
+      await updateAgent(editId, getPayload());
+      closeForm();
+      await loadAgents();
+    } catch (e) {
+      formError = e instanceof Error ? e.message : String(e);
+    } finally {
+      submitting = false;
+    }
+  }
+
+  async function doDelete(id: string) {
+    try {
+      await deleteAgent(id);
+      deleteConfirmId = null;
+      await loadAgents();
+    } catch (e) {
+      error = e instanceof Error ? e.message : String(e);
+    }
+  }
+
+  loadAgents();
+</script>
+
+<svelte:head>
+  <title>Agents · Claude Forge</title>
+</svelte:head>
+
+<div class="agents-page">
+  <header class="page-header">
+    <h1>Agents</h1>
+    <button class="btn btn-primary" onclick={openCreate}>New agent</button>
+  </header>
+
+  {#if error}
+    <div class="message error" role="alert">{error}</div>
+  {/if}
+
+  {#if loading}
+    <p class="muted">Loading agents…</p>
+  {:else if agents.length === 0}
+    <div class="empty-state">
+      <p class="muted">No agents yet. Create one to get started.</p>
+      <button class="btn btn-primary" onclick={openCreate}>Create agent</button>
+    </div>
+  {:else}
+    <div class="agent-cards">
+      {#each agents as agent (agent.id)}
+        <article class="card">
+          <div class="card-header">
+            <h2 class="card-title">{agent.name}</h2>
+            <span class="card-meta">{agent.model}</span>
+            {#if agent.preset}
+              <span class="badge">{agent.preset}</span>
+            {/if}
+          </div>
+          {#if agent.system_prompt}
+            <p class="card-prompt">{agent.system_prompt.slice(0, 120)}{agent.system_prompt.length > 120 ? '…' : ''}</p>
+          {/if}
+          <div class="card-actions">
+            <button class="btn btn-ghost" onclick={() => openEdit(agent.id)}>Edit</button>
+            <button
+              class="btn btn-ghost danger"
+              onclick={() => (deleteConfirmId = agent.id)}
+              aria-label="Delete {agent.name}"
+            >
+              Delete
+            </button>
+          </div>
+          {#if deleteConfirmId === agent.id}
+            <div class="delete-confirm">
+              <span>Delete this agent?</span>
+              <button class="btn btn-ghost" onclick={() => (deleteConfirmId = null)}>Cancel</button>
+              <button class="btn danger" onclick={() => doDelete(agent.id)}>Delete</button>
+            </div>
+          {/if}
+        </article>
+      {/each}
+    </div>
+  {/if}
+
+  {#if formOpen}
+    <div class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="form-title">
+      <div class="modal">
+        <h2 id="form-title">{formOpen === 'create' ? 'Create agent' : 'Edit agent'}</h2>
+        {#if formError}
+          <div class="message error">{formError}</div>
+        {/if}
+        <form
+          class="agent-form"
+          onsubmit={(e) => {
+            e.preventDefault();
+            if (formOpen === 'create') submitCreate();
+            else submitEdit();
+          }}
+        >
+          <label>
+            <span>Name</span>
+            <input type="text" bind:value={formName} required placeholder="Agent name" />
+          </label>
+          <label>
+            <span>Model</span>
+            <input type="text" bind:value={formModel} placeholder="e.g. claude-sonnet-4-20250514" />
+          </label>
+          <label>
+            <span>Preset</span>
+            <select bind:value={formPreset}>
+              <option value="">None</option>
+              {#each PRESETS as p}
+                <option value={p}>{p}</option>
+              {/each}
+            </select>
+          </label>
+          <label>
+            <span>System prompt</span>
+            <textarea bind:value={formSystemPrompt} rows="4" placeholder="Optional system prompt"></textarea>
+          </label>
+          <label class="row">
+            <span>Max turns</span>
+            <input type="number" bind:value={formMaxTurns} min="1" placeholder="Optional" />
+          </label>
+          <label class="row checkbox">
+            <input type="checkbox" bind:checked={formUseMax} />
+            <span>Use max turns</span>
+          </label>
+          <div class="form-actions">
+            <button type="button" class="btn btn-ghost" onclick={closeForm}>Cancel</button>
+            <button type="submit" class="btn btn-primary" disabled={submitting}>
+              {submitting ? 'Saving…' : formOpen === 'create' ? 'Create' : 'Save'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  {/if}
+</div>

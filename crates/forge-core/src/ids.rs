@@ -54,10 +54,20 @@ impl AgentId {
         Self(Uuid::new_v4())
     }
 }
+impl Default for AgentId {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl SessionId {
     pub fn new() -> Self {
         Self(Uuid::new_v4())
+    }
+}
+impl Default for SessionId {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -66,15 +76,30 @@ impl EventId {
         Self(Uuid::new_v4())
     }
 }
+impl Default for EventId {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl WorkflowId {
     pub fn new() -> Self {
         Self(Uuid::new_v4())
     }
 }
+impl Default for WorkflowId {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl SkillId {
     pub fn new() -> Self {
         Self(Uuid::new_v4())
+    }
+}
+impl Default for SkillId {
+    fn default() -> Self {
+        Self::new()
     }
 }

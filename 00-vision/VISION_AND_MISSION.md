@@ -11,7 +11,7 @@ Claude Forge is the control plane for the agentic coding era: one binary that re
 **Build the definitive open-source agentic coding platform -- a single Rust binary embedding a complete UI, MCP server, workflow engine, and safety layer -- that absorbs the best patterns from the entire Claude Code ecosystem and makes multi-agent software development accessible, safe, and observable for every developer.**
 
 We do this by:
-1. Consolidating 61+ reference repositories (~200K+ LOC of proven patterns) into one cohesive tool
+1. Consolidating 62 reference repositories (~200K+ LOC of proven patterns) into one cohesive tool
 2. Serving three interfaces from one binary: embedded web UI, MCP server, and CLI
 3. Making safety and observability first-class concerns, not afterthoughts
 4. Treating MCP as the universal integration standard, not a proprietary protocol
@@ -26,7 +26,7 @@ Individual AI coding assistants are a transitional form. The steady state is tea
 
 ### 2. Fragmentation Is the Primary Barrier to Adoption
 
-The Claude Code ecosystem has 61+ repositories solving overlapping problems in incompatible ways. A developer who wants multi-agent orchestration AND session management AND git integration AND safety hooks must learn, install, configure, and maintain a half-dozen tools. This fragmentation means most developers use none of them. The biggest unlock is not inventing new capabilities but unifying existing ones.
+The Claude Code ecosystem has 62 repositories solving overlapping problems in incompatible ways. A developer who wants multi-agent orchestration AND session management AND git integration AND safety hooks must learn, install, configure, and maintain a half-dozen tools. This fragmentation means most developers use none of them. The biggest unlock is not inventing new capabilities but unifying existing ones.
 
 ### 3. Safety Must Be Structural, Not Optional
 
@@ -87,7 +87,7 @@ The hidden cost is not just installation. It is the ongoing integration tax:
 - No unified permission model (each tool has its own safety story)
 - No single source of truth for "what happened in this coding session"
 
-Forge eliminates this tax entirely by absorbing the proven patterns from all 61 repos into a single, coherent system.
+Forge eliminates this tax entirely by absorbing the proven patterns from all 62 repos into a single, coherent system.
 
 ---
 
@@ -179,7 +179,7 @@ Forge runs locally by default. Your code never leaves your machine unless you ex
 
 ### 5. We Are Not Chasing Feature Parity with Every Tool
 
-Absorbing patterns from 61 repos does not mean replicating every feature of every repo. We absorb the *best* patterns -- the ones that serve the most users for the most common workflows. Niche features that serve < 5% of use cases are candidates for plugins, not core features.
+Absorbing patterns from 62 repos does not mean replicating every feature of every repo. We absorb the *best* patterns -- the ones that serve the most users for the most common workflows. Niche features that serve < 5% of use cases are candidates for plugins, not core features.
 
 ### 6. We Are Not Building a Package Manager
 

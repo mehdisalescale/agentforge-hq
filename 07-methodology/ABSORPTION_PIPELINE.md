@@ -1,12 +1,12 @@
 # Absorption Pipeline
 
-> The systematic process for absorbing each of the 61 reference repositories' features into Claude Forge.
+> The systematic process for absorbing each of the 62 reference repositories' features into Claude Forge.
 
 ---
 
 ## Overview
 
-Claude Forge's unique challenge is absorbing ~200K+ lines of code worth of patterns from 61 repositories written in TypeScript, Python, Bash, Swift, Lua, Java, and Emacs Lisp into a single Rust + Svelte codebase. This is not a port. We do not translate line by line. We absorb the **interface** and **behavior**, then implement idiomatically in Rust.
+Claude Forge's unique challenge is absorbing ~200K+ lines of code worth of patterns from 62 repositories written in TypeScript, Python, Bash, Swift, Lua, Java, and Emacs Lisp into a single Rust + Svelte codebase. This is not a port. We do not translate line by line. We absorb the **interface** and **behavior**, then implement idiomatically in Rust.
 
 The Absorption Pipeline is a 5-phase process that transforms a reference repository's patterns into production Forge features.
 
@@ -483,7 +483,7 @@ PUT  /api/agents/{id}/circuit-breaker/config -> { config }
 
 ## Absorption Priority Framework
 
-Not all 61 repos are equally valuable. Prioritize by:
+Not all 62 repos are equally valuable. Prioritize by:
 
 1. **Impact** (1-5): How many users benefit from this pattern?
 2. **Uniqueness** (1-5): Is this the only repo with this pattern, or is it common?

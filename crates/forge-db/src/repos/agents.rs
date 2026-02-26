@@ -91,7 +91,7 @@ impl AgentRepo {
             .map_err(|e| ForgeError::Database(Box::new(e)))?;
 
         let agents: Vec<Agent> = stmt
-            .query_map([], |row| row_to_agent(row))
+            .query_map([], row_to_agent)
             .map_err(|e| ForgeError::Database(Box::new(e)))?
             .collect::<Result<Vec<_>, _>>()
             .map_err(|e| ForgeError::Database(Box::new(e)))?;

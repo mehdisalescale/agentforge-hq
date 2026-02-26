@@ -1,28 +1,28 @@
 # Claude Forge -- Sprint Plan
 
-> 12 two-week sprints covering Phases 0-3 (24 weeks).
+> From-scratch build. 12 two-week sprints aligned with ROADMAP (Phase 0→1→2∥4→3→5→6).
 > Each sprint has clear goals, specific tasks, expected deliverables, and a definition of done.
 
 ---
 
-## Sprint Calendar
+## Sprint Calendar (aligned with ROADMAP)
 
 | Sprint | Weeks | Phase | Focus |
 |--------|-------|-------|-------|
-| S1 | 1-2 | Phase 0 | Workspace structure + core types |
-| S2 | 3 (1 week) + buffer | Phase 0 | Event bus + DB schema v2 |
-| S3 | 4-5 | Phase 1 | Circuit breaker + rate limiter |
-| S4 | 6-7 | Phase 1 | MCP server + cost tracking |
-| S5 | 8-9 | Phase 2 | Workflow engine core |
-| S6 | 10-11 | Phase 2 | Workflow UI + skill catalog |
-| S7 | 12 (1 week) + buffer | Phase 2 | Skill execution + integration |
-| S8 | 13-14 | Phase 3 | Metrics collection + main dashboard |
-| S9 | 15-16 | Phase 3 | Cost dashboard + swim lanes |
-| S10 | 17-18 | Phase 3 | Git integration (status, diff, log) |
-| S11 | 19-20 | Phase 3/4 | Git UI + worktrees + notifications start |
-| S12 | 21-22 | Phase 4 | Notifications + scheduler |
+| S1 | 1-2 | Phase 0 | Workspace structure + core types + event bus |
+| S2 | 3-4 | Phase 0 | DB schema (all phases), batch writer, Agent CRUD, frontend shell |
+| S3 | 5-6 | Phase 1 | Agent Engine: process spawn, streaming, session management |
+| S4 | 7-8 | Phase 1 | Multi-pane UI, session browser, export |
+| S5 | 9-10 | Phase 2 | Workflow engine core + Safety/MCP (parallel start) |
+| S6 | 11-12 | Phase 2 | Workflow UI + skill catalog; Safety: circuit breaker, rate limiter |
+| S7 | 13 | Phase 2 / 4 | Skill execution; MCP server (10 tools, 5 resources) |
+| S8 | 14-15 | Phase 3 | Metrics, main dashboard, cost dashboard |
+| S9 | 16-17 | Phase 3 | Swim lanes, git integration (status, diff, log) |
+| S10 | 18 | Phase 3 | Git panel, worktrees |
+| S11 | 19-21 | Phase 5 | WASM plugins, security hardening, audit log |
+| S12 | 22-24 | Phase 5 | Polish, docs, 1.0 release |
 
-Note: Sprints 2 and 7 are shorter (1 week + buffer) because they complete a phase. The buffer time is for stabilization, bug fixes, and documentation before starting the next phase.
+Note: Phase 4 (Safety + MCP) runs in parallel with Phase 2 (weeks 9-12). We build from scratch; no migration from a previous codebase.
 
 ---
 
@@ -31,10 +31,9 @@ Note: Sprints 2 and 7 are shorter (1 week + buffer) because they complete a phas
 **Weeks 1-2 | Phase 0**
 
 ### Goals
-- Establish the 12-crate workspace structure
-- Extract core types and traits into `forge-core`
-- Extract database layer into `forge-db`
-- Preserve all existing functionality
+- Establish the 8-crate workspace structure (Phase 0: forge-core, forge-db, forge-api, forge-agent, forge-process, forge-safety, forge-mcp, forge-app)
+- Implement core types and traits in `forge-core` (IDs, ForgeError, ForgeEvent, EventBus, EventSink)
+- Implement database layer in `forge-db` (pool, migrations, batch writer)
 
 ### Tasks
 
@@ -44,172 +43,151 @@ Note: Sprints 2 and 7 are shorter (1 week + buffer) because they complete a phas
 | 1.2 | Create `forge-core` crate: Agent, Session, Event types | 8h | forge-core |
 | 1.3 | Define core traits: EventSink, Repository | 4h | forge-core |
 | 1.4 | Define error types with thiserror for forge-core | 3h | forge-core |
-| 1.5 | Create `forge-db` crate: extract SQLite connection, pool, WAL config | 8h | forge-db |
-| 1.6 | Move repository implementations to forge-db | 6h | forge-db |
-| 1.7 | Create `forge-api` crate: extract Axum server, routes, middleware | 8h | forge-api |
-| 1.8 | Move process spawning logic to appropriate crate | 4h | forge-core/api |
-| 1.9 | Create skeleton crates for remaining 9 crates (empty, compiling) | 3h | all |
+| 1.5 | Create `forge-db` crate: SQLite connection, pool, WAL config | 8h | forge-db |
+| 1.6 | Implement repository layer in forge-db (AgentRepo, migrations) | 6h | forge-db |
+| 1.7 | Create `forge-api` crate: Axum server, routes, middleware | 8h | forge-api |
+| 1.8 | Create stub crates for forge-process, forge-safety, forge-mcp (Phase 1/4) | 4h | all |
+| 1.9 | Create forge-app binary crate (entry point, wiring) | 3h | forge-app |
 | 1.10 | Add `#![forbid(unsafe_code)]` to all workspace crates | 1h | all |
 | 1.11 | Configure clippy lints in workspace Cargo.toml | 2h | root |
-| 1.12 | Create `forge-test-utils` with TestDb and basic fixtures | 6h | forge-test-utils |
-| 1.13 | Migrate all existing tests to new crate structure | 8h | all |
+| 1.12 | Add TestDb helper and tests in forge-db / forge-core | 6h | forge-db, forge-core |
+| 1.13 | Write unit tests for event bus, agent validation, migration runner | 8h | all |
 | 1.14 | Verify frontend build + rust-embed still works | 2h | forge-api |
 | 1.15 | Set up CI pipeline (fmt, clippy, nextest, build) | 4h | root |
 
 ### Expected Deliverables
-- 12 workspace crates + forge-test-utils all compile
+- 8 workspace crates all compile
 - `cargo test --workspace` passes
-- `cargo build --release` produces working binary
-- Frontend served correctly from embedded assets
-- Agent CRUD, process spawn, WebSocket streaming all functional
+- `cargo build --release` produces binary (frontend optional for Phase 0)
+- Agent CRUD via API, events via EventBus and batch writer
 - CI pipeline green
 
 ### Definition of Done
 - [ ] `cargo build --workspace` succeeds with no warnings
 - [ ] `cargo test --workspace` passes 100%
 - [ ] `cargo clippy --workspace -- -D warnings` clean
-- [ ] Binary starts and serves UI at localhost:4173
-- [ ] All pre-existing features pass manual smoke test
+- [ ] Binary starts and serves UI at localhost:4173 when frontend is embedded
+- [ ] Agent CRUD and WebSocket streaming functional (Phase 0 scope)
 - [ ] All crates have `#![forbid(unsafe_code)]`
 
 ---
 
-## Sprint 2: Event Bus + DB Schema v2
+## Sprint 2: Event Bus + DB Schema + API + Frontend Shell
 
-**Week 3 + buffer | Phase 0 (completion)**
+**Weeks 3-4 | Phase 0 (completion)**
 
 ### Goals
-- Implement broadcast-based event bus with filtering
-- Design and implement the v2 database schema
-- Add FTS5 support for full-text search
-- Complete Phase 0
+- Implement broadcast-based event bus (ForgeEvent enum, EventBus, EventSink)
+- Implement full database schema (all phases) and FTS5 in one migration
+- Add batch writer (50 events / 2s flush)
+- Implement forge-api (health, agent CRUD, WebSocket) and forge-app wiring
+- Add SvelteKit frontend shell with Agents CRUD page
 
 ### Tasks
 
 | # | Task | Est. Hours | Crate |
 |---|------|-----------|-------|
-| 2.1 | Implement Event type hierarchy (EventKind enum with all variants) | 6h | forge-core |
-| 2.2 | Build broadcast channel event bus with subscription filtering | 8h | forge-core |
+| 2.1 | Implement ForgeEvent enum with all variants (typed, serde tag+content) | 6h | forge-core |
+| 2.2 | Build broadcast channel event bus (emit, subscribe) | 8h | forge-core |
 | 2.3 | Implement batch writer (crossbeam-channel, 50 events / 2s flush) | 6h | forge-db |
-| 2.4 | Migrate WebSocket streaming to use new event bus | 4h | forge-api |
-| 2.5 | Design v2 schema: all tables for future phases | 4h | forge-db |
-| 2.6 | Write migration from v1 to v2 with data preservation | 6h | forge-db |
-| 2.7 | Add FTS5 virtual tables (skills, sessions, events) | 4h | forge-db |
+| 2.4 | Implement WebSocket handler subscribing to event bus | 4h | forge-api |
+| 2.5 | Implement full schema migration (agents, sessions, events, workflows, skills, FTS5, etc.) | 4h | forge-db |
+| 2.6 | Implement migration runner (version tracking, apply pending) | 6h | forge-db |
+| 2.7 | Add FTS5 virtual tables (skills_fts, sessions_fts, events_fts) | 4h | forge-db |
 | 2.8 | Implement migration runner with version tracking | 3h | forge-db |
-| 2.9 | Update TestDb to use v2 schema | 2h | forge-test-utils |
+| 2.9 | Implement AgentRepo CRUD and tests | 2h | forge-db |
 | 2.10 | Write batch writer tests (threshold flush, timer flush, error handling) | 4h | forge-db |
-| 2.11 | Write event bus tests (subscribe, filter, lagging consumer) | 4h | forge-core |
-| 2.12 | Write migration chain test (empty DB -> v2 schema) | 2h | forge-db |
-| 2.13 | Phase 0 stabilization: fix any issues, run full regression | 4h | all |
-| 2.14 | Document Phase 0 decisions and architecture in code comments | 3h | all |
+| 2.11 | Write event bus tests (subscribe, multiple receivers, serialization) | 4h | forge-core |
+| 2.12 | Write migration test (empty DB -> full schema, idempotent) | 2h | forge-db |
+| 2.13 | Implement forge-api routes and forge-app CLI + rust-embed | 4h | forge-api, forge-app |
+| 2.14 | Implement frontend shell (layout, Agents page, WebSocket store) | 3h | frontend |
 
 ### Expected Deliverables
 - Event bus operational with WebSocket integration
-- Database v2 schema with FTS5
+- Full database schema with FTS5 (single migration, no v1)
 - Batch writer flushing events reliably
-- Migration from v1 to v2 working
-- Phase 0 complete and stable
+- Phase 0 complete: binary, API, agent CRUD, frontend
 
 ### Definition of Done
 - [ ] Event bus delivers events to WebSocket clients in < 10ms
 - [ ] Batch writer flushes 50 events in < 50ms
 - [ ] FTS5 search returns results in < 20ms
-- [ ] Migration from v1 to v2 tested on a real database file
+- [ ] Migration applies cleanly to empty DB and is idempotent
 - [ ] All Phase 0 acceptance criteria from MILESTONES.md are met
 - [ ] Phase 0 milestone signed off
 
 ---
 
-## Sprint 3: Circuit Breaker + Rate Limiter
+## Sprint 3: Agent Engine (Process + Streaming)
 
-**Weeks 4-5 | Phase 1**
+**Weeks 5-6 | Phase 1**
 
 ### Goals
-- Implement the safety foundation: circuit breaker and rate limiter
-- Create the `forge-safety` crate with comprehensive tests
-- Add safety controls to agent execution path
+- Implement process spawning (Claude CLI, stream-json parsing)
+- Event bus → WebSocket → frontend streaming
+- Session CRUD, resume (--resume), export (JSON/Markdown)
 
 ### Tasks
 
 | # | Task | Est. Hours | Crate |
 |---|------|-----------|-------|
-| 3.1 | Create `forge-safety` crate structure: error types, config types | 3h | forge-safety |
-| 3.2 | Implement CircuitBreaker: Closed/Open/HalfOpen state machine | 8h | forge-safety |
-| 3.3 | Add CircuitBreakerConfig: failure_threshold, timeout, success_threshold | 2h | forge-safety |
-| 3.4 | Implement per-agent circuit breakers (DashMap<AgentId, CircuitBreaker>) | 4h | forge-safety |
-| 3.5 | Implement global circuit breaker | 2h | forge-safety |
-| 3.6 | Integrate circuit breaker into agent spawn path | 4h | forge-api |
-| 3.7 | Implement RateLimiter: token bucket algorithm | 6h | forge-safety |
-| 3.8 | Add RateLimiterConfig: per-agent, per-model, global limits | 3h | forge-safety |
-| 3.9 | Integrate rate limiter into API middleware (Axum layer) | 4h | forge-api |
-| 3.10 | Return 429 with Retry-After header when rate limited | 2h | forge-api |
-| 3.11 | Write circuit breaker tests: all state transitions, edge cases | 8h | forge-safety |
-| 3.12 | Write rate limiter tests: burst, sustained, refill, concurrent | 6h | forge-safety |
-| 3.13 | Frontend: safety status indicators (circuit state, rate limit usage) | 4h | frontend |
-| 3.14 | API endpoints: GET /api/safety/status, POST /api/safety/reset | 3h | forge-api |
+| 3.1 | Implement process spawn: Claude CLI, working dir, env isolation | 6h | forge-process |
+| 3.2 | Implement stream-json parsing (blocks, tool_calls, done) | 8h | forge-process |
+| 3.3 | Emit process events to EventBus (ProcessStarted, OutputDelta, ProcessCompleted/Failed) | 4h | forge-process, forge-core |
+| 3.4 | Wire WebSocket to forward event stream to frontend | 2h | forge-api |
+| 3.5 | Session CRUD: create, list, get, delete; persist to DB | 4h | forge-db |
+| 3.6 | Session resume: --resume flag, load history, append to conversation | 4h | forge-process |
+| 3.7 | Session export: JSON and Markdown formats | 3h | forge-api |
+| 3.8 | Frontend: streaming output (Markdown, code blocks, tool calls) | 8h | frontend |
+| 3.9 | Frontend: session list and session detail views | 4h | frontend |
+| 3.10 | Write process lifecycle tests (start, stream, complete, fail) | 6h | forge-process |
+| 3.11 | Write session resume and export tests | 3h | forge-db, forge-api |
 
 ### Expected Deliverables
-- Circuit breaker protecting agent operations
-- Rate limiter with configurable per-agent and global limits
-- Safety status visible in frontend
-- Comprehensive tests for all safety logic
+- Run agent with prompt; streaming output in UI within 2s
+- Session resume continues previous conversation
+- Session export produces valid JSON and Markdown
 
 ### Definition of Done
-- [ ] Circuit breaker opens after configured consecutive failures
-- [ ] Circuit breaker transitions correctly through all states
-- [ ] Rate limiter rejects excess requests with 429 + Retry-After
-- [ ] Rate limiter correctly refills tokens over time
-- [ ] No DashMap guards held across await points (verified by code review)
-- [ ] Unit test coverage > 95% for forge-safety
-- [ ] Safety indicators visible in frontend
+- [ ] Create agent, send prompt; streaming response appears within 2 seconds
+- [ ] Session resume loads history and appends correctly
+- [ ] Export produces valid JSON and readable Markdown
+- [ ] Process lifecycle (start, complete, fail) emits correct events
+- [ ] Unit test coverage for forge-process
 
 ---
 
-## Sprint 4: MCP Server + Cost Tracking
+## Sprint 4: Multi-pane UI + Session Browser
 
-**Weeks 6-7 | Phase 1 (completion)**
+**Weeks 7-8 | Phase 1 (completion)**
 
 ### Goals
-- Implement the MCP server with 10 tools and 5 resources
-- Add cost tracking and budget enforcement
-- Complete Phase 1
+- Multi-pane layout: run multiple agents side-by-side
+- Session browser with search and filters
+- Phase 1 complete: Agent Engine + process + sessions + multi-pane
 
 ### Tasks
 
 | # | Task | Est. Hours | Crate |
 |---|------|-----------|-------|
-| 4.1 | Create `forge-mcp` crate: protocol types, message parsing | 4h | forge-mcp |
-| 4.2 | Implement JSON-RPC message handler | 6h | forge-mcp |
-| 4.3 | Implement stdio transport | 4h | forge-mcp |
-| 4.4 | Implement SSE transport | 4h | forge-mcp |
-| 4.5 | Build ToolRegistry: register, list, execute tools | 4h | forge-mcp |
-| 4.6 | Implement 10 MCP tools (agent CRUD, session, workflow, skill, config) | 12h | forge-mcp |
-| 4.7 | Implement 5 MCP resources (agent, session, skill, config, status) | 6h | forge-mcp |
-| 4.8 | Write MCP protocol compliance tests | 6h | forge-mcp |
-| 4.9 | Implement CostTracker: token counting, model pricing table | 6h | forge-safety |
-| 4.10 | Implement CostBudget: soft limit (warn), hard limit (reject) | 4h | forge-safety |
-| 4.11 | Persist cost data to DB (daily aggregates) | 3h | forge-db |
-| 4.12 | Frontend: cost dashboard (daily/weekly/monthly chart, per-agent) | 8h | frontend |
-| 4.13 | Frontend: safety dashboard (circuit states, rate limits, costs) | 4h | frontend |
-| 4.14 | Integration test: MCP client -> tool execution -> result | 4h | integration |
-| 4.15 | Phase 1 stabilization and regression testing | 4h | all |
+| 4.1 | Frontend: split-pane layout (2–4 panes, resizable) | 6h | frontend |
+| 4.2 | Frontend: each pane has agent selector, prompt input, streaming output | 4h | frontend |
+| 4.3 | API: support multiple concurrent process runs (scope by session/agent) | 4h | forge-api, forge-process |
+| 4.4 | Session browser: list with filters (agent, date, status) | 4h | frontend |
+| 4.5 | Session browser: FTS5 search (sessions_fts) | 3h | forge-db, forge-api |
+| 4.6 | Frontend: session detail (messages, export button) | 3h | frontend |
+| 4.7 | 9 agent presets usable from UI (select preset, run) | 2h | frontend |
+| 4.8 | E2E test: create 2 agents, run in 2 panes, both stream | 4h | integration |
+| 4.9 | Phase 1 stabilization and regression testing | 4h | all |
 
 ### Expected Deliverables
-- MCP server operational with stdio and SSE transports
-- 10 tools and 5 resources responding correctly
-- Cost tracking with budget enforcement
-- Cost dashboard in frontend
-- Phase 1 complete
+- Multi-pane UI: 2+ agents run side-by-side with independent streams
+- Session browser with search and export
+- Phase 1 milestone complete
 
 ### Definition of Done
-- [ ] MCP server responds to initialize handshake
-- [ ] All 10 MCP tools execute correctly with valid input
-- [ ] All 10 MCP tools return proper errors for invalid input
-- [ ] All 5 MCP resources return current data
-- [ ] Claude Desktop can connect and interact via MCP
-- [ ] Cost tracker calculates costs within 5% of actual
-- [ ] Budget enforcement blocks when hard limit reached
-- [ ] Cost dashboard renders with real data
+- [ ] Three agents run in parallel, each streaming independently
+- [ ] Session browser shows sessions with search/filter
 - [ ] All Phase 1 acceptance criteria from MILESTONES.md met
 - [ ] Phase 1 milestone signed off
 
@@ -264,14 +242,14 @@ Note: Sprints 2 and 7 are shorter (1 week + buffer) because they complete a phas
 
 ---
 
-## Sprint 6: Workflow UI + Skill Catalog
+## Sprint 6: Workflow UI + Skill Catalog + Safety (Circuit Breaker, Rate Limiter)
 
-**Weeks 10-11 | Phase 2**
+**Weeks 11-12 | Phase 2 + Phase 4 (parallel)**
 
 ### Goals
 - Build the workflow builder and run visualization UI
-- Import and index the 1,537 skill catalog
-- Create skill search and browsing UI
+- Import and index the 1,500+ skill catalog; skill search and browsing UI
+- Implement Safety: circuit breaker and rate limiter (Phase 4)
 
 ### Tasks
 
@@ -279,10 +257,10 @@ Note: Sprints 2 and 7 are shorter (1 week + buffer) because they complete a phas
 |---|------|-----------|-------|
 | 6.1 | Create `forge-skills` crate: Skill type, SkillCategory, SkillCatalog | 4h | forge-skills |
 | 6.2 | Define skill JSON schema: name, description, category, parameters, examples | 3h | forge-skills |
-| 6.3 | Import 1,537 skills from reference repo analysis | 6h | forge-skills |
+| 6.3 | Import 1,500+ skills from ecosystem repos | 6h | forge-skills |
 | 6.4 | Index skills in FTS5 virtual table | 4h | forge-db |
 | 6.5 | Implement skill search (FTS5 query builder, ranking) | 4h | forge-skills |
-| 6.6 | Define 13 top-level skill categories with descriptions | 2h | forge-skills |
+| 6.6 | Define 13+ top-level skill categories with descriptions | 2h | forge-skills |
 | 6.7 | API endpoints: GET /api/skills, GET /api/skills/search, GET /api/skills/:id | 3h | forge-api |
 | 6.8 | Frontend: workflow list page | 4h | frontend |
 | 6.9 | Frontend: workflow builder (form-based step creation) | 12h | frontend |
@@ -291,36 +269,39 @@ Note: Sprints 2 and 7 are shorter (1 week + buffer) because they complete a phas
 | 6.12 | Create 5 built-in workflow templates | 4h | forge-workflow |
 | 6.13 | Frontend: skill browser (category navigation, search) | 8h | frontend |
 | 6.14 | Frontend: skill detail view (parameters, examples, usage) | 4h | frontend |
-| 6.15 | Write skill search tests (relevance, ranking, edge cases) | 4h | forge-skills |
-| 6.16 | Write workflow UI component tests | 4h | frontend |
+| 6.15 | Create `forge-safety` crate: CircuitBreaker (Closed/Open/HalfOpen), RateLimiter (token bucket) | 8h | forge-safety |
+| 6.16 | Integrate circuit breaker and rate limiter into agent execution path; 429 + Retry-After | 4h | forge-api |
+| 6.17 | Frontend: safety indicators (circuit state, rate limit usage); GET /api/safety/status | 4h | frontend, forge-api |
+| 6.18 | Write skill search tests (relevance, ranking, edge cases) | 4h | forge-skills |
+| 6.19 | Write workflow UI component tests | 4h | frontend |
 
 ### Expected Deliverables
 - Workflow builder UI (form-based)
 - Workflow run visualization
 - 5 built-in workflow templates
-- 1,537 skills indexed and searchable
+- 1,500+ skills indexed and searchable
 - Skill browser and detail views
+- Circuit breaker and rate limiter protecting agent execution
 
 ### Definition of Done
 - [ ] Workflow builder creates valid workflow definitions
 - [ ] Run visualization shows step progress in real-time
 - [ ] All 5 templates load and execute successfully
-- [ ] All 1,537 skills appear in the skill browser
+- [ ] All 1,500+ skills appear in the skill browser
 - [ ] Skill search returns relevant results in < 20ms
-- [ ] Category navigation filters skills correctly
-- [ ] Skill detail view shows all parameters and examples
+- [ ] Circuit breaker and rate limiter integrated; 429 + Retry-After when limited
 - [ ] Frontend component tests pass
 
 ---
 
-## Sprint 7: Skill Execution + Phase 2 Integration
+## Sprint 7: Skill Execution + MCP Server + Cost Tracking
 
-**Week 12 + buffer | Phase 2 (completion)**
+**Week 13 | Phase 2 (completion) + Phase 4**
 
 ### Goals
-- Implement skill-to-prompt compilation and execution
-- Add slash-command autocomplete
-- Complete Phase 2 integration and stabilization
+- Implement skill-to-prompt compilation and execution; slash-command autocomplete
+- MCP server: 10 tools, 5 resources (stdio + SSE)
+- Cost tracking and budget enforcement; cost dashboard
 
 ### Tasks
 
@@ -332,24 +313,28 @@ Note: Sprints 2 and 7 are shorter (1 week + buffer) because they complete a phas
 | 7.4 | Implement skill usage tracking (most-used, recently-used) | 3h | forge-db |
 | 7.5 | Frontend: slash-command autocomplete (`/` trigger, fuzzy match) | 8h | frontend |
 | 7.6 | Frontend: skill parameter form (dynamic based on skill schema) | 6h | frontend |
-| 7.7 | Integration test: skill search -> select -> execute -> result | 4h | integration |
-| 7.8 | Integration test: workflow with skill steps | 4h | integration |
-| 7.9 | End-to-end test: create workflow -> run -> notifications | 4h | integration |
-| 7.10 | Phase 2 stabilization: bug fixes, performance, UX polish | 8h | all |
-| 7.11 | Phase 2 documentation: workflow guide, skill catalog docs | 4h | docs |
+| 7.7 | Create `forge-mcp` crate: protocol types, JSON-RPC, stdio + SSE transports | 6h | forge-mcp |
+| 7.8 | Implement 10 MCP tools (agent CRUD, session, workflow, skill, config) | 12h | forge-mcp |
+| 7.9 | Implement 5 MCP resources (agent, session, skill, config, status) | 6h | forge-mcp |
+| 7.10 | Implement CostTracker + CostBudget (soft/hard limit); persist to DB | 6h | forge-safety, forge-db |
+| 7.11 | Frontend: cost dashboard (daily/weekly/monthly, per-agent) | 6h | frontend |
+| 7.12 | Integration test: skill search -> select -> execute -> result | 4h | integration |
+| 7.13 | Integration test: MCP client -> tool execution -> result | 4h | integration |
+| 7.14 | Phase 2 stabilization; Phase 2 documentation (workflow guide, skill catalog) | 6h | all, docs |
 
 ### Expected Deliverables
 - Skill-to-prompt compilation working
 - Slash-command autocomplete in prompt input
-- Skill usage tracking
+- MCP server with 10 tools and 5 resources (stdio + SSE)
+- Cost tracking and budget enforcement; cost dashboard
 - Phase 2 fully integrated and stable
 
 ### Definition of Done
 - [ ] Skill compilation produces valid agent prompts
 - [ ] Slash-command `/` opens autocomplete within 100ms
-- [ ] Fuzzy matching filters skills as user types
-- [ ] Skill execution via autocomplete runs agent with correct prompt
-- [ ] Usage tracking shows most-used and recently-used skills
+- [ ] MCP server responds to initialize; all 10 tools and 5 resources work
+- [ ] Cost tracker and budget enforcement block at hard limit
+- [ ] Cost dashboard renders with real data
 - [ ] All Phase 2 acceptance criteria from MILESTONES.md met
 - [ ] Phase 2 milestone signed off
 

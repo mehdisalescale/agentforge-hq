@@ -2,7 +2,7 @@
 
 **Version**: 1.0
 **Date**: 2026-02-25
-**Total Features**: 213
+**Total Features**: 305
 
 ---
 
@@ -185,7 +185,7 @@
 | ID | Feature | Description | Source Repos | Priority | Effort | Dependencies | Status |
 |----|---------|-------------|-------------|----------|--------|-------------|--------|
 | SK-001 | Skill catalog (data model) | SQLite schema for skills | claude-code-plugins-plus-skills | P1 | M | -- | TODO |
-| SK-002 | Skill import (ecosystem) | Import 500+ skills from ecosystem repos | claude-code-plugins-plus-skills, claude-code-skills, claude-code-templates | P1 | L | SK-001 | TODO |
+| SK-002 | Skill import (ecosystem) | Import 1,500+ skills from ecosystem repos | claude-code-plugins-plus-skills, claude-code-skills, claude-code-templates | P1 | L | SK-001 | TODO |
 | SK-003 | Skill catalog UI | Browse skills by category with cards | claude-code-plugins-plus-skills | P1 | L | SK-001 | TODO |
 | SK-004 | Skill search (text) | Search by name, description, tags | claude-code-plugins-plus-skills | P1 | M | SK-001 | TODO |
 | SK-005 | Skill category filter | Filter by 15+ categories | claude-code-plugins-plus-skills | P1 | S | SK-003 | TODO |
@@ -477,9 +477,9 @@
 | Workflows | 20 | 9.4% |
 | Notifications | 20 | 9.4% |
 | Plugins | 17 | 8.0% |
-| **Total** | **213** | -- |
+| **Total** | **305** | -- |
 
-Note: Percentages sum to > 100% due to rounding, but total is 213 unique features.
+Note: Percentages sum to > 100% due to rounding, but total is 305 unique features.
 
 ### Features by Priority
 
@@ -489,7 +489,7 @@ Note: Percentages sum to > 100% due to rounding, but total is 213 unique feature
 | P1 | 101 | 47.4% |
 | P2 | 42 | 19.7% |
 | P3 | 12 | 5.6% |
-| **Total** | **213** | 100% |
+| **Total** | **305** | 100% |
 
 ### Features by Effort
 
@@ -499,7 +499,7 @@ Note: Percentages sum to > 100% due to rounding, but total is 213 unique feature
 | M (1-3 days) | 104 | 48.8% | ~210 days |
 | L (3-7 days) | 37 | 17.4% | ~185 days |
 | XL (1-3 weeks) | 11 | 5.2% | ~110 days |
-| **Total** | **213** | 100% | **~550 dev-days** |
+| **Total** | **305** | 100% | **~550 dev-days** |
 
 ### Features by Status
 
@@ -508,7 +508,7 @@ Note: Percentages sum to > 100% due to rounding, but total is 213 unique feature
 | DONE | 22 | 10.3% |
 | WIP | 4 | 1.9% |
 | TODO | 187 | 87.8% |
-| **Total** | **213** | 100% |
+| **Total** | **305** | 100% |
 
 ### P0 Features by Context (Critical Path)
 
@@ -609,10 +609,10 @@ These repositories contribute patterns, best practices, documentation, or learni
 ### Feature Flow Summary
 
 ```
-61 Source Repositories
+62 Source Repositories
     |
     v
-+-- 28 repos contribute directly to features (213 features)
++-- 28 repos contribute directly to features (305 features)
 |   +-- Top 5 contributors: hooks-observability (14), Claude-Code-Workflow (16),
 |   |   ralph-claude-code (12), claude-code-viewer (12), 1code (17)
 |   +-- Features feed into 12 bounded contexts
