@@ -1,0 +1,237 @@
+//! Agent CRUD repository.
+
+use chrono::{DateTime, Utc};
+use forge_agent::model::{Agent, NewAgent, UpdateAgent, DEFAULT_MODEL};
+use forge_agent::preset::AgentPreset;
+use forge_agent::validation::{validate_new_agent, validate_update_agent};
+use forge_core::error::{ForgeError, ForgeResult};
+use forge_core::ids::AgentId;
+use rusqlite::Connection;
+use std::sync::{Arc, Mutex};
+
+pub struct AgentRepo {
+    conn: Arc<Mutex<Connection>>,
+}
+
+impl AgentRepo {
+    pub fn new(conn: Arc<Mutex<Connection>>) -> Self {
+        Self { conn }
+    }
+
+    pub fn create(&self, input: &NewAgent) -> ForgeResult<Agent> {
+        validate_new_agent(input)?;
+
+        let conn = self.conn.lock().expect("db mutex poisoned");
+        let id = AgentId::new();
+        let now = Utc::now();
+        let model = input
+            .model
+            .as_deref()
+            .unwrap_or(DEFAULT_MODEL)
+            .to_string();
+        let allowed_tools_json = input
+            .allowed_tools
+            .as_ref()
+            .and_then(|t| serde_json::to_string(t).ok());
+        let preset_str = input
+            .preset
+            .as_ref()
+            .and_then(|p| serde_json::to_string(p).ok());
+        let config_json = input
+            .config
+            .as_ref()
+            .and_then(|c| serde_json::to_string(c).ok());
+
+        conn.execute(
+            "INSERT INTO agents (id, name, model, system_prompt, allowed_tools, max_turns, use_max, preset, config_json, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+            rusqlite::params![
+                id.0.to_string(),
+                input.name,
+                model,
+                input.system_prompt,
+                allowed_tools_json,
+                input.max_turns.map(i64::from),
+                input.use_max.unwrap_or(false),
+                preset_str,
+                config_json,
+                now.to_rfc3339(),
+                now.to_rfc3339(),
+            ],
+        )
+        .map_err(|e| ForgeError::Database(Box::new(e)))?;
+
+        drop(conn);
+        self.get(&id)
+    }
+
+    pub fn get(&self, id: &AgentId) -> ForgeResult<Agent> {
+        let conn = self.conn.lock().expect("db mutex poisoned");
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, name, model, system_prompt, allowed_tools, max_turns, use_max, preset, config_json, created_at, updated_at
+             FROM agents WHERE id = ?1",
+            )
+            .map_err(|e| ForgeError::Database(Box::new(e)))?;
+
+        stmt.query_row(rusqlite::params![id.0.to_string()], row_to_agent)
+            .map_err(|e| match e {
+                rusqlite::Error::QueryReturnedNoRows => ForgeError::AgentNotFound(id.clone()),
+                other => ForgeError::Database(Box::new(other)),
+            })
+    }
+
+    pub fn list(&self) -> ForgeResult<Vec<Agent>> {
+        let conn = self.conn.lock().expect("db mutex poisoned");
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, name, model, system_prompt, allowed_tools, max_turns, use_max, preset, config_json, created_at, updated_at
+             FROM agents ORDER BY created_at DESC",
+            )
+            .map_err(|e| ForgeError::Database(Box::new(e)))?;
+
+        let agents: Vec<Agent> = stmt
+            .query_map([], |row| row_to_agent(row))
+            .map_err(|e| ForgeError::Database(Box::new(e)))?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| ForgeError::Database(Box::new(e)))?;
+
+        Ok(agents)
+    }
+
+    pub fn update(&self, id: &AgentId, input: &UpdateAgent) -> ForgeResult<Agent> {
+        validate_update_agent(input)?;
+        let existing = self.get(id)?;
+        let now = Utc::now();
+
+        let name = input.name.as_ref().unwrap_or(&existing.name).clone();
+        let model = input
+            .model
+            .as_ref()
+            .cloned()
+            .unwrap_or(existing.model);
+        let system_prompt = match &input.system_prompt {
+            Some(inner) => inner.clone(),
+            None => existing.system_prompt,
+        };
+        let allowed_tools = match &input.allowed_tools {
+            Some(inner) => inner.clone(),
+            None => existing.allowed_tools,
+        };
+        let max_turns = match &input.max_turns {
+            Some(inner) => *inner,
+            None => existing.max_turns,
+        };
+        let use_max = input.use_max.unwrap_or(existing.use_max);
+        let preset = match &input.preset {
+            Some(inner) => inner.clone(),
+            None => existing.preset,
+        };
+        let config = match &input.config {
+            Some(inner) => inner.clone(),
+            None => existing.config,
+        };
+
+        let allowed_tools_json = allowed_tools
+            .as_ref()
+            .and_then(|t| serde_json::to_string(t).ok());
+        let preset_str = preset
+            .as_ref()
+            .and_then(|p| serde_json::to_string(p).ok());
+        let config_json = config.as_ref().and_then(|c| serde_json::to_string(c).ok());
+
+        let conn = self.conn.lock().expect("db mutex poisoned");
+        conn.execute(
+            "UPDATE agents SET name = ?1, model = ?2, system_prompt = ?3, allowed_tools = ?4, max_turns = ?5, use_max = ?6, preset = ?7, config_json = ?8, updated_at = ?9 WHERE id = ?10",
+            rusqlite::params![
+                name,
+                model,
+                system_prompt,
+                allowed_tools_json,
+                max_turns.map(i64::from),
+                use_max,
+                preset_str,
+                config_json,
+                now.to_rfc3339(),
+                id.0.to_string(),
+            ],
+        )
+        .map_err(|e| ForgeError::Database(Box::new(e)))?;
+
+        drop(conn);
+        self.get(id)
+    }
+
+    pub fn delete(&self, id: &AgentId) -> ForgeResult<()> {
+        let conn = self.conn.lock().expect("db mutex poisoned");
+        let rows = conn
+            .execute("DELETE FROM agents WHERE id = ?1", rusqlite::params![id.0.to_string()])
+            .map_err(|e| ForgeError::Database(Box::new(e)))?;
+
+        if rows == 0 {
+            return Err(ForgeError::AgentNotFound(id.clone()));
+        }
+
+        Ok(())
+    }
+}
+
+fn row_to_agent(row: &rusqlite::Row<'_>) -> Result<Agent, rusqlite::Error> {
+    let id_str: String = row.get(0)?;
+    let id = uuid::Uuid::parse_str(&id_str).map_err(|_| rusqlite::Error::InvalidParameterName(id_str))?;
+    let id = AgentId(id);
+
+    let name: String = row.get(1)?;
+    let model: String = row.get(2)?;
+    let system_prompt: Option<String> = row.get(3)?;
+    let allowed_tools: Option<String> = row.get(4)?;
+    let allowed_tools = allowed_tools
+        .as_deref()
+        .and_then(|s| serde_json::from_str(s).ok());
+    let max_turns: Option<i64> = row.get(5)?;
+    let max_turns = max_turns.and_then(|n| u32::try_from(n).ok());
+    let use_max: bool = row.get(6)?;
+    let preset: Option<String> = row.get(7)?;
+    let preset = preset.as_deref().and_then(|s| {
+        serde_json::from_str(s).ok().or_else(|| parse_preset(s))
+    });
+    let config_json: Option<String> = row.get(8)?;
+    let config = config_json.as_deref().and_then(|s| serde_json::from_str(s).ok());
+    let created_at: String = row.get(9)?;
+    let updated_at: String = row.get(10)?;
+    let created_at = DateTime::parse_from_rfc3339(&created_at)
+        .map_err(|_| rusqlite::Error::InvalidParameterName(created_at.clone()))?
+        .with_timezone(&Utc);
+    let updated_at = DateTime::parse_from_rfc3339(&updated_at)
+        .map_err(|_| rusqlite::Error::InvalidParameterName(updated_at.clone()))?
+        .with_timezone(&Utc);
+
+    Ok(Agent {
+        id,
+        name,
+        model,
+        system_prompt,
+        allowed_tools,
+        max_turns,
+        use_max,
+        preset,
+        config,
+        created_at,
+        updated_at,
+    })
+}
+
+fn parse_preset(s: &str) -> Option<AgentPreset> {
+    match s {
+        "CodeWriter" => Some(AgentPreset::CodeWriter),
+        "Reviewer" => Some(AgentPreset::Reviewer),
+        "Tester" => Some(AgentPreset::Tester),
+        "Debugger" => Some(AgentPreset::Debugger),
+        "Architect" => Some(AgentPreset::Architect),
+        "Documenter" => Some(AgentPreset::Documenter),
+        "SecurityAuditor" => Some(AgentPreset::SecurityAuditor),
+        "Refactorer" => Some(AgentPreset::Refactorer),
+        "Explorer" => Some(AgentPreset::Explorer),
+        _ => None,
+    }
+}

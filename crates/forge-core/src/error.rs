@@ -6,7 +6,7 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 pub enum ForgeError {
     #[error("Database error: {0}")]
-    Database(#[from] rusqlite::Error),
+    Database(#[from] Box<dyn std::error::Error + Send + Sync>),
 
     #[error("Serialization error: {0}")]
     Serialization(#[from] serde_json::Error),
