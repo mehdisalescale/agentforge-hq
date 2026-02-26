@@ -71,4 +71,4 @@ cargo clippy --workspace
 - [x] What was changed: In `crates/forge-api/src/lib.rs`: read `FORGE_CORS_ORIGIN` from env (default `*`). If `*`, use `Any` for origin; else parse as `HeaderValue` and use `AllowOrigin::exact(origin)`. Always allow methods GET, POST, PUT, DELETE, OPTIONS and headers Content-Type, Authorization. Added short doc on `app()` for the env var.
 - [x] Tests pass: yes
 - [x] Clippy clean: yes
-- [ ] Notes: Default (no env) keeps permissive CORS for local dev. Production: set `FORGE_CORS_ORIGIN=https://your-frontend.example.com` (or the exact origin). Invalid value panics at startup via `.expect("FORGE_CORS_ORIGIN must be a valid HTTP header value")`.
+- [x] Notes: Default (no env) keeps permissive CORS for local dev. Production: set `FORGE_CORS_ORIGIN=https://your-frontend.example.com` (or the exact origin). Invalid value panics at startup via `.expect("FORGE_CORS_ORIGIN must be a valid HTTP header value")`.

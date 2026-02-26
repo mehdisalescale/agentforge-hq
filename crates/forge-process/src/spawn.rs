@@ -54,8 +54,10 @@ pub const ENV_CLI_COMMAND: &str = "FORGE_CLI_COMMAND";
 pub const ENV_CLI_ARGS: &str = "FORGE_CLI_ARGS";
 
 /// Build SpawnConfig from defaults and override with environment variables.
+///
 /// - `FORGE_CLI_COMMAND`: executable (e.g. "claude" or "/path/to/claude").
 /// - `FORGE_CLI_ARGS`: space-separated args before prompt (e.g. "--output-format stream-json --verbose").
+///
 /// Backward compatible: if env vars are unset, defaults are used.
 impl SpawnConfig {
     pub fn from_env() -> Self {

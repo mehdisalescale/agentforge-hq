@@ -1,7 +1,7 @@
 //! Forge binary: DB, migrations, EventBus, BatchWriter, AgentRepo, API server on 127.0.0.1:4173.
-//! No frontend yet — API only.
+//! Graceful shutdown on Ctrl+C: server stops accepting, then BatchWriter flushes and exits.
 
-use forge_api::{serve, AppState};
+use forge_api::{serve_until_signal, AppState};
 use forge_core::EventBus;
 use forge_db::{AgentRepo, BatchWriter, DbPool, EventRepo, Migrator, SessionRepo, SkillRepo, WorkflowRepo};
 use std::env;
@@ -9,6 +9,13 @@ use std::net::SocketAddr;
 use std::path::Path;
 use std::sync::Arc;
 use tracing::info;
+
+async fn shutdown_signal() {
+    tokio::signal::ctrl_c()
+        .await
+        .expect("failed to install Ctrl+C handler");
+    info!("shutdown signal received");
+}
 
 fn default_db_path() -> String {
     let home = env::var("HOME").unwrap_or_else(|_| "/tmp".into());
@@ -81,9 +88,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let addr: SocketAddr = "127.0.0.1:4173".parse()?;
     info!(%addr, "starting API server (no frontend)");
-    serve(addr, state).await?;
+    serve_until_signal(addr, state, shutdown_signal()).await?;
 
-    // Drop the last Arc ref so the batch writer thread can flush and exit.
-    drop(batch_writer);
+    // Shut down BatchWriter so it flushes remaining events. If another ref exists, drop and let thread exit on channel close.
+    match Arc::try_unwrap(batch_writer) {
+        Ok(bw) => {
+            if let Err(e) = bw.shutdown() {
+                tracing::warn!(error = %e, "batch writer shutdown error");
+            }
+        }
+        Err(arc) => {
+            tracing::warn!(
+                "batch writer: extra refs held, dropping (thread will flush on channel close)"
+            );
+            drop(arc);
+        }
+    }
     Ok(())
 }

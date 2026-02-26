@@ -110,6 +110,24 @@ pub async fn serve(addr: SocketAddr, state: AppState) -> Result<(), std::io::Err
     serve_with_listener(listener, state).await
 }
 
+/// Run the server until the given shutdown future completes (e.g. Ctrl+C).
+/// Use this for graceful shutdown so in-flight requests can finish and BatchWriter can flush.
+pub async fn serve_until_signal<F>(
+    addr: SocketAddr,
+    state: AppState,
+    shutdown: F,
+) -> Result<(), std::io::Error>
+where
+    F: std::future::Future<Output = ()> + Send + 'static,
+{
+    let listener = tokio::net::TcpListener::bind(addr).await?;
+    let local_addr = listener.local_addr()?;
+    info!(%local_addr, "listening");
+    axum::serve(listener, app(state))
+        .with_graceful_shutdown(shutdown)
+        .await
+}
+
 /// Run the server on an existing listener. Used by tests to bind to port 0 and get the port.
 pub async fn serve_with_listener(
     listener: tokio::net::TcpListener,

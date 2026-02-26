@@ -77,6 +77,7 @@ async fn run_handler(
         })?;
 
     let event_bus = Arc::clone(&state.event_bus);
+    let session_repo = Arc::clone(&state.session_repo);
     let sid = session_id.clone();
     let aid = agent_id.clone();
     tokio::spawn(async move {
@@ -90,6 +91,9 @@ async fn run_handler(
             .is_err()
         {
             tracing::warn!("run task: failed to emit ProcessStarted");
+        }
+        if session_repo.update_status(&sid, "running").is_err() {
+            tracing::warn!(session_id = %sid, "run task: failed to update session status to running");
         }
         let mut stdout = match handle.take_stdout() {
             Some(s) => s,
@@ -119,6 +123,9 @@ async fn run_handler(
         match handle.wait().await {
             Ok(status) => {
                 let code = status.code().unwrap_or(-1);
+                if session_repo.update_status(&sid, "completed").is_err() {
+                    tracing::warn!(session_id = %sid, "run task: failed to update session status to completed");
+                }
                 if runner
                     .emit(ForgeEvent::ProcessCompleted {
                         session_id: sid,
@@ -132,6 +139,9 @@ async fn run_handler(
             }
             Err(e) => {
                 tracing::warn!(error = %e, "run task: wait failed");
+                if session_repo.update_status(&sid, "failed").is_err() {
+                    tracing::warn!(session_id = %sid, "run task: failed to update session status to failed");
+                }
                 if runner
                     .emit(ForgeEvent::ProcessFailed {
                         session_id: sid,

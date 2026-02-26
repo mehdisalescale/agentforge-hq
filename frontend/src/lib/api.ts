@@ -213,3 +213,40 @@ export function isProcessLifecycleEvent(ev: ForgeEventWire, sessionId: string | 
     ev.data?.session_id === sessionId
   );
 }
+
+// --- Skills (Phase 2) ---
+
+export interface Skill {
+  id: string;
+  name: string;
+  description: string | null;
+  category: string | null;
+  subcategory: string | null;
+  content: string;
+  source_repo: string | null;
+  parameters_json: string | null;
+  examples_json: string | null;
+  usage_count: number;
+  created_at: string;
+}
+
+export async function listSkills(): Promise<Skill[]> {
+  const res = await fetch(`${API_BASE}/api/v1/skills`);
+  return handleResponse<Skill[]>(res);
+}
+
+// --- Workflows (Phase 2) ---
+
+export interface Workflow {
+  id: string;
+  name: string;
+  description: string | null;
+  definition_json: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function listWorkflows(): Promise<Workflow[]> {
+  const res = await fetch(`${API_BASE}/api/v1/workflows`);
+  return handleResponse<Workflow[]>(res);
+}
