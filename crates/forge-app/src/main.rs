@@ -87,7 +87,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     );
 
     let addr: SocketAddr = "127.0.0.1:4173".parse()?;
-    info!(%addr, "starting API server (no frontend)");
+    info!(%addr, "starting forge server");
     serve_until_signal(addr, state, shutdown_signal()).await?;
 
     // Shut down BatchWriter so it flushes remaining events. If another ref exists, drop and let thread exit on channel close.

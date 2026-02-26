@@ -25,7 +25,7 @@ use tracing::info;
 /// Path is relative to `crates/forge-api/Cargo.toml`.
 /// Allow missing so the crate builds when frontend has not been built yet (e.g. CI).
 #[derive(rust_embed::RustEmbed)]
-#[folder = "../frontend/build"]
+#[folder = "../../frontend/build"]
 #[allow_missing = true]
 struct FrontendAssets;
 
