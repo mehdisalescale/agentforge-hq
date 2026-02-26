@@ -62,6 +62,6 @@ Manual: run an agent that produces code blocks and lists. Output should render f
 
 *Agent: fill this in when done.*
 
-- [ ] What was changed:
-- [ ] Build passes: yes/no
+- [x] What was changed: Added marked and dompurify to frontend; in +page.svelte output area now uses renderStreamMarkdown (DOMPurify.sanitize(marked.parse(...))); replaced pre/code with div.stream-rendered; added CSS for headings, lists, pre/code in .stream-rendered.
+- [x] Build passes: yes
 - [ ] Notes:

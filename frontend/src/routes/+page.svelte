@@ -3,6 +3,8 @@
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
   import { browser } from '$app/environment';
+  import { marked } from 'marked';
+  import DOMPurify from 'dompurify';
   import {
     listAgents,
     runAgent,
@@ -12,6 +14,12 @@
     type Agent,
     type ForgeEventWire,
   } from '$lib/api';
+
+  function renderStreamMarkdown(raw: string): string {
+    if (!raw?.trim()) return '';
+    const html = marked.parse(raw, { async: false }) as string;
+    return DOMPurify.sanitize(html);
+  }
 
   setContext('pageTitle', 'Dashboard');
 
@@ -210,7 +218,7 @@
     {/if}
     <div class="stream-output" class:empty={!streamContent}>
       {#if streamContent}
-        <pre class="stream-pre"><code>{streamContent}</code></pre>
+        <div class="stream-rendered">{@html renderStreamMarkdown(streamContent)}</div>
       {:else}
         <span class="muted">Run an agent to see streaming output here.</span>
       {/if}
@@ -314,17 +322,31 @@
     align-items: center;
     justify-content: center;
   }
-  .stream-pre {
-    margin: 0;
-    white-space: pre-wrap;
-    word-break: break-word;
+  .stream-rendered {
     font-size: 0.9rem;
     line-height: 1.5;
   }
-  .stream-pre code {
-    background: none;
-    padding: 0;
+  .stream-rendered :global(h1) { font-size: 1.25rem; margin: 0 0 0.5rem 0; }
+  .stream-rendered :global(h2) { font-size: 1.1rem; margin: 0.75rem 0 0.4rem 0; }
+  .stream-rendered :global(h3) { font-size: 1rem; margin: 0.5rem 0 0.3rem 0; }
+  .stream-rendered :global(ul), .stream-rendered :global(ol) {
+    margin: 0.25rem 0;
+    padding-left: 1.5rem;
   }
+  .stream-rendered :global(pre) {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.75rem;
+    overflow-x: auto;
+    margin: 0.5rem 0;
+    font-family: ui-monospace, monospace;
+    font-size: 0.85rem;
+  }
+  .stream-rendered :global(code) {
+    font-family: ui-monospace, monospace;
+  }
+  .stream-rendered :global(p) { margin: 0.5rem 0; }
   .muted {
     color: var(--muted);
   }
