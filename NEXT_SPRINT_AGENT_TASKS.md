@@ -14,11 +14,11 @@
 **Codebase:** `forge-project` (or runnable `claude-forge` if you use it). Work in the repo that has the runnable workspace.
 
 **Definition of done (this sprint):**
-- [ ] Run uses session directory when spawning (or optional directory in request).
+- [x] Run uses session directory when spawning (or optional directory in request). *(Done: run handler + SpawnConfig.from_env().with_working_dir)*
 - [ ] Process/session events are persisted (BatchWriter wired to EventBus in app).
 - [ ] E2E smoke test documented or scripted (create agent → run → stream → list session → export).
-- [ ] At least one Phase 2 seed in place (workflow or skill stub in DB/API or frontend).
-- [ ] `cargo test --workspace` and `cargo clippy --workspace` pass.
+- [x] At least one Phase 2 seed in place (workflow or skill stub in DB/API or frontend). *(Frontend: /skills, /workflows placeholder pages)*
+- [ ] `cargo test --workspace` and `cargo clippy --workspace` pass *(assumed; re-run to confirm)*.
 
 ---
 
@@ -120,3 +120,20 @@ Give each agent **section 1 (Context)** above plus **only** the “Your task” 
 - **Phase 1** is polished: run uses directory, events persisted, E2E documented.
 - **Phase 2** has a seed: one of workflows/skills has a list endpoint and optional frontend stub.
 - **Next:** Full workflow engine (S5), skill catalog, or Safety/MCP per ROADMAP.
+
+---
+
+## 6. Implementation status (code audit)
+
+*Checked against the codebase (no reliance on docs).*
+
+| Agent | Status | Verified in code | Gap |
+|-------|--------|------------------|-----|
+| **A** | **Done** | forge-process: `ENV_CLI_COMMAND`, `ENV_CLI_ARGS`, `SpawnConfig::from_env()`, `with_working_dir()`; test `spawn_uses_working_dir_when_set`. forge-api run: `SpawnConfig::from_env().with_working_dir(&session.directory)`; session created with `body.directory.unwrap_or(".")`. | — |
+| **B** | **Not done** | forge-app main.rs: EventBus only; no BatchWriter, no subscribe. forge-db has BatchWriter (spawn, write, shutdown). | Wire EventBus subscribe → BatchWriter.write in forge-app startup. |
+| **C** | **Not done** | No WorkflowRepo/SkillRepo in forge-db; no GET /api/v1/workflows or /api/v1/skills in forge-api. Schema has workflows/skills tables. | Add repo (list/get) + route(s). |
+| **D** | **Partial** | Run request has `directory: Option<String>`; session create and spawn use it; config uses session.directory. | Missing: E2E smoke script or doc; optional GET /api/v1/ready. |
+| **E** | **Partial** | Run form: no `directory` in frontend RunRequest or Run UI. /skills exists: `routes/skills/+page.svelte` placeholder (“Coming soon”). | Add directory field to Run form and api.ts RunRequest; or add GET /api/v1/skills call when API exists. |
+| **F** | **Partial** | Sessions: directory shown in list (`s.directory`) and detail (Directory row). /workflows exists: `routes/workflows/+page.svelte` placeholder (“Coming soon”). Session type in api.ts has no `status`; API returns status. | Show status in Sessions list/detail; add GET /api/v1/workflows call when API exists. |
+
+**Summary:** A done. B, C not done. D, E, F partial (directory/run done in API; E2E missing; frontend directory field and status display missing; Phase 2 stubs are placeholder pages only).

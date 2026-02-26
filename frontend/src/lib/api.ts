@@ -122,6 +122,7 @@ export interface RunRequest {
   agent_id: string;
   prompt: string;
   session_id?: string | null;
+  directory?: string | null;
 }
 
 export interface RunResponse {
@@ -144,9 +145,11 @@ export async function runAgent(req: RunRequest): Promise<RunResponse> {
 export interface Session {
   id: string;
   agent_id: string;
+  claude_session_id: string | null;
   directory: string;
+  status: string;
   created_at: string;
-  updated_at?: string;
+  updated_at: string;
 }
 
 export async function listSessions(): Promise<Session[]> {

@@ -1,13 +1,13 @@
-//! Forge binary: DB, migrations, EventBus, AgentRepo, API server on 127.0.0.1:4173.
+//! Forge binary: DB, migrations, EventBus, BatchWriter, AgentRepo, API server on 127.0.0.1:4173.
 //! No frontend yet — API only.
 
 use forge_api::{serve, AppState};
 use forge_core::EventBus;
-use forge_db::{AgentRepo, DbPool, EventRepo, Migrator, SessionRepo};
+use forge_db::{AgentRepo, BatchWriter, DbPool, EventRepo, Migrator, SessionRepo};
 use std::env;
+use std::net::SocketAddr;
 use std::path::Path;
 use std::sync::Arc;
-use std::net::SocketAddr;
 use tracing::info;
 
 fn default_db_path() -> String {
@@ -42,7 +42,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let agent_repo = AgentRepo::new(Arc::clone(&conn_arc));
     let session_repo = SessionRepo::new(Arc::clone(&conn_arc));
     let event_repo = EventRepo::new(Arc::clone(&conn_arc));
-    let event_bus = EventBus::new(16);
+    let event_bus = EventBus::new(256);
+
+    // S1: Wire BatchWriter to EventBus — persist all events to SQLite.
+    let batch_writer = Arc::new(BatchWriter::spawn(Arc::clone(&conn_arc)));
+    let bw = Arc::clone(&batch_writer);
+    let mut event_rx = event_bus.subscribe();
+    tokio::spawn(async move {
+        loop {
+            match event_rx.recv().await {
+                Ok(event) => {
+                    if let Err(e) = bw.write(event) {
+                        tracing::warn!(error = %e, "batch writer: failed to queue event");
+                    }
+                }
+                Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
+                    tracing::warn!(count = n, "batch writer: subscriber lagged, lost events");
+                }
+                Err(tokio::sync::broadcast::error::RecvError::Closed) => {
+                    info!("event bus closed, stopping event persistence");
+                    break;
+                }
+            }
+        }
+    });
+    info!("event persistence wired (BatchWriter → EventBus)");
+
     let state = AppState::new(
         Arc::new(agent_repo),
         Arc::new(session_repo),
@@ -53,5 +78,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let addr: SocketAddr = "127.0.0.1:4173".parse()?;
     info!(%addr, "starting API server (no frontend)");
     serve(addr, state).await?;
+
+    // Drop the last Arc ref so the batch writer thread can flush and exit.
+    drop(batch_writer);
     Ok(())
 }

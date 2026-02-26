@@ -19,6 +19,7 @@
   let agentsError = '';
   let selectedAgentId = '';
   let prompt = '';
+  let directory = '';
   let running = false;
   let runError = '';
   let streamContent = '';
@@ -117,6 +118,7 @@
         agent_id: selectedAgentId,
         prompt: prompt.trim(),
         session_id: resumeSessionId,
+        directory: directory.trim() || undefined,
       });
       currentSessionId = res.session_id;
       streamStatus = 'streaming';
@@ -176,6 +178,14 @@
           rows="4"
           disabled={running}
         ></textarea>
+        <label for="directory-input">Working Directory <span class="optional">(optional)</span></label>
+        <input
+          id="directory-input"
+          type="text"
+          bind:value={directory}
+          placeholder="/path/to/project"
+          disabled={running}
+        />
         <div class="form-actions">
           <button type="button" class="primary" on:click={run} disabled={running || agents.length === 0}>
             {running ? 'Running…' : 'Run'}
@@ -230,13 +240,19 @@
     color: var(--muted);
   }
   .form select,
-  .form textarea {
+  .form textarea,
+  .form input[type='text'] {
     padding: 0.5rem 0.75rem;
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 6px;
     color: var(--text);
     font-family: inherit;
+  }
+  .optional {
+    font-weight: 400;
+    color: var(--muted);
+    font-size: 0.8rem;
   }
   .form textarea {
     resize: vertical;

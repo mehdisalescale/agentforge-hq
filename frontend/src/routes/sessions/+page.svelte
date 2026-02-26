@@ -81,7 +81,10 @@
                   class:selected={selectedId === s.id}
                   on:click={() => loadDetail(s.id)}
                 >
-                  <span class="session-id">{s.id.slice(0, 8)}…</span>
+                  <span class="session-header">
+                    <span class="session-id">{s.id.slice(0, 8)}…</span>
+                    <span class="status-badge" class:running={s.status === 'running'} class:completed={s.status === 'completed'} class:failed={s.status === 'failed'}>{s.status}</span>
+                  </span>
                   <span class="session-meta">{s.directory || '—'}</span>
                 </button>
               </li>
@@ -103,6 +106,8 @@
             <dd><code>{detail.agent_id}</code></dd>
             <dt>Directory</dt>
             <dd><code>{detail.directory || '—'}</code></dd>
+            <dt>Status</dt>
+            <dd><span class="status-badge" class:running={detail.status === 'running'} class:completed={detail.status === 'completed'} class:failed={detail.status === 'failed'}>{detail.status}</span></dd>
             <dt>Created</dt>
             <dd>{detail.created_at}</dd>
           </dl>
@@ -168,10 +173,36 @@
     border-color: var(--accent);
     background: rgba(167, 139, 250, 0.1);
   }
+  .session-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
   .session-id {
-    display: block;
     font-size: 0.9rem;
     font-weight: 500;
+  }
+  .status-badge {
+    font-size: 0.7rem;
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    background: var(--surface);
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .status-badge.running {
+    background: rgba(96, 165, 250, 0.15);
+    color: #60a5fa;
+  }
+  .status-badge.completed {
+    background: rgba(134, 239, 172, 0.15);
+    color: #86efac;
+  }
+  .status-badge.failed {
+    background: rgba(248, 113, 113, 0.15);
+    color: #f87171;
   }
   .session-meta {
     display: block;
