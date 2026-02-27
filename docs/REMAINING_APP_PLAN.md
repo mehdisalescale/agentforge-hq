@@ -94,15 +94,15 @@ From `docs/WHAT_TO_DO_NEXT.md` Section 3 and AUDIT_REPORT.
 
 ---
 
-## 5. Phase C: one differentiator (deferred)
+## 5. Phase C: one differentiator (preferred “later” track)
 
-Pick one after Phase A feedback:
+**Preference:** After Phase A feedback, pick one differentiator (not all three). Phase C is the preferred next big bet once v0.2.0 is validated.
 
 - **Option 1:** Multi-agent swim-lane visualization (observability).
 - **Option 2:** Worktree-per-agent isolation (safety).
 - **Option 3:** Workflow DAG execution (automation).
 
-No detailed plan here; decision when users have tried v0.2.0.
+No detailed plan yet; choose one when users have tried v0.2.0.
 
 ---
 
@@ -116,7 +116,7 @@ No detailed plan here; decision when users have tried v0.2.0.
 | Then | MCP design + implement | Main remaining feature. |
 | Parallel or after | P3 (validation, re-export) | Small, independent. |
 | Optional | Budget enforcement | When product priority says so. |
-| Later | Phase C one differentiator | After user feedback. |
+| Later | Phase C one differentiator (multi-agent viz / worktree-per-agent / workflow DAG) | After Phase A user feedback; pick one. |
 
 ---
 
