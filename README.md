@@ -26,6 +26,11 @@ cargo build --release
 ./target/release/forge
 ```
 
+## Data and authentication
+
+- **Database:** The binary does **not** include a database. On first run, Forge creates an empty SQLite file at `FORGE_DB_PATH` (default `~/.claude-forge/forge.db`). So a fresh download always starts with no agents or sessions.
+- **Claude Code:** Runs spawn the `claude` CLI (see `FORGE_CLI_COMMAND`). If `claude` is not installed or not authenticated, the run will fail: the session is marked "failed" and the error appears in the UI. Authenticate once with `claude` (e.g. in a terminal) before using Forge.
+
 ## Configuration
 
 | Var | Default | Description |
@@ -37,6 +42,8 @@ cargo build --release
 | FORGE_CLI_COMMAND | claude | CLI executable |
 | FORGE_RATE_LIMIT_MAX | 10 | Max tokens for run endpoint (token bucket) |
 | FORGE_RATE_LIMIT_REFILL_MS | 1000 | Refill interval in ms (1 token per interval) |
+| FORGE_BUDGET_WARN | (none) | Emit BudgetWarning event when session cost (USD) reaches this |
+| FORGE_BUDGET_LIMIT | (none) | Emit BudgetExceeded event when session cost (USD) reaches this |
 
 ## Architecture
 

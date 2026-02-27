@@ -177,6 +177,7 @@ mod tests {
                 circuit_breaker: Arc::new(CircuitBreaker::default()),
                 rate_limiter: Arc::new(RateLimiter::new(100, Duration::from_secs(1))),
             },
+            crate::state::BudgetConfig::default(),
         );
         let app = app(state);
         let request = Request::builder()
@@ -217,6 +218,7 @@ mod tests {
                 circuit_breaker: Arc::new(CircuitBreaker::default()),
                 rate_limiter: Arc::new(RateLimiter::new(100, Duration::from_secs(1))),
             },
+            crate::state::BudgetConfig::default(),
         );
         let app = app(state);
         let request = Request::builder()
@@ -256,6 +258,7 @@ mod tests {
                 circuit_breaker: Arc::new(CircuitBreaker::default()),
                 rate_limiter: Arc::new(RateLimiter::new(100, Duration::from_secs(1))),
             },
+            crate::state::BudgetConfig::default(),
         );
 
         let app = app(state);
@@ -317,6 +320,7 @@ mod tests {
                 circuit_breaker: Arc::new(CircuitBreaker::default()),
                 rate_limiter: Arc::new(RateLimiter::new(100, Duration::from_secs(1))),
             },
+            crate::state::BudgetConfig::default(),
         );
 
         let app = app(state);
@@ -423,6 +427,7 @@ mod tests {
                 circuit_breaker: Arc::new(CircuitBreaker::default()),
                 rate_limiter: Arc::new(RateLimiter::new(100, Duration::from_secs(1))),
             },
+            crate::state::BudgetConfig::default(),
         );
 
         let app = app(state);

@@ -12,7 +12,14 @@ pub struct SafetyState {
     pub rate_limiter: Arc<RateLimiter>,
 }
 
-/// Shared state for the API: repositories, event bus, and safety controls.
+/// Optional budget limits (USD). When cost exceeds warn/limit, emit events.
+#[derive(Clone, Default)]
+pub struct BudgetConfig {
+    pub warn: Option<f64>,
+    pub limit: Option<f64>,
+}
+
+/// Shared state for the API: repositories, event bus, safety, and optional budget.
 #[derive(Clone)]
 pub struct AppState {
     pub agent_repo: Arc<AgentRepo>,
@@ -22,6 +29,7 @@ pub struct AppState {
     pub skill_repo: Arc<SkillRepo>,
     pub workflow_repo: Arc<WorkflowRepo>,
     pub safety: SafetyState,
+    pub budget: BudgetConfig,
 }
 
 impl AppState {
@@ -33,6 +41,7 @@ impl AppState {
         skill_repo: Arc<SkillRepo>,
         workflow_repo: Arc<WorkflowRepo>,
         safety: SafetyState,
+        budget: BudgetConfig,
     ) -> Self {
         Self {
             agent_repo,
@@ -42,6 +51,7 @@ impl AppState {
             skill_repo,
             workflow_repo,
             safety,
+            budget,
         }
     }
 }

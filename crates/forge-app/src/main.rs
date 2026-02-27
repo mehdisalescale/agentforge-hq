@@ -1,10 +1,10 @@
 //! Forge binary: DB, migrations, EventBus, BatchWriter, AgentRepo, API server (FORGE_HOST:FORGE_PORT).
 //! Graceful shutdown on Ctrl+C: server stops accepting, then BatchWriter flushes and exits.
 
+use forge_api::state::{BudgetConfig, SafetyState};
 use forge_api::{serve_until_signal, AppState};
 use forge_core::EventBus;
 use forge_db::{AgentRepo, BatchWriter, DbPool, EventRepo, Migrator, SessionRepo, SkillRepo, WorkflowRepo};
-use forge_api::state::SafetyState;
 use forge_safety::{CircuitBreaker, RateLimiter};
 use std::env;
 use std::net::SocketAddr;
@@ -95,6 +95,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         circuit_breaker: Arc::new(CircuitBreaker::default()),
         rate_limiter,
     };
+    let budget_warn = env::var("FORGE_BUDGET_WARN").ok().and_then(|s| s.parse().ok());
+    let budget_limit = env::var("FORGE_BUDGET_LIMIT").ok().and_then(|s| s.parse().ok());
+    let budget = BudgetConfig {
+        warn: budget_warn,
+        limit: budget_limit,
+    };
 
     let state = AppState::new(
         Arc::new(agent_repo),
@@ -104,6 +110,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         Arc::new(skill_repo),
         Arc::new(workflow_repo),
         safety,
+        budget,
     );
 
     let host = env::var("FORGE_HOST").unwrap_or_else(|_| "127.0.0.1".into());

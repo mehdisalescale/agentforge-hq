@@ -91,6 +91,8 @@ async fn run_handler(
     let event_bus = Arc::clone(&state.event_bus);
     let session_repo = Arc::clone(&state.session_repo);
     let circuit_breaker = Arc::clone(&state.safety.circuit_breaker);
+    let budget_warn = state.budget.warn;
+    let budget_limit = state.budget.limit;
     let sid = session_id.clone();
     let aid = agent_id.clone();
     tokio::spawn(async move {
@@ -132,6 +134,25 @@ async fn run_handler(
                     if let Some(cost) = payload.cost_usd {
                         if session_repo.update_cost(&sid, cost).is_err() {
                             tracing::warn!(session_id = %sid, "run task: failed to update session cost");
+                        } else {
+                            if let Some(limit) = budget_limit {
+                                if cost >= limit {
+                                    let _ = runner.emit(ForgeEvent::BudgetExceeded {
+                                        current_cost: cost,
+                                        limit,
+                                        timestamp: chrono::Utc::now(),
+                                    });
+                                }
+                            }
+                            if let Some(warn) = budget_warn {
+                                if cost >= warn && budget_limit.map(|l| cost < l).unwrap_or(true) {
+                                    let _ = runner.emit(ForgeEvent::BudgetWarning {
+                                        current_cost: cost,
+                                        limit: warn,
+                                        timestamp: chrono::Utc::now(),
+                                    });
+                                }
+                            }
                         }
                     }
                 }
