@@ -65,10 +65,22 @@ mod tests {
     #[test]
     fn validate_accepts_valid_agent() {
         let agent = NewAgent {
-            name: "My Agent".into(),
+            name: "MyAgent".into(),
             ..default_new_agent()
         };
         assert!(validate_new_agent(&agent).is_ok());
+    }
+
+    #[test]
+    fn validate_rejects_name_with_spaces() {
+        let agent = NewAgent {
+            name: "My Agent".into(),
+            ..default_new_agent()
+        };
+        assert!(matches!(
+            validate_new_agent(&agent),
+            Err(forge_core::ForgeError::Validation(_))
+        ));
     }
 
     #[test]
