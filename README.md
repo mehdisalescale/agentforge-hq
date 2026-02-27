@@ -12,8 +12,9 @@ Multi-agent Claude Code orchestrator. Rust + Svelte, single binary.
 ## Quick start
 
 ```bash
-# Download from GitHub Releases (or build from source)
-./forge
+# Download from GitHub Releases (e.g. forge-macos-arm64), then:
+chmod +x forge-macos-arm64   # needed after browser download
+./forge-macos-arm64
 # Open http://127.0.0.1:4173
 ```
 
