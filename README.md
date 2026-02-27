@@ -34,6 +34,8 @@ cargo build --release
 | FORGE_HOST | 127.0.0.1 | Bind address |
 | FORGE_CORS_ORIGIN | * | CORS allowed origin |
 | FORGE_CLI_COMMAND | claude | CLI executable |
+| FORGE_RATE_LIMIT_MAX | 10 | Max tokens for run endpoint (token bucket) |
+| FORGE_RATE_LIMIT_REFILL_MS | 1000 | Refill interval in ms (1 token per interval) |
 
 ## Architecture
 

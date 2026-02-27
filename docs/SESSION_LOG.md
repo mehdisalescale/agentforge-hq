@@ -5,6 +5,16 @@
 
 ---
 
+### Session 10 -- 2026-02-27 -- Batch 2 handoff (HANDOFF_BATCH_2.md)
+- **Branch**: `main`
+- **What was done**:
+  - Executed all waves from docs/agents/HANDOFF_BATCH_2.md: TASK_11 (configurable host/port), TASK_12 (E2E smoke script), TASK_13 (GitHub Release workflow), TASK_14 (README), TASK_15 (NORTH_STAR sync); TASK_16 (markdown rendering), TASK_18 (circuit breaker); TASK_17 (tool-use collapsible panels), TASK_19 (rate limiter); TASK_20 (cost tracking). Refactor: SafetyState to fix clippy too_many_arguments.
+  - One commit per task; reports filled in task cards; cargo test + clippy + pnpm build after each wave.
+- **What's next**: Sync NORTH_STAR/README/SESSION_LOG (this entry); release workflow one-release-three-binaries; optional rusqlite fts5; MCP server or ship v0.2.0.
+- **Files touched**: crates/forge-app, forge-api, forge-safety, forge-db; frontend; scripts/e2e-smoke.sh; .github/workflows/release.yml; README, NORTH_STAR, migrations, docs/agents/*.md
+
+---
+
 ### Session 9 -- 2026-02-26 -- Agent A handoff (Track A: spawn + stream-json)
 - **Branch**: `main`
 - **What was done** (Agent A summary recorded):

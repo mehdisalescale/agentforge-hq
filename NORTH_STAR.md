@@ -56,9 +56,9 @@ See `STRATEGIC_ASSESSMENT.md` for the full analysis.
 
 ### What's Missing for v0.2.0
 - MCP server (stdio transport + 10 tools)
-- Circuit breaker, rate limiter, cost tracking
-- Markdown rendering in stream output
-- GitHub Release binaries
+- Ship v0.2.0 (tag + verify one release with all binaries)
+
+*Done in Batch 2:* Circuit breaker, rate limiter, cost tracking, markdown rendering in stream, tool-use collapsible panels, GitHub Release workflow, configurable host/port, E2E smoke script, README.
 
 ---
 
@@ -84,9 +84,9 @@ Phase 1 complete: Tracks **A–F** implemented (spawn, runner, sessions, run wit
 |------|--------|-------|
 | Fix user-reported issues | Blocked by Phase A | Whatever breaks |
 | MCP server (10 tools, stdio) | Not started | agent_create, agent_run, session_list, etc. |
-| Circuit breaker | Not started | 3-state FSM from ralph-claude-code pattern |
-| Rate limiter | Not started | Token bucket, per-agent + global |
-| Ship `v0.2.0` | Blocked by above | |
+| Circuit breaker | Done | 3-state FSM in forge-safety, wired in run handler |
+| Rate limiter | Done | Token bucket in forge-safety, FORGE_RATE_LIMIT_* env |
+| Ship `v0.2.0` | Pending | Tag + release workflow (one release, 3 binaries) |
 
 ### Phase C: Differentiate (4 weeks)
 
