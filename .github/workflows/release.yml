@@ -1,3 +1,5 @@
+# One release per tag with all three binaries (macos-arm64, macos-x64, linux-x64).
+# Build jobs upload artifacts; release job downloads all and publishes once.
 name: Release
 on:
   push:
@@ -43,9 +45,37 @@ jobs:
       - name: Build release binary
         run: cargo build --release --target ${{ matrix.target }}
 
-      - name: Rename binary
+      - name: Prepare artifact
         run: cp target/${{ matrix.target }}/release/forge ${{ matrix.name }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          path: ${{ matrix.name }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: forge-macos-arm64
+      - uses: actions/download-artifact@v4
+        with:
+          name: forge-macos-x64
+      - uses: actions/download-artifact@v4
+        with:
+          name: forge-linux-x64
+
+      - name: Move binaries to workspace root
+        run: |
+          mv forge-macos-arm64/forge-macos-arm64 .
+          mv forge-macos-x64/forge-macos-x64 .
+          mv forge-linux-x64/forge-linux-x64 .
 
       - uses: softprops/action-gh-release@v2
         with:
-          files: ${{ matrix.name }}
+          files: |
+            forge-macos-arm64
+            forge-macos-x64
+            forge-linux-x64
