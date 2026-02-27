@@ -1,0 +1,18 @@
+[package]
+name = "forge-mcp-bin"
+version = "0.1.0"
+edition = "2021"
+description = "Forge MCP server binary (stdio)"
+
+[[bin]]
+name = "forge-mcp"
+path = "src/main.rs"
+
+[dependencies]
+forge-core = { path = "../forge-core" }
+forge-agent = { path = "../forge-agent" }
+forge-db = { path = "../forge-db" }
+forge-mcp = { path = "../forge-mcp" }
+uuid = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }

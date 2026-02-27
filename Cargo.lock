@@ -316,6 +316,7 @@ dependencies = [
  "forge-core",
  "forge-db",
  "forge-process",
+ "forge-safety",
  "futures-util",
  "http",
  "mime_guess",
@@ -337,6 +338,7 @@ dependencies = [
  "forge-api",
  "forge-core",
  "forge-db",
+ "forge-safety",
  "tokio",
  "tracing",
  "tracing-subscriber",
@@ -378,6 +380,19 @@ dependencies = [
  "forge-core",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "forge-mcp-bin"
+version = "0.1.0"
+dependencies = [
+ "forge-agent",
+ "forge-core",
+ "forge-db",
+ "forge-mcp",
+ "serde",
+ "serde_json",
+ "uuid",
 ]
 
 [[package]]
