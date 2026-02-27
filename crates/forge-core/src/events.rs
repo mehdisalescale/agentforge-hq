@@ -118,6 +118,34 @@ pub enum ForgeEvent {
     },
 }
 
+impl ForgeEvent {
+    /// Returns the event's embedded timestamp (when it occurred).
+    pub fn timestamp(&self) -> DateTime<Utc> {
+        match self {
+            ForgeEvent::SystemStarted { timestamp, .. }
+            | ForgeEvent::SystemStopped { timestamp }
+            | ForgeEvent::Heartbeat { timestamp }
+            | ForgeEvent::AgentCreated { timestamp, .. }
+            | ForgeEvent::AgentUpdated { timestamp, .. }
+            | ForgeEvent::AgentDeleted { timestamp, .. }
+            | ForgeEvent::ProcessStarted { timestamp, .. }
+            | ForgeEvent::ProcessOutput { timestamp, .. }
+            | ForgeEvent::ProcessCompleted { timestamp, .. }
+            | ForgeEvent::ProcessFailed { timestamp, .. }
+            | ForgeEvent::SessionCreated { timestamp, .. }
+            | ForgeEvent::SessionResumed { timestamp, .. }
+            | ForgeEvent::WorkflowStarted { timestamp, .. }
+            | ForgeEvent::WorkflowStepCompleted { timestamp, .. }
+            | ForgeEvent::WorkflowCompleted { timestamp, .. }
+            | ForgeEvent::WorkflowFailed { timestamp, .. }
+            | ForgeEvent::CircuitBreakerTripped { timestamp, .. }
+            | ForgeEvent::BudgetWarning { timestamp, .. }
+            | ForgeEvent::BudgetExceeded { timestamp, .. }
+            | ForgeEvent::Error { timestamp, .. } => *timestamp,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum OutputKind {
     Assistant,

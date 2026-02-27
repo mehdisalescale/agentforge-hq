@@ -87,10 +87,10 @@ fn writer_loop(conn: Arc<Mutex<Connection>>, receiver: Receiver<ForgeEvent>) {
 }
 
 fn flush_to_db(conn: &Arc<Mutex<Connection>>, buffer: &mut Vec<ForgeEvent>) {
-    let conn = conn.lock().expect("db mutex poisoned");
+    let mut conn = conn.lock().expect("db mutex poisoned");
     let count = buffer.len();
 
-    let tx = match conn.unchecked_transaction() {
+    let tx = match conn.transaction() {
         Ok(tx) => tx,
         Err(e) => {
             error!(error = %e, "failed to begin transaction");
@@ -102,7 +102,7 @@ fn flush_to_db(conn: &Arc<Mutex<Connection>>, buffer: &mut Vec<ForgeEvent>) {
         let id = Uuid::new_v4().to_string();
         let event_type = event_type_name(event);
         let data_json = serde_json::to_string(event).unwrap_or_default();
-        let timestamp = chrono::Utc::now().to_rfc3339();
+        let timestamp = event.timestamp().to_rfc3339();
 
         let (agent_id, session_id) = extract_ids(event);
 
