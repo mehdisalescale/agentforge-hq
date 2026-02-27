@@ -33,7 +33,8 @@ impl AgentRepo {
             .allowed_tools
             .as_ref()
             .and_then(|t| serde_json::to_string(t).ok());
-        let preset_str = input
+        // Preset stored as JSON (serde); parse_preset in row_to_agent is fallback for legacy rows.
+    let preset_str = input
             .preset
             .as_ref()
             .and_then(|p| serde_json::to_string(p).ok());
@@ -74,11 +75,15 @@ impl AgentRepo {
             )
             .map_err(|e| ForgeError::Database(Box::new(e)))?;
 
-        stmt.query_row(rusqlite::params![id.0.to_string()], row_to_agent)
-            .map_err(|e| match e {
-                rusqlite::Error::QueryReturnedNoRows => ForgeError::AgentNotFound(id.clone()),
-                other => ForgeError::Database(Box::new(other)),
-            })
+        stmt.query_row(
+            rusqlite::params![id.0.to_string()],
+            |row| row_to_agent(&row).map_err(|e| rusqlite::Error::InvalidParameterName(e.to_string())),
+        )
+        .map_err(|e| match e {
+            rusqlite::Error::QueryReturnedNoRows => ForgeError::AgentNotFound(id.clone()),
+            rusqlite::Error::InvalidParameterName(s) => ForgeError::Validation(s),
+            other => ForgeError::Database(Box::new(other)),
+        })
     }
 
     pub fn list(&self) -> ForgeResult<Vec<Agent>> {
@@ -91,10 +96,15 @@ impl AgentRepo {
             .map_err(|e| ForgeError::Database(Box::new(e)))?;
 
         let agents: Vec<Agent> = stmt
-            .query_map([], row_to_agent)
+            .query_map([], |row| {
+                row_to_agent(&row).map_err(|e| rusqlite::Error::InvalidParameterName(e.to_string()))
+            })
             .map_err(|e| ForgeError::Database(Box::new(e)))?
             .collect::<Result<Vec<_>, _>>()
-            .map_err(|e| ForgeError::Database(Box::new(e)))?;
+            .map_err(|e| match e {
+                rusqlite::Error::InvalidParameterName(s) => ForgeError::Validation(s),
+                other => ForgeError::Database(Box::new(other)),
+            })?;
 
         Ok(agents)
     }
@@ -176,34 +186,35 @@ impl AgentRepo {
     }
 }
 
-fn row_to_agent(row: &rusqlite::Row<'_>) -> Result<Agent, rusqlite::Error> {
-    let id_str: String = row.get(0)?;
-    let id = uuid::Uuid::parse_str(&id_str).map_err(|_| rusqlite::Error::InvalidParameterName(id_str))?;
+fn row_to_agent(row: &rusqlite::Row<'_>) -> Result<Agent, ForgeError> {
+    let id_str: String = row.get(0).map_err(|e| ForgeError::Database(Box::new(e)))?;
+    let id = uuid::Uuid::parse_str(&id_str)
+        .map_err(|_| ForgeError::Validation(format!("invalid agent id: {}", id_str)))?;
     let id = AgentId(id);
 
-    let name: String = row.get(1)?;
-    let model: String = row.get(2)?;
-    let system_prompt: Option<String> = row.get(3)?;
-    let allowed_tools: Option<String> = row.get(4)?;
+    let name: String = row.get(1).map_err(|e| ForgeError::Database(Box::new(e)))?;
+    let model: String = row.get(2).map_err(|e| ForgeError::Database(Box::new(e)))?;
+    let system_prompt: Option<String> = row.get(3).map_err(|e| ForgeError::Database(Box::new(e)))?;
+    let allowed_tools: Option<String> = row.get(4).map_err(|e| ForgeError::Database(Box::new(e)))?;
     let allowed_tools = allowed_tools
         .as_deref()
         .and_then(|s| serde_json::from_str(s).ok());
-    let max_turns: Option<i64> = row.get(5)?;
+    let max_turns: Option<i64> = row.get(5).map_err(|e| ForgeError::Database(Box::new(e)))?;
     let max_turns = max_turns.and_then(|n| u32::try_from(n).ok());
-    let use_max: bool = row.get(6)?;
-    let preset: Option<String> = row.get(7)?;
+    let use_max: bool = row.get(6).map_err(|e| ForgeError::Database(Box::new(e)))?;
+    let preset: Option<String> = row.get(7).map_err(|e| ForgeError::Database(Box::new(e)))?;
     let preset = preset.as_deref().and_then(|s| {
         serde_json::from_str(s).ok().or_else(|| parse_preset(s))
     });
-    let config_json: Option<String> = row.get(8)?;
+    let config_json: Option<String> = row.get(8).map_err(|e| ForgeError::Database(Box::new(e)))?;
     let config = config_json.as_deref().and_then(|s| serde_json::from_str(s).ok());
-    let created_at: String = row.get(9)?;
-    let updated_at: String = row.get(10)?;
+    let created_at: String = row.get(9).map_err(|e| ForgeError::Database(Box::new(e)))?;
+    let updated_at: String = row.get(10).map_err(|e| ForgeError::Database(Box::new(e)))?;
     let created_at = DateTime::parse_from_rfc3339(&created_at)
-        .map_err(|_| rusqlite::Error::InvalidParameterName(created_at.clone()))?
+        .map_err(|_| ForgeError::Validation(format!("invalid timestamp: {}", created_at)))?
         .with_timezone(&Utc);
     let updated_at = DateTime::parse_from_rfc3339(&updated_at)
-        .map_err(|_| rusqlite::Error::InvalidParameterName(updated_at.clone()))?
+        .map_err(|_| ForgeError::Validation(format!("invalid timestamp: {}", updated_at)))?
         .with_timezone(&Utc);
 
     Ok(Agent {
