@@ -1,7 +1,22 @@
-# Claude Forge -- Session Log
+# Claude Forge — Session Log
 
 > Track every development session. Each entry = one Claude Code session.
 > Newest entries at top.
+
+---
+
+### Session 11 — 2026-03-02 — Comprehensive Audit & Doc Overhaul
+- **Branch**: `main`
+- **What was done**:
+  - **Full source code audit**: 6 parallel agents audited all 9 Rust crates (3,400 LOC), frontend (1,400 LOC), build/test (33 tests pass, clean compile), all planning docs, 61 reference repos, and online research
+  - **Deep code verification of external repos**: DeerFlow (~10K LOC Python, verified legitimate), Claude-Flow (601MB, verified ~60% real / ~40% hype)
+  - **Industry research**: Rust AI frameworks (Rig, AutoAgents, OpenFang), rmcp (official MCP SDK), orchestration patterns, memory systems (Mem0), safety standards (NIST)
+  - **Gap analysis**: Code vs plan vs external capabilities. Identified 6 bugs, 4 large gaps, 11 borrowed ideas across 3 tiers
+  - **New sprint plan**: 4 sprints replacing old Phase 0-D structure
+  - **Docs created**: `docs/FORGE_AUDIT_2026_03_02.md` (full audit), updated `docs/BORROWED_IDEAS.md` (corrected with verified findings)
+  - **Docs overhauled**: Rewrote `NORTH_STAR.md` (new sprint plan, verified state, file map fixed), `MASTER_TASK_LIST.md` (old phases marked done, new 4-sprint structure), `README.md` (accurate architecture), `docs/SESSION_LOG.md` (this entry), added `docs/DOC_INDEX.md` (what's current vs archived)
+- **What's next**: Sprint 1 — fix 3 bugs (F1-F3) + rewrite MCP with rmcp + ship v0.2.0
+- **Files touched**: NORTH_STAR.md, MASTER_TASK_LIST.md, README.md, docs/FORGE_AUDIT_2026_03_02.md, docs/BORROWED_IDEAS.md, docs/SESSION_LOG.md, docs/DOC_INDEX.md
 
 ---
 
