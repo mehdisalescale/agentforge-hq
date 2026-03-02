@@ -1,7 +1,7 @@
 # Claude Forge — Master Task List
 
-> **Updated:** 2026-03-02 (post-audit, replaces old Phase 0-D structure)
-> **Source:** `docs/FORGE_AUDIT_2026_03_02.md` — full audit with per-crate grades
+> **Updated:** 2026-03-02 (merged from audit task list + enhancement proposal)
+> **Source:** `docs/FORGE_AUDIT_2026_03_02.md` (audit), `docs/BORROWED_IDEAS.md` (patterns)
 > **Rule:** Complete tasks in order within each sprint. Don't skip sprints.
 
 ---
@@ -12,6 +12,15 @@
 2. Mark it `[x]` when done.
 3. Run `cargo test --workspace && cargo clippy --workspace` after every task.
 4. Commit after each task.
+
+---
+
+## Principles
+
+1. **Ship small, ship often.** Three releases, each one usable.
+2. **Code over docs.** The 50+ doc era is over. Build features, not plans.
+3. **Borrow proven patterns.** Middleware, skills, sub-agents — all verified in DeerFlow (~10K real LOC).
+4. **Honest scope.** 3,400 LOC that works beats 30,000 LOC that's half stubs.
 
 ---
 
@@ -49,7 +58,7 @@ Everything below was verified working as of 2026-03-02 audit.
 </details>
 
 <details>
-<summary>Phase B (partial): Safety — DONE</summary>
+<summary>Phase B: Safety — ALL DONE</summary>
 
 - [x] B1: Auto-update session status on process events
 - [x] B2: Markdown rendering in output stream (marked + DOMPurify)
@@ -62,9 +71,9 @@ Everything below was verified working as of 2026-03-02 audit.
 
 ---
 
-## SPRINT 1 → v0.2.0 — Ship MCP + Fix Bugs
+## SPRINT 1 → v0.2.0 — Fix + MCP + Ship
 
-> **Goal:** Fix known bugs, rewrite MCP server with official SDK, ship tagged release.
+> **Goal:** Fix known bugs, rewrite MCP server with official SDK, consolidate docs, ship tagged release.
 > **Estimated effort:** 3-5 days
 
 ### Fixes
@@ -224,6 +233,35 @@ Or better: `#[derive(Deserialize)]` and use `serde_json::from_str`.
 
 ---
 
+### Housekeeping
+
+#### D1: Create CLAUDE.md
+- [ ] **Done**
+
+**What:** Project context file for every AI/human session.
+
+**Where:** `CLAUDE.md` (project root)
+
+**Verify:** File exists, under 200 lines, covers build commands, architecture, current sprint.
+
+---
+
+#### D2: Doc consolidation
+- [ ] **Done**
+
+**What:** Cut doc count from 50+ to ~15.
+
+| Action | Files Affected |
+|--------|---------------|
+| Merge 35 frozen `00-08/` files into `docs/ORIGINAL_DESIGN_REFERENCE.md` | 35 files → 1 |
+| Merge 14 `docs/planning/` files into `docs/PLANNING_ARCHIVE.md` | 14 files → 1 |
+| Delete 10 superseded docs already marked in DOC_INDEX | WHAT_TO_DO_NEXT, REMAINING_APP_PLAN, PROPOSAL_2_3_4, STRATEGIC_ASSESSMENT, EXECUTIVE_SUMMARY, AUDIT_REPORT, PRODUCT_JOURNEY, REFERENCE_REPOS, PHASE1_DESIGN_NOTES |
+| Update DOC_INDEX.md | Reflect new structure |
+
+**Verify:** `find docs/ -name '*.md' | wc -l` shows ~15 or fewer.
+
+---
+
 ### Release
 
 #### R1: Tag and ship v0.2.0
@@ -235,13 +273,65 @@ Or better: `#[derive(Deserialize)]` and use `serde_json::from_str`.
 
 ---
 
-## SPRINT 2 → v0.3.0 — Middleware + Skills + Worktrees
+## SPRINT 2 → v0.3.0 — Worktrees + Middleware + Skills
 
-> **Goal:** Structured run pipeline, skill system with content, git worktree isolation.
+> **Goal:** Git worktree isolation, structured run pipeline, skill system with content.
 > **Prerequisite:** Sprint 1 complete.
-> **Estimated effort:** 5-8 days
+> **Estimated effort:** 8-12 days
 
-### MW1: Middleware trait and chain
+### Worktrees
+
+#### WT1: Git worktree creation
+- [ ] **Done**
+
+**What:** Create git worktree per session for agent isolation.
+
+**Where:** New crate `crates/forge-git/` (wraps git2 or shell commands)
+
+**How:**
+```rust
+pub fn create_worktree(repo_dir: &Path, session_id: &str) -> Result<PathBuf> {
+    let worktree_dir = repo_dir.join(".worktrees").join(session_id);
+    let branch = format!("forge/{}", session_id);
+    Command::new("git")
+        .args(["worktree", "add", &worktree_dir.to_string_lossy(), "-b", &branch])
+        .current_dir(repo_dir)
+        .status()?;
+    Ok(worktree_dir)
+}
+```
+
+**Why worktrees first:** Industry-converged pattern (Claude official `--worktree`, ccswarm). Prerequisite for sub-agent parallelism in Sprint 3. Estimated ~300-500 LOC.
+
+**Verify:** Run creates `.worktrees/{session_id}/` with its own branch. Agent operates in isolation.
+
+---
+
+#### WT2: Worktree cleanup
+- [ ] **Done**
+
+**What:** Remove worktree when session is deleted or completed.
+
+**How:** `git worktree remove .worktrees/{session_id}` + `git branch -d forge/{session_id}`
+
+**Verify:** Delete session → worktree directory removed, branch deleted.
+
+---
+
+#### WT3: Worktree cleanup / merge UI
+- [ ] **Done**
+
+**What:** Frontend controls for worktree branch status, merge, and delete.
+
+**Where:** `frontend/src/routes/sessions/`
+
+**Verify:** Session detail page shows branch name, merge button works.
+
+---
+
+### Middleware
+
+#### MW1: Middleware trait and chain
 - [ ] **Done**
 
 **What:** Define `Middleware` trait, build `MiddlewareChain`, refactor `handle_run`.
@@ -266,7 +356,7 @@ pub struct MiddlewareChain {
 
 ---
 
-### MW2: Extract existing logic into middlewares
+#### MW2: Extract existing logic into middlewares
 - [ ] **Done**
 
 **What:** Move rate limit, circuit breaker, spawn, persist, cost into middleware components.
@@ -274,7 +364,7 @@ pub struct MiddlewareChain {
 **Chain order:**
 1. `RateLimitMiddleware` — token bucket check
 2. `CircuitBreakerMiddleware` — failure threshold check
-3. `SkillInjectionMiddleware` — (placeholder, wired in SK2)
+3. `SkillInjectionMiddleware` — (wired in SK3)
 4. `SpawnMiddleware` — run claude process
 5. `PersistMiddleware` — save events via BatchWriter
 6. `CostMiddleware` — track cost, check budget
@@ -283,7 +373,9 @@ pub struct MiddlewareChain {
 
 ---
 
-### SK1: Skill file format and loader
+### Skills
+
+#### SK1: Skill file format and loader
 - [ ] **Done**
 
 **What:** Define skill Markdown format, write loader, populate skills table at startup.
@@ -318,7 +410,7 @@ Use this skill when the user asks for thorough research...
 
 ---
 
-### SK2: Seed 10-15 skills
+#### SK2: Seed 10-15 skills
 - [ ] **Done**
 
 **What:** Create Markdown skill files for the most useful workflows.
@@ -339,12 +431,12 @@ Use this skill when the user asks for thorough research...
 
 ---
 
-### SK3: Skill injection middleware
+#### SK3: Skill injection middleware
 - [ ] **Done**
 
 **What:** Match user prompt against skills, inject matched skill content into agent system prompt.
 
-**Where:** `SkillInjectionMiddleware` (created in MW2 as placeholder)
+**Where:** `SkillInjectionMiddleware` (created in MW2)
 
 **How:** Keyword match: scan prompt for skill tags/names, if match found, append skill body to system prompt before spawn.
 
@@ -352,48 +444,30 @@ Use this skill when the user asks for thorough research...
 
 ---
 
-### WT1: Git worktree creation
+### Testing
+
+#### T1: Integration test: happy path E2E
 - [ ] **Done**
 
-**What:** Create git worktree per session for agent isolation.
+**What:** Automated integration test covering the full flow.
 
-**Where:** New module in `crates/forge-process/src/worktree.rs`
+**Where:** `tests/`
 
-**How:**
-```rust
-pub fn create_worktree(repo_dir: &Path, session_id: &str) -> Result<PathBuf> {
-    let worktree_dir = repo_dir.join(".worktrees").join(session_id);
-    let branch = format!("forge/{}", session_id);
-    Command::new("git")
-        .args(["worktree", "add", &worktree_dir.to_string_lossy(), "-b", &branch])
-        .current_dir(repo_dir)
-        .status()?;
-    Ok(worktree_dir)
-}
-```
+**How:** Start server → create agent → run → stream → verify session created → verify events persisted.
 
-**Verify:** Run creates `.worktrees/{session_id}/` with its own branch. Agent operates in isolation.
+**Verify:** `cargo test --test integration` passes.
 
 ---
 
-### WT2: Worktree cleanup
-- [ ] **Done**
+## SPRINT 3 → v0.4.0 — Multi-Agent + Memory + Hooks
 
-**What:** Remove worktree when session is deleted or completed.
-
-**How:** `git worktree remove .worktrees/{session_id}` + `git branch -d forge/{session_id}`
-
-**Verify:** Delete session → worktree directory removed, branch deleted.
-
----
-
-## SPRINT 3 → v0.4.0 — Multi-Agent
-
-> **Goal:** Parallel agent spawning with coordination.
+> **Goal:** Parallel agent spawning, cross-session learning, lifecycle hooks.
 > **Prerequisite:** Sprint 2 complete (middleware chain + worktrees).
-> **Estimated effort:** 5-8 days
+> **Estimated effort:** 10-14 days
 
-### SA1: Sub-agent events
+### Sub-Agent Parallelism
+
+#### SA1: Sub-agent events
 - [ ] **Done**
 
 **What:** Add sub-agent event types to forge-core.
@@ -402,7 +476,7 @@ pub fn create_worktree(repo_dir: &Path, session_id: &str) -> Result<PathBuf> {
 
 ---
 
-### SA2: Concurrent process manager
+#### SA2: Concurrent process manager
 - [ ] **Done**
 
 **What:** Extend ProcessRunner to manage N concurrent spawns.
@@ -413,7 +487,7 @@ pub fn create_worktree(repo_dir: &Path, session_id: &str) -> Result<PathBuf> {
 
 ---
 
-### SA3: Coordinator agent
+#### SA3: Coordinator agent
 - [ ] **Done**
 
 **What:** A meta-agent that analyzes a task, picks sub-agents, spawns them, aggregates results.
@@ -422,7 +496,7 @@ pub fn create_worktree(repo_dir: &Path, session_id: &str) -> Result<PathBuf> {
 
 ---
 
-### SA4: Agent domains
+#### SA4: Agent domains
 - [ ] **Done**
 
 **What:** Add `domain` field to Agent model. Group 9 presets into domains.
@@ -434,34 +508,23 @@ pub fn create_worktree(repo_dir: &Path, session_id: &str) -> Result<PathBuf> {
 
 ---
 
-### SA5: WebSocket sub-agent events
+#### SA5: WebSocket sub-agent events + multi-agent dashboard UI
 - [ ] **Done**
 
-**What:** Frontend shows per-sub-agent progress in real time.
+**What:** Frontend shows per-sub-agent progress in real time. Per-agent progress panels, status indicators.
 
 ---
 
-### SA6: Frontend pagination
-- [ ] **Done**
+### Memory
 
-**What:** Add limit/offset to agents, sessions, skills list endpoints and UI.
-
----
-
-## SPRINT 4 → v0.5.0 — Memory + Hooks
-
-> **Goal:** Cross-session learning and extensible lifecycle hooks.
-> **Prerequisite:** Sprint 3 complete.
-> **Estimated effort:** 5-7 days
-
-### ME1: Memory table and repo
+#### ME1: Memory table and repo
 - [ ] **Done**
 
 **What:** Add `memory` table: id, category, content, confidence, created_at, updated_at. MemoryRepo with CRUD.
 
 ---
 
-### ME2: Post-session memory extraction
+#### ME2: Post-session memory extraction
 - [ ] **Done**
 
 **What:** After session completes, send transcript to Claude with extraction prompt. Store facts with confidence scores.
@@ -470,21 +533,23 @@ pub fn create_worktree(repo_dir: &Path, session_id: &str) -> Result<PathBuf> {
 
 ---
 
-### ME3: Memory injection middleware
+#### ME3: Memory injection middleware
 - [ ] **Done**
 
 **What:** On new run, query relevant memories, prepend to system prompt.
 
 ---
 
-### ME4: Memory management UI
+#### ME4: Memory management UI
 - [ ] **Done**
 
 **What:** Frontend page to view, edit, delete memory facts.
 
 ---
 
-### HK1: Hook table and runner
+### Hooks
+
+#### HK1: Hook table and runner
 - [ ] **Done**
 
 **What:** `hooks` table: id, event_type, timing (pre/post), command, enabled. HookRunner executes shell commands around process spawn.
@@ -493,14 +558,14 @@ pub fn create_worktree(repo_dir: &Path, session_id: &str) -> Result<PathBuf> {
 
 ---
 
-### HK2: Hook events
+#### HK2: Hook events
 - [ ] **Done**
 
 **What:** `HookStarted`, `HookCompleted`, `HookFailed` events in forge-core.
 
 ---
 
-### HK3: Hook management UI
+#### HK3: Hook management UI
 - [ ] **Done**
 
 **What:** Frontend page to create, enable/disable, delete hooks.
@@ -508,6 +573,13 @@ pub fn create_worktree(repo_dir: &Path, session_id: &str) -> Result<PathBuf> {
 ---
 
 ### Polish
+
+#### SA6: Frontend pagination
+- [ ] **Done**
+
+**What:** Add limit/offset to agents, sessions, skills list endpoints and UI.
+
+---
 
 #### P1: Shutdown timeout
 - [ ] **Done**
@@ -543,6 +615,27 @@ pub fn create_worktree(repo_dir: &Path, session_id: &str) -> Result<PathBuf> {
 | Dev environment | Post-1.0 if ever |
 | Authentication | Add when deploying remotely |
 | Audit log + permissions | Post-1.0 |
+| Harvester integration | Deferred to post-Sprint 2. See `docs/HARVESTER_INTEGRATION.md` |
+
+---
+
+## Success Criteria
+
+| Release | Key Metric |
+|---------|------------|
+| v0.2.0 | MCP server passes compliance test, all 3 bugs fixed, docs consolidated |
+| v0.3.0 | Agent run creates worktree in isolation, skills injected into prompts, middleware chain active |
+| v0.4.0 | 3 sub-agents run in parallel worktrees, memory persists across sessions, hooks fire on events |
+
+---
+
+## Dependencies
+
+```
+Sprint 1 (v0.2.0) — bugs + MCP + docs
+  └── Sprint 2 (v0.3.0) — worktrees + middleware + skills
+        └── Sprint 3 (v0.4.0) — sub-agents use worktrees, memory uses middleware, hooks use events
+```
 
 ---
 

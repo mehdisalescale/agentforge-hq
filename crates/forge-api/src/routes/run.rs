@@ -135,17 +135,15 @@ async fn run_handler(
                         if session_repo.update_cost(&sid, cost).is_err() {
                             tracing::warn!(session_id = %sid, "run task: failed to update session cost");
                         } else {
-                            if let Some(limit) = budget_limit {
-                                if cost >= limit {
-                                    let _ = runner.emit(ForgeEvent::BudgetExceeded {
-                                        current_cost: cost,
-                                        limit,
-                                        timestamp: chrono::Utc::now(),
-                                    });
-                                }
-                            }
-                            if let Some(warn) = budget_warn {
-                                if cost >= warn && budget_limit.map(|l| cost < l).unwrap_or(true) {
+                            let exceeded = budget_limit.is_some_and(|l| cost >= l);
+                            if exceeded {
+                                let _ = runner.emit(ForgeEvent::BudgetExceeded {
+                                    current_cost: cost,
+                                    limit: budget_limit.unwrap(),
+                                    timestamp: chrono::Utc::now(),
+                                });
+                            } else if let Some(warn) = budget_warn {
+                                if cost >= warn {
                                     let _ = runner.emit(ForgeEvent::BudgetWarning {
                                         current_cost: cost,
                                         limit: warn,

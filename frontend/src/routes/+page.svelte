@@ -77,9 +77,8 @@
           if (currentSessionId && isProcessOutputEvent(ev, currentSessionId) && ev.data?.content !== undefined) {
             const kind = normalizeBlockKind(ev.data.kind ?? 'assistant');
             const content = typeof ev.data.content === 'string' ? ev.data.content : String(ev.data.content);
-            const last = outputBlocks[outputBlocks.length - 1];
-            if (last && last.kind === kind) {
-              last.content += content;
+            if (outputBlocks.length > 0 && outputBlocks[outputBlocks.length - 1].kind === kind) {
+              outputBlocks[outputBlocks.length - 1].content += content;
               outputBlocks = outputBlocks;
             } else {
               outputBlocks = [...outputBlocks, { kind, content }];

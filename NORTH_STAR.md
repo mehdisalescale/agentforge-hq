@@ -76,41 +76,36 @@ Full audit completed. See `docs/FORGE_AUDIT_2026_03_02.md` for details.
 
 ## Sprint Plan
 
-Derived from comprehensive audit (2026-03-02). See `docs/FORGE_AUDIT_2026_03_02.md` and `docs/BORROWED_IDEAS.md` for full rationale.
+Derived from audit (2026-03-02) + enhancement proposal, merged into one plan. See `MASTER_TASK_LIST.md` for full task breakdown with What/Where/How/Verify.
 
-### Sprint 1 → v0.2.0 — Ship MCP + Fix Bugs
-
-| Task | Detail |
-|------|--------|
-| Fix Dashboard null-safety | Check `outputBlocks.length` before accessing last element |
-| Fix budget warning logic | `warn <= cost < limit` |
-| Fix preset serialization | Proper serde instead of Debug format fallback |
-| Rewrite MCP server with rmcp | Official Rust MCP SDK, `#[tool]` macros, proper protocol compliance |
-| Wire CostTracker | Connect to session cost data, emit events |
-
-### Sprint 2 → v0.3.0 — Middleware + Skills + Worktrees
+### Sprint 1 → v0.2.0 — Fix + MCP + Ship
 
 | Task | Detail |
 |------|--------|
-| Middleware chain | Refactor run handler into ordered pipeline: RateLimit → CircuitBreaker → SkillInjection → Context → Spawn → Persist → Cost |
-| Skill system | Markdown-based skills with YAML frontmatter, loader at startup, keyword matching, prompt injection. Seed 10-15 skills. Pattern from DeerFlow (verified real). |
-| Git worktree isolation | `git worktree add` per session, pass as working_dir to spawn, cleanup on delete. Now standard for multi-Claude-Code (official support Feb 2026). |
+| Fix Dashboard null-safety (F1) | Check `outputBlocks.length` before accessing last element |
+| Fix budget warning logic (F2) | `warn <= cost < limit` |
+| Fix preset serialization (F3) | Proper serde instead of Debug format fallback |
+| Rewrite MCP server with rmcp (M1-M5) | Official Rust MCP SDK, `#[tool]` macros, `forge --mcp` flag, compliance tests |
+| Create CLAUDE.md (D1) | Project context file for AI/human sessions |
+| Doc consolidation (D2) | Merge 50+ docs → ~15 active files |
 
-### Sprint 3 → v0.4.0 — Multi-Agent
-
-| Task | Detail |
-|------|--------|
-| Sub-agent parallel spawning | Up to N concurrent Claude processes, each in own worktree, coordinator aggregates results. Pattern from DeerFlow SubagentExecutor (414 lines, verified real). |
-| Agent domains + coordinator | Group presets into domains (code, quality, ops), coordinator routes tasks by analysis. |
-| Frontend pagination | Add limit/offset to all list endpoints and UI. |
-
-### Sprint 4 → v0.5.0 — Memory + Hooks
+### Sprint 2 → v0.3.0 — Worktrees + Middleware + Skills
 
 | Task | Detail |
 |------|--------|
-| Cross-session memory | Post-session LLM extraction of facts, confidence scoring, inject into future prompts. ETL pattern from DeerFlow + Mem0. |
-| Hook system | Pre/post hooks on agent lifecycle, shell commands or agent invocations, HookRunner + events. |
-| Polish | Shutdown timeout, Svelte 5 rune normalization, loading states. |
+| Git worktree isolation (WT1-WT3) | New `forge-git` crate, worktree per session, cleanup/merge UI. Industry-standard pattern, prerequisite for Sprint 3. |
+| Middleware chain (MW1-MW2) | Refactor run handler into pipeline: RateLimit → CircuitBreaker → SkillInjection → Spawn → Persist → Cost. Pattern from DeerFlow (8 middlewares, 1,089 LOC). |
+| Skill system (SK1-SK3) | Markdown skills with YAML frontmatter, loader at startup, seed 10-15 skills, keyword-matching injection. Pattern from DeerFlow (15 SKILL.md, 208-line loader). |
+| Integration test (T1) | Happy path E2E: start server → create agent → run → stream → verify session. |
+
+### Sprint 3 → v0.4.0 — Multi-Agent + Memory + Hooks
+
+| Task | Detail |
+|------|--------|
+| Sub-agent parallel spawning (SA1-SA5) | Coordinator agent, up to N concurrent Claude processes in worktrees, result aggregation, per-sub-agent WebSocket events, multi-agent dashboard UI. Pattern from DeerFlow SubagentExecutor (414 lines). |
+| Cross-session memory (ME1-ME4) | Memory table, post-session LLM extraction, confidence scoring, injection middleware, management UI. Pattern from DeerFlow + Mem0. |
+| Hook system (HK1-HK3) | Hook table, pre/post lifecycle hooks, HookRunner, hook events, management UI. Pattern from hooks-mastery + hooks-observability. |
+| Polish (SA6, P1-P3) | Frontend pagination, shutdown timeout, Svelte 5 rune normalization, loading states. |
 
 ---
 

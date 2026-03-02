@@ -203,9 +203,9 @@ fn row_to_agent(row: &rusqlite::Row<'_>) -> Result<Agent, ForgeError> {
     let max_turns = max_turns.and_then(|n| u32::try_from(n).ok());
     let use_max: bool = row.get(6).map_err(|e| ForgeError::Database(Box::new(e)))?;
     let preset: Option<String> = row.get(7).map_err(|e| ForgeError::Database(Box::new(e)))?;
-    let preset = preset.as_deref().and_then(|s| {
-        serde_json::from_str(s).ok().or_else(|| parse_preset(s))
-    });
+    let preset: Option<AgentPreset> = preset
+        .as_deref()
+        .and_then(|s| serde_json::from_str(s).ok().or_else(|| serde_json::from_str(&format!("\"{}\"", s)).ok()));
     let config_json: Option<String> = row.get(8).map_err(|e| ForgeError::Database(Box::new(e)))?;
     let config = config_json.as_deref().and_then(|s| serde_json::from_str(s).ok());
     let created_at: String = row.get(9).map_err(|e| ForgeError::Database(Box::new(e)))?;
@@ -232,17 +232,3 @@ fn row_to_agent(row: &rusqlite::Row<'_>) -> Result<Agent, ForgeError> {
     })
 }
 
-fn parse_preset(s: &str) -> Option<AgentPreset> {
-    match s {
-        "CodeWriter" => Some(AgentPreset::CodeWriter),
-        "Reviewer" => Some(AgentPreset::Reviewer),
-        "Tester" => Some(AgentPreset::Tester),
-        "Debugger" => Some(AgentPreset::Debugger),
-        "Architect" => Some(AgentPreset::Architect),
-        "Documenter" => Some(AgentPreset::Documenter),
-        "SecurityAuditor" => Some(AgentPreset::SecurityAuditor),
-        "Refactorer" => Some(AgentPreset::Refactorer),
-        "Explorer" => Some(AgentPreset::Explorer),
-        _ => None,
-    }
-}
