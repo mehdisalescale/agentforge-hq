@@ -25,18 +25,18 @@ Each file is a self-contained task for a Cursor agent.
 
 ### Phase A polish + Phase B (v0.2.0)
 
-| File | Summary | Status | Can parallel with |
-|------|---------|--------|-------------------|
-| TASK_11 | Configurable host/port | pending | TASK_12, TASK_13, TASK_14, TASK_15 |
-| TASK_12 | E2E smoke test script | pending | TASK_11, TASK_13, TASK_14, TASK_15 |
-| TASK_13 | GitHub Release workflow | pending | TASK_11, TASK_12, TASK_14, TASK_15 |
-| TASK_14 | README.md | pending | TASK_11, TASK_12, TASK_13, TASK_15 |
-| TASK_15 | Update NORTH_STAR.md | pending | TASK_11, TASK_12, TASK_13, TASK_14 |
-| TASK_16 | Markdown rendering | pending | TASK_18, TASK_19 |
-| TASK_17 | Tool use collapsible panels | pending (needs TASK_16) | TASK_18, TASK_19, TASK_20 |
-| TASK_18 | Circuit breaker | pending | TASK_16, TASK_17 |
-| TASK_19 | Rate limiter | pending (needs TASK_18) | TASK_16, TASK_17 |
-| TASK_20 | Cost tracking | pending | TASK_16, TASK_17 |
+| File | Summary | Status | Commit |
+|------|---------|--------|--------|
+| TASK_11 | Configurable host/port | done | `f189045` |
+| TASK_12 | E2E smoke test script | done | `b9bd76c` |
+| TASK_13 | GitHub Release workflow | done | `905a646` |
+| TASK_14 | README.md | done | `98f9152` |
+| TASK_15 | Update NORTH_STAR.md | done | `3227afb` |
+| TASK_16 | Markdown rendering | done | `6ce369f` |
+| TASK_17 | Tool use collapsible panels | done | `470047f` |
+| TASK_18 | Circuit breaker | done | `43a32ae` |
+| TASK_19 | Rate limiter | done | `eba0550` |
+| TASK_20 | Cost tracking | done | `a1e0484` |
 
 ## Recommended execution order
 
@@ -47,10 +47,12 @@ Each file is a self-contained task for a Cursor agent.
 3. ~~TASK_06~~ (touches main.rs and lib.rs)
 4. ~~TASK_08~~ last (needed TASK_07)
 
-### Batch 2 (v0.2.0)
+### Batch 2 (v0.2.0) — COMPLETE
 
-1. **TASK_11 + TASK_12 + TASK_13 + TASK_14 + TASK_15** all in parallel (no file overlap, all standalone)
-2. **TASK_16 + TASK_18** in parallel (frontend vs backend, no overlap)
-3. **TASK_17** after TASK_16 (depends on markdown rendering)
-4. **TASK_19** after TASK_18 (shares forge-safety + AppState)
-5. **TASK_20** last (touches DB migration, API state, frontend, and run handler)
+1. ~~TASK_11 + TASK_12 + TASK_13 + TASK_14 + TASK_15~~ all in parallel
+2. ~~TASK_16 + TASK_18~~ in parallel
+3. ~~TASK_17~~ after TASK_16
+4. ~~TASK_19~~ after TASK_18
+5. ~~TASK_20~~ last
+
+Post-batch fixes: SafetyState refactor (`9879974`), release workflow fix (`0e76a0b`), BatchWriter timestamp fix (`cb22ee1`), agent name validation (`fc5b951`), budget events (`d88c650`), MCP design doc (`2d07376`).
