@@ -203,11 +203,28 @@ forge-project/                    <-- Everything lives here
 
 ## Reference Material
 
+### In This Repo
+
 | Resource | Location | Notes |
 |----------|----------|-------|
 | Full audit report | `docs/FORGE_AUDIT_2026_03_02.md` | Per-crate grades, gap analysis, proposal |
 | Borrowed ideas | `docs/BORROWED_IDEAS.md` | DeerFlow, Claude-Flow, reference repos, industry research |
+
+### Companion Repo: claude-parent
+
+> **GitHub:** [mbaneshi/claude-parent](https://github.com/mbaneshi/claude-parent)
+> **Local:** `/Users/bm/claude-parent/` (forge-project was split out of this repo on 2026-03-02)
+
+| Resource | Location | Notes |
+|----------|----------|-------|
+| 61 reference repos | `refrence-repo/` (local) or [online](https://github.com/mbaneshi/claude-parent) | Top 4: hooks-observability, Workflow, ralph, infrastructure-showcase |
+| Reference map | `reference-map/` | 13-category taxonomy of all 61 repos |
+| Capability map | `docs/CLAUDE_CODE_CAPABILITY_MAP_AND_FORGE_ROADMAP.md` | Claude Code capabilities mapped to Forge features |
+| AI doc landscape | `docs/ai-documentation-landscape.md` | AGENTS.md standard, industry state (2026) |
+
+### External (Local)
+
+| Resource | Location | Notes |
+|----------|----------|-------|
 | DeerFlow (verified) | `/Users/bm/cod/trend/26-feb/deer-flow` | ~10K real LOC Python, middleware + skills + memory + sub-agents |
 | Claude-Flow (mixed) | `/Users/bm/cod/trend/26-feb/claude-flow` | ~60% real, study swarm coordinator + ADR pattern |
-| 61 reference repos | `/Users/bm/claude-parent/refrence-repo/` | Top 4: hooks-observability, Workflow, ralph, infrastructure-showcase |
-| Reference map | `/Users/bm/claude-parent/reference-map/` | 13-category taxonomy of all 61 repos |

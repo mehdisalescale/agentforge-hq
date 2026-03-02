@@ -75,6 +75,19 @@ forge-app          binary: DB setup, API server, embedded frontend, graceful shu
 
 See `NORTH_STAR.md` for full roadmap and `docs/FORGE_AUDIT_2026_03_02.md` for the latest audit.
 
+## Reference Hub
+
+This project was built on research from **[claude-parent](https://github.com/mbaneshi/claude-parent)** — a reference hub that maps 61 Claude Code community repos into mini-books with extracted patterns.
+
+| Resource | What it provides |
+|----------|-----------------|
+| [Capability Map & Forge Roadmap](https://github.com/mbaneshi/claude-parent/blob/main/docs/CLAUDE_CODE_CAPABILITY_MAP_AND_FORGE_ROADMAP.md) | Claude Code capabilities mapped to Forge features |
+| [AI Documentation Landscape (2026)](https://github.com/mbaneshi/claude-parent/blob/main/docs/ai-documentation-landscape.md) | AGENTS.md standard, AI context files, best practices |
+| [Reference Repos Overview](https://github.com/mbaneshi/claude-parent/blob/main/docs/reference/index.md) | 61 repos across 13 categories |
+| [Borrowed Ideas](docs/BORROWED_IDEAS.md) | Patterns adopted from DeerFlow, Claude-Flow, and community repos |
+
+Forge was originally developed inside claude-parent and split into its own repository on 2026-03-02.
+
 ## License
 
 Placeholder — check with maintainer.
