@@ -18,11 +18,13 @@
 
 | File | Purpose | Last Updated |
 |------|---------|-------------|
+| `docs/ENHANCEMENT_PROPOSAL.md` | Focused 3-sprint plan: v0.2.0 (fix+MCP), v0.3.0 (worktrees), v0.4.0 (multi-agent) | 2026-03-02 |
 | `docs/FORGE_AUDIT_2026_03_02.md` | Full audit: per-crate grades, gap analysis, proposal | 2026-03-02 |
 | `docs/BORROWED_IDEAS.md` | DeerFlow + Claude-Flow + reference repos + industry research | 2026-03-02 |
 | `docs/DOC_INDEX.md` | This file | 2026-03-02 |
 | `docs/MCP_DESIGN.md` | MCP server design notes | 2026-02-27 |
 | `docs/E2E_SMOKE_TEST.md` | E2E test documentation | 2026-02-27 |
+| `docs/HARVESTER_INTEGRATION.md` | Harvester ↔ Forge integration assessment and roadmap | 2026-03-02 |
 
 ## Historical Task Records (read-only, don't update)
 
