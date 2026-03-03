@@ -1,7 +1,7 @@
 # Documentation Index
 
 > What's current, what's archived, what to read.
-> Updated: 2026-03-03 (Sprint 1 done, Waves 1-3 done)
+> Updated: 2026-03-03 (v0.4.0 — all waves complete)
 
 ---
 
@@ -34,7 +34,7 @@
 | `docs/agents/WAVE1_STATUS.md` | Wave 1 status tracker — all agents complete | Done |
 | `docs/agents/WAVE1_PROMPTS.md` | Copy-paste prompts for Wave 1 agent sessions | Done |
 | `docs/agents/WAVE3_PROMPTS.md` | Copy-paste prompts for Wave 3 agent sessions | Done |
-| `docs/agents/WAVE4_PROMPTS.md` | Copy-paste prompts for Wave 4 agent sessions | Ready |
+| `docs/agents/WAVE4_PROMPTS.md` | Copy-paste prompts for Wave 4 agent sessions | Done |
 
 ## Historical Task Records (read-only)
 

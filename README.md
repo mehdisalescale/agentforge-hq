@@ -4,11 +4,17 @@ Multi-agent Claude Code orchestrator. Rust + Svelte 5, single binary.
 
 ## What it does
 
-- Spawn Claude Code agents with 9 specialized presets (CodeWriter, Reviewer, Tester, Debugger, Architect, Documenter, SecurityAuditor, Refactorer, Explorer)
-- Stream agent output in real time over WebSocket
-- Manage sessions with status tracking and cost visibility
-- Export session transcripts (JSON or Markdown)
+- Spawn Claude Code agents with 10 specialized presets (CodeWriter, Reviewer, Tester, Debugger, Architect, Documenter, SecurityAuditor, Refactorer, Explorer, Coordinator)
+- Run multiple sub-agents in parallel with semaphore-limited concurrency
+- Stream agent output in real time over WebSocket with sub-agent progress tracking
+- 6-middleware pipeline: rate limiting, circuit breaker, cost check, skill injection, persistence, spawn
+- Cross-session memory: extract facts from transcripts, inject relevant context into new runs
+- Git worktree isolation for multi-agent safety
+- Event hooks: run shell commands on any of 27 event types (pre/post)
+- Manage sessions with status tracking, cost visibility, and export (JSON/Markdown)
+- 10 skill templates loaded from Markdown files with YAML frontmatter
 - Safety controls: circuit breaker, rate limiter, budget enforcement
+- MCP server mode (stdio) with 10 tools via rmcp
 
 ## Quick start
 
@@ -56,22 +62,21 @@ cargo build --release
 
 ```
 forge-app          binary: DB setup, API server, embedded frontend, graceful shutdown
-├── forge-api      Axum HTTP + WebSocket, routes, CORS, TraceLayer, rust-embed SPA
-├── forge-process  spawn Claude CLI, stream-json parsing, process lifecycle
-├── forge-agent    agent model, 9 presets, validation
-├── forge-db       SQLite WAL, migrations, AgentRepo, SessionRepo, EventRepo, BatchWriter
-├── forge-core     ForgeEvent (20 variants), EventBus broadcast, shared types
-├── forge-safety   circuit breaker (3-state FSM), rate limiter (token bucket)
-├── forge-mcp      MCP protocol types
-└── forge-mcp-bin  MCP stdio server (JSON-RPC)
+├── forge-api      Axum HTTP + WebSocket, 6-middleware chain, CORS, TraceLayer, rust-embed SPA
+├── forge-process  spawn Claude CLI, stream-json parsing, ConcurrentRunner (parallel sub-agents)
+├── forge-agent    agent model, 10 presets (incl. Coordinator), validation
+├── forge-db       SQLite WAL, 4 migrations, 6 repos (Agent, Session, Event, Skill, Memory, Hook), BatchWriter
+├── forge-core     ForgeEvent (27 variants), EventBus broadcast, shared types
+├── forge-safety   circuit breaker (3-state FSM), rate limiter (token bucket), CostTracker
+├── forge-git      git worktree create/remove/list for multi-agent isolation
+└── forge-mcp-bin  MCP stdio server (rmcp, 10 tools)
 ```
 
 ## Status
 
-- **v0.1.0**: Shipped — agent CRUD, process spawn, sessions, streaming, embedded UI
-- **v0.2.0**: In progress — MCP server rewrite with rmcp, bug fixes
-- **v0.3.0**: Planned — middleware chain, skill system, git worktree isolation
-- **v0.4.0**: Planned — sub-agent parallel spawning, agent domains
+- **v0.1.0**: Agent CRUD, process spawn, sessions, streaming, embedded UI
+- **v0.2.0**: MCP server rewrite with rmcp, bug fixes, doc consolidation
+- **v0.4.0**: Current — 6-middleware chain, skill system, memory extract/inject, git worktree isolation, sub-agent parallel spawning, Coordinator preset, full frontend (10 pages), 118 tests
 
 See `NORTH_STAR.md` for full roadmap and `docs/FORGE_AUDIT_2026_03_02.md` for the latest audit.
 

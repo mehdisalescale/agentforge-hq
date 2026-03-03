@@ -5,6 +5,24 @@
 
 ---
 
+### Session 15 — 2026-03-03 — Wave 4 complete, v0.4.0 tagged
+
+- **Branch**: `main`
+- **What was done**:
+  - **Wave 4 execution**: Ran 4 subagents (J, K, L, M) in parallel. All delivered:
+    - Agent J: Sessions page worktree badges, $state rune conversion, integration test script (246 lines)
+    - Agent K: Memory + Hooks CRUD pages (NEW), API functions in api.ts (+120 lines), sidebar nav links
+    - Agent L: Dashboard $state rune conversion, sub-agent progress panel with WebSocket SubAgent* tracking, statusbar update
+    - Agent M: Skills tag pills + category filter + expandable content, Workflows visual diagram, Settings config dashboard with health endpoint, Agents Coordinator + domain badges
+  - **Gate verification**: 118 backend tests pass, frontend builds clean (10 pages), zero warnings
+  - **Doc updates**: All docs synced — CLAUDE.md, NORTH_STAR.md, MASTER_TASK_LIST.md, README.md, DOC_INDEX.md, SESSION_LOG.md, MEMORY.md
+  - **Tagged v0.4.0**
+- **Key commits**: `0443c9c` (Wave 4, +2,355/-110 LOC), doc update + tag commit
+- **Stats**: 9 crates, 118 tests, 10 frontend pages, 27 event types, 10 presets, 6 middlewares, ~6K backend LOC
+- **What's next**: Ship v0.4.0 binary via GitHub Release, plan v0.5.0 (worktree HTTP API, E2E tests, auth)
+
+---
+
 ### Session 14 — 2026-03-03 — Wave 2 complete, Wave 3 parallel execution, Wave 4 prompts
 
 - **Branch**: `main`

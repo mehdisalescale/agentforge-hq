@@ -1,6 +1,6 @@
 # Claude Forge — Master Task List
 
-> **Updated:** 2026-03-03 (Sprint 1 done, Waves 1-3 done, Wave 4 next)
+> **Updated:** 2026-03-03 (v0.4.0 — all waves complete, all agents done)
 > **Source:** `docs/FORGE_AUDIT_2026_03_02.md` (audit), `docs/BORROWED_IDEAS.md` (patterns)
 > **Agent task cards:** `docs/agents/HANDOFF_SPRINT_2_3.md`
 
@@ -377,12 +377,12 @@ cargo clippy --workspace -- -D warnings
 
 ---
 
-### Wave 4 — Frontend + Polish (4 parallel agents)
+### Wave 4 — Frontend + Polish (4 parallel agents) — DONE
 
 All frontend work. No backend file conflicts between agents.
 
 #### Agent J: Worktree UI + integration test (WT3+T1)
-- [ ] **Done**
+- [x] **Done** (Session 14 — worktree badges, $state runes, integration_test.sh)
 
 **Files:** `frontend/src/routes/sessions/` (modify), `tests/` (NEW integration test)
 
@@ -395,7 +395,7 @@ All frontend work. No backend file conflicts between agents.
 ---
 
 #### Agent K: Memory UI + Hook UI (ME4+HK3)
-- [ ] **Done**
+- [x] **Done** (Session 14 — memory + hooks CRUD pages, API functions, nav links)
 
 **Files:** `frontend/src/routes/memory/` (NEW), `frontend/src/routes/hooks/` (NEW)
 
@@ -407,7 +407,7 @@ All frontend work. No backend file conflicts between agents.
 ---
 
 #### Agent L: Multi-agent dashboard + domains (SA4+SA5)
-- [ ] **Done**
+- [x] **Done** (Session 14 — sub-agent panel, $state runes, statusbar update)
 
 **Files:** `frontend/src/routes/+page.svelte` (modify), `frontend/src/lib/api.ts` (extend)
 
@@ -420,7 +420,7 @@ All frontend work. No backend file conflicts between agents.
 ---
 
 #### Agent M: Polish (SA6+P1+P2+P3)
-- [ ] **Done**
+- [x] **Done** (Session 14 — skills tags/filter, workflows diagram, settings dashboard, Coordinator + domain badges)
 
 **Files:** `frontend/` (various pages, no overlap with J/K/L)
 
@@ -444,7 +444,7 @@ cd frontend && pnpm build && cd ..
 ```
 
 ### R2: Tag and ship v0.3.0 + v0.4.0
-- [ ] **Done**
+- [x] **Done** (Session 14 — tagged v0.4.0)
 
 Tag after Wave 2 gate (v0.3.0) or after Wave 4 gate (v0.4.0), depending on desired release cadence.
 

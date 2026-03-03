@@ -60,7 +60,7 @@ cargo check             # should be zero warnings
 
 - **Zero warnings policy:** `cargo check` must produce zero warnings before committing
 - **All tests pass:** `cargo test` must be green
-- **Frontend state:** Svelte 5 runes (`$state`, `$derived`) — some pages still use `let` (legacy)
+- **Frontend state:** Svelte 5 runes (`$state`, `$derived`) across all pages
 - **Error handling:** `ForgeError` hierarchy in forge-core, propagated via `ForgeResult<T>`
 - **IDs:** Newtype wrappers (`AgentId`, `SessionId`) around `uuid::Uuid`
 - **Events:** All state changes emit `ForgeEvent` variants (27 types) through `EventBus` (broadcast channel)
@@ -79,12 +79,11 @@ cargo check             # should be zero warnings
 
 Sprint 1 (v0.2.0) is **complete**: bug fixes (F1-F3), CostTracker (B2), MCP rewrite (B1), CLAUDE.md (D1), doc consolidation (D2) — all done.
 
-Waves 1-3 are **complete** (118 tests pass):
+All 4 waves **complete** (v0.4.0). 118 backend tests pass. 10 frontend pages built.
 - Wave 1: forge-git, middleware trait/chain, skill loader, memory repo, hook repo
 - Wave 2: Agent F integration wiring (migrations, state, routes, events)
 - Wave 3: 6 middleware extraction, memory extract/inject, ConcurrentRunner + Coordinator preset
-
-Wave 4 (4 frontend agents) is **next**: memory UI, hook UI, multi-agent dashboard, polish.
+- Wave 4: Memory/Hook CRUD UI, sub-agent dashboard, skills/workflows/settings polish, domain badges
 
 ## Don't
 

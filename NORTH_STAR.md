@@ -1,7 +1,7 @@
 # Claude Forge — North Star
 
 > **Read this first in every session.** This is the single source of truth.
-> Last updated: 2026-03-03 (Sprint 1 done, Waves 1-3 done, Wave 4 next)
+> Last updated: 2026-03-03 (v0.4.0 — all 4 waves complete, 13 agents delivered)
 
 ---
 
@@ -16,7 +16,7 @@ The only Rust-native tool in the space — everyone else is TypeScript/Electron 
 
 ## Current State (Verified 2026-03-03)
 
-Sprint 1 complete. Waves 1-3 complete. Wave 4 (4 frontend agents) is next.
+All sprints complete. All 4 waves complete. Tagged v0.4.0.
 
 ### Build Status
 - `cargo check` — clean, zero warnings, all 9 crates compile
@@ -37,12 +37,15 @@ Sprint 1 complete. Waves 1-3 complete. Wave 4 (4 frontend agents) is next.
 - forge-git (B+): Worktree create/remove/list for multi-agent isolation (7 tests)
 - forge-mcp-bin (B): MCP stdio server (rmcp, 10 tools)
 
-**Frontend:**
-- Dashboard — agent selector, prompt input, WebSocket streaming, markdown rendering, session resume
-- Agents — full CRUD, 9 presets, form validation
-- Sessions — two-pane layout, status badges, export (JSON/Markdown)
-- Skills/Workflows — read-only placeholders (empty data)
-- Settings — empty placeholder
+**Frontend (10 pages, all $state runes):**
+- Dashboard — agent selector, prompt, WebSocket streaming, markdown rendering, sub-agent progress panel
+- Agents — full CRUD, 10 presets, domain badges (code/quality/ops/orchestration)
+- Sessions — two-pane layout, worktree badges, merge/cleanup buttons, export
+- Memory — full CRUD, search, confidence bars, category badges
+- Hooks — full CRUD, event type select, timing badges, enable/disable toggle
+- Skills — tag pills, category filter, expandable content, usage count
+- Workflows — visual placeholder diagram, card layout
+- Settings — config dashboard, health endpoint, env var table
 
 **Infrastructure:**
 - GitHub Actions CI (test + clippy + build)
@@ -52,19 +55,11 @@ Sprint 1 complete. Waves 1-3 complete. Wave 4 (4 frontend agents) is next.
 
 ### What's Missing
 
-| Gap | Severity | Sprint |
-|-----|----------|--------|
-| Frontend for memory, hooks, worktrees | Medium | Wave 4 |
-| Multi-agent dashboard UI | Medium | Wave 4 |
-| Frontend polish (pagination, loading, rune normalization) | Low | Wave 4 |
-| Authentication (none anywhere) | Medium | Later |
-
-### Known Bugs
-
-| Bug | File | Severity |
-|-----|------|----------|
-| No shutdown timeout (server can hang on Ctrl+C) | forge-app/main.rs | Low |
-| Default model hardcoded in Agents UI | frontend/agents/+page.svelte | Low |
+| Gap | Severity | When |
+|-----|----------|------|
+| Authentication (none anywhere) | Medium | Post-v1.0 |
+| Worktree HTTP API (git operations via REST) | Low | v0.5.0 |
+| E2E automated test suite | Low | v0.5.0 |
 
 ---
 
@@ -72,25 +67,22 @@ Sprint 1 complete. Waves 1-3 complete. Wave 4 (4 frontend agents) is next.
 
 Single source of truth: `MASTER_TASK_LIST.md`. Agent task cards: `docs/agents/HANDOFF_SPRINT_2_3.md`.
 
-### Sprint 1 → v0.2.0 — MCP + Ship (sequential) — DONE
+### Sprint 1 → v0.2.0 — MCP + Ship — DONE
 
-- [x] F1-F3: Bug fixes (done Session 12)
-- [x] M1-M5: MCP rewrite with rmcp (done Session 12)
-- [x] D1: CLAUDE.md, D2: Doc consolidation (done Session 12)
-- [ ] R1: Tag v0.2.0 (pending)
+- [x] F1-F3: Bug fixes, M1-M5: MCP rewrite, D1-D2: Docs
 
-### Sprints 2-3 → v0.3.0 / v0.4.0 — Parallel Wave Execution
+### Sprints 2-3 → v0.4.0 — Parallel Wave Execution — DONE
 
-After v0.2.0 ships, remaining work runs as **4 waves of parallel agents** (13 agents total):
+13 agents across 4 waves, all complete:
 
 ```
-Wave 1 (5 parallel) → forge-git, middleware, skills, memory, hooks (all NEW files)
-Wave 2 (1 sequential) → integration wiring (shared files: migrations, state, routes, events)
-Wave 3 (3 parallel) → middleware extraction, memory logic, sub-agent runner
-Wave 4 (4 parallel) → all frontend: worktree UI, memory/hook UI, multi-agent dashboard, polish
+Wave 1 (5 parallel) ✓ forge-git, middleware, skills, memory, hooks
+Wave 2 (1 sequential) ✓ integration wiring
+Wave 3 (3 parallel) ✓ middleware extraction, memory logic, sub-agent runner
+Wave 4 (4 parallel) ✓ frontend: memory/hook UI, sub-agent dashboard, polish
 ```
 
-~3 weeks parallel vs ~5-7 weeks sequential. See `MASTER_TASK_LIST.md` for wave details.
+~1 day parallel execution. See `MASTER_TASK_LIST.md` for details.
 
 ---
 
@@ -155,9 +147,9 @@ These are NOT in scope until users demand them:
 forge-project/                    <-- Everything lives here
   crates/                         <-- 9 workspace crates
     forge-core/                   ForgeEvent (27 variants), EventBus, errors, IDs
-    forge-agent/                  Agent model, 9 presets, validation
+    forge-agent/                  Agent model, 10 presets, validation
     forge-db/                     SQLite WAL, 4 migrations, 6 repos, BatchWriter
-    forge-process/                Claude CLI spawn, stream-json parsing
+    forge-process/                Claude CLI spawn, stream-json, ConcurrentRunner
     forge-safety/                 CircuitBreaker, RateLimiter, CostTracker
     forge-api/                    Axum HTTP + WebSocket + middleware + embedded frontend
     forge-app/                    Binary entry point, wiring, shutdown
