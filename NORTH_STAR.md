@@ -76,36 +76,27 @@ Full audit completed. See `docs/FORGE_AUDIT_2026_03_02.md` for details.
 
 ## Sprint Plan
 
-Derived from audit (2026-03-02) + enhancement proposal, merged into one plan. See `MASTER_TASK_LIST.md` for full task breakdown with What/Where/How/Verify.
+Single source of truth: `MASTER_TASK_LIST.md`. Agent task cards: `docs/agents/HANDOFF_SPRINT_2_3.md`.
 
-### Sprint 1 → v0.2.0 — Fix + MCP + Ship
+### Sprint 1 → v0.2.0 — MCP + Ship (sequential)
 
-| Task | Detail |
-|------|--------|
-| Fix Dashboard null-safety (F1) | Check `outputBlocks.length` before accessing last element |
-| Fix budget warning logic (F2) | `warn <= cost < limit` |
-| Fix preset serialization (F3) | Proper serde instead of Debug format fallback |
-| Rewrite MCP server with rmcp (M1-M5) | Official Rust MCP SDK, `#[tool]` macros, `forge --mcp` flag, compliance tests |
-| Create CLAUDE.md (D1) | Project context file for AI/human sessions |
-| Doc consolidation (D2) | Merge 50+ docs → ~15 active files |
+- [x] F1-F3: Bug fixes (done Session 12)
+- [ ] M1-M5: MCP rewrite with rmcp
+- [ ] D1: CLAUDE.md, D2: Doc consolidation
+- [ ] R1: Tag v0.2.0
 
-### Sprint 2 → v0.3.0 — Worktrees + Middleware + Skills
+### Sprints 2-3 → v0.3.0 / v0.4.0 — Parallel Wave Execution
 
-| Task | Detail |
-|------|--------|
-| Git worktree isolation (WT1-WT3) | New `forge-git` crate, worktree per session, cleanup/merge UI. Industry-standard pattern, prerequisite for Sprint 3. |
-| Middleware chain (MW1-MW2) | Refactor run handler into pipeline: RateLimit → CircuitBreaker → SkillInjection → Spawn → Persist → Cost. Pattern from DeerFlow (8 middlewares, 1,089 LOC). |
-| Skill system (SK1-SK3) | Markdown skills with YAML frontmatter, loader at startup, seed 10-15 skills, keyword-matching injection. Pattern from DeerFlow (15 SKILL.md, 208-line loader). |
-| Integration test (T1) | Happy path E2E: start server → create agent → run → stream → verify session. |
+After v0.2.0 ships, remaining work runs as **4 waves of parallel agents** (13 agents total):
 
-### Sprint 3 → v0.4.0 — Multi-Agent + Memory + Hooks
+```
+Wave 1 (5 parallel) → forge-git, middleware, skills, memory, hooks (all NEW files)
+Wave 2 (1 sequential) → integration wiring (shared files: migrations, state, routes, events)
+Wave 3 (3 parallel) → middleware extraction, memory logic, sub-agent runner
+Wave 4 (4 parallel) → all frontend: worktree UI, memory/hook UI, multi-agent dashboard, polish
+```
 
-| Task | Detail |
-|------|--------|
-| Sub-agent parallel spawning (SA1-SA5) | Coordinator agent, up to N concurrent Claude processes in worktrees, result aggregation, per-sub-agent WebSocket events, multi-agent dashboard UI. Pattern from DeerFlow SubagentExecutor (414 lines). |
-| Cross-session memory (ME1-ME4) | Memory table, post-session LLM extraction, confidence scoring, injection middleware, management UI. Pattern from DeerFlow + Mem0. |
-| Hook system (HK1-HK3) | Hook table, pre/post lifecycle hooks, HookRunner, hook events, management UI. Pattern from hooks-mastery + hooks-observability. |
-| Polish (SA6, P1-P3) | Frontend pagination, shutdown timeout, Svelte 5 rune normalization, loading states. |
+~3 weeks parallel vs ~5-7 weeks sequential. See `MASTER_TASK_LIST.md` for wave details.
 
 ---
 

@@ -1,157 +1,72 @@
 # Claude Forge — Master Task List
 
-> **Updated:** 2026-03-02 (merged from audit task list + enhancement proposal)
+> **Updated:** 2026-03-03 (wave-based parallel execution structure)
 > **Source:** `docs/FORGE_AUDIT_2026_03_02.md` (audit), `docs/BORROWED_IDEAS.md` (patterns)
-> **Rule:** Complete tasks in order within each sprint. Don't skip sprints.
+> **Agent task cards:** `docs/agents/HANDOFF_SPRINT_2_3.md`
 
 ---
 
 ## How To Use This File
 
-1. Pick a task from the current sprint. Read its section.
-2. Mark it `[x]` when done.
-3. Run `cargo test --workspace && cargo clippy --workspace` after every task.
-4. Commit after each task.
+**Solo developer:** Pick tasks top-to-bottom within the current sprint/wave.
+
+**Parallel agents:** Read `docs/agents/HANDOFF_SPRINT_2_3.md`. Launch agents per wave. Run verification gate between waves.
+
+**Rules:**
+1. Mark tasks `[x]` when done.
+2. Run `cargo test --workspace && cargo clippy --workspace` after every task.
+3. Commit after each task.
 
 ---
 
 ## Principles
 
 1. **Ship small, ship often.** Three releases, each one usable.
-2. **Code over docs.** The 50+ doc era is over. Build features, not plans.
+2. **Code over docs.** Build features, not plans.
 3. **Borrow proven patterns.** Middleware, skills, sub-agents — all verified in DeerFlow (~10K real LOC).
-4. **Honest scope.** 3,400 LOC that works beats 30,000 LOC that's half stubs.
+4. **Parallel by default.** Tasks with no shared files run simultaneously.
 
 ---
 
-## Completed Work (for reference)
-
-Everything below was verified working as of 2026-03-02 audit.
+## Completed Work
 
 <details>
 <summary>Phase 0: Foundation — ALL DONE</summary>
 
-- [x] S1: Wire BatchWriter to EventBus
-- [x] S2: Increase EventBus capacity (16 → 1024)
-- [x] S3: Add `directory` field to frontend Run form
-- [x] S4: Show `status` in Sessions UI
-- [x] S5: Replace `.expect()` with error propagation
-- [x] S6: Add prompt length validation (100KB limit)
-- [x] S7: Fix clippy warnings
-- [x] S8: Fix CORS for production (FORGE_CORS_ORIGIN env var)
+- [x] S1-S8: BatchWriter wiring, EventBus capacity, frontend directory field, session status, error propagation, prompt validation, clippy, CORS
 
 </details>
 
 <details>
 <summary>Phase A: Ship v0.1.0 — ALL DONE</summary>
 
-- [x] A1: Embed frontend in binary (rust-embed)
-- [x] A2: Graceful shutdown (Ctrl+C → flush BatchWriter)
-- [x] A3: TraceLayer request logging
-- [x] A4: Configurable host and port (FORGE_HOST, FORGE_PORT)
-- [x] A5: E2E smoke test script
-- [x] A6: GitHub Actions CI
-- [x] A7: GitHub Release workflow
-- [x] A8: README.md
-- [x] A9: Update NORTH_STAR.md
+- [x] A1-A9: rust-embed, graceful shutdown, TraceLayer, configurable host/port, E2E smoke, CI, release workflow, README, NORTH_STAR
 
 </details>
 
 <details>
 <summary>Phase B: Safety — ALL DONE</summary>
 
-- [x] B1: Auto-update session status on process events
-- [x] B2: Markdown rendering in output stream (marked + DOMPurify)
-- [x] B3: Tool use/result collapsible panels (OutputBlock array)
-- [x] B4: Circuit breaker (3-state FSM, 10 tests)
-- [x] B5: Rate limiter (token bucket, configurable via env)
-- [x] B6: Cost tracking (parse cost_usd, budget warn/limit, migration 0002)
+- [x] B1-B6: Session status auto-update, markdown rendering, tool panels, circuit breaker, rate limiter, cost tracking
+
+</details>
+
+<details>
+<summary>Bug Fixes F1-F3 — ALL DONE (Session 12)</summary>
+
+- [x] F1: Dashboard null-safety (check outputBlocks.length before last access)
+- [x] F2: Budget warning logic (check limit first, then warn)
+- [x] F3: Preset serialization (serde_json instead of Debug format)
 
 </details>
 
 ---
 
-## SPRINT 1 → v0.2.0 — Fix + MCP + Ship
+## SPRINT 1 → v0.2.0 — MCP + Ship (Sequential)
 
-> **Goal:** Fix known bugs, rewrite MCP server with official SDK, consolidate docs, ship tagged release.
+> **Goal:** Rewrite MCP server with official SDK, consolidate docs, ship tagged release.
 > **Estimated effort:** 3-5 days
-
-### Fixes
-
-#### F1: Dashboard null-safety bug
-- [ ] **Done**
-
-**What:** `outputBlocks` can be empty when first WebSocket event arrives. `last.content += content` crashes.
-
-**Where:** `frontend/src/routes/+page.svelte` ~line 80
-
-**How:** Add guard before accessing last element:
-```typescript
-if (outputBlocks.length === 0) {
-    outputBlocks.push({ kind: ev.data.kind, content: '' });
-}
-const last = outputBlocks[outputBlocks.length - 1];
-```
-
-**Verify:** Start a run. First streaming event doesn't crash the page.
-
----
-
-#### F2: Budget warning logic
-- [ ] **Done**
-
-**What:** Current logic: `cost >= warn AND cost < limit` — confusing and may miss edge cases.
-
-**Where:** `crates/forge-api/src/routes/run.rs`
-
-**How:** Simplify to:
-```rust
-if let Some(limit) = budget_limit {
-    if cost >= limit {
-        // emit BudgetExceeded, stop
-    }
-}
-if let Some(warn) = budget_warn {
-    if cost >= warn {
-        // emit BudgetWarning (only once per session)
-    }
-}
-```
-Check limit first (takes priority), then warn. Track `warning_emitted` bool to avoid spam.
-
-**Verify:** Set FORGE_BUDGET_WARN=0.01, run an agent. Warning emitted once. Set FORGE_BUDGET_LIMIT=0.01, agent stops.
-
----
-
-#### F3: Preset serialization
-- [ ] **Done**
-
-**What:** `parse_preset()` in agents.rs uses `Debug` format output as fallback — breaks if enum format changes.
-
-**Where:** `crates/forge-db/src/repos/agents.rs`
-
-**How:** Replace Debug fallback with explicit match:
-```rust
-fn parse_preset(s: &str) -> Option<AgentPreset> {
-    match s {
-        "CodeWriter" => Some(AgentPreset::CodeWriter),
-        "Reviewer" => Some(AgentPreset::Reviewer),
-        "Tester" => Some(AgentPreset::Tester),
-        "Debugger" => Some(AgentPreset::Debugger),
-        "Architect" => Some(AgentPreset::Architect),
-        "Documenter" => Some(AgentPreset::Documenter),
-        "SecurityAuditor" => Some(AgentPreset::SecurityAuditor),
-        "Refactorer" => Some(AgentPreset::Refactorer),
-        "Explorer" => Some(AgentPreset::Explorer),
-        _ => None,
-    }
-}
-```
-Or better: `#[derive(Deserialize)]` and use `serde_json::from_str`.
-
-**Verify:** `cargo test --workspace` passes. Create agent with preset via API, read back, preset field matches.
-
----
+> **Mode:** Sequential (one developer)
 
 ### MCP Rewrite
 
@@ -176,7 +91,6 @@ Or better: `#[derive(Deserialize)]` and use `serde_json::from_str`.
 
 **What:** 10 tools using `#[tool]` macro.
 
-**Tools:**
 | Tool | Description |
 |------|-------------|
 | `forge_agent_create` | Create agent (name, model, preset) |
@@ -190,22 +104,14 @@ Or better: `#[derive(Deserialize)]` and use `serde_json::from_str`.
 | `forge_config_get` | Get configuration |
 | `forge_health` | Health check + uptime |
 
-**Verify:** Each tool callable via MCP protocol over stdio. Responses match HTTP API format.
+**Verify:** Each tool callable via MCP protocol over stdio.
 
 ---
 
 #### M3: Implement MCP resources
 - [ ] **Done**
 
-**What:** 5 resources.
-
-| URI | Description |
-|-----|-------------|
-| `forge://agents` | List of all agents |
-| `forge://sessions` | Recent sessions |
-| `forge://config` | Current configuration |
-| `forge://health` | System health |
-| `forge://skills` | Skill catalog (empty for now) |
+**What:** 5 resources: `forge://agents`, `forge://sessions`, `forge://config`, `forge://health`, `forge://skills`
 
 **Verify:** `resources/list` returns all 5. `resources/read` returns valid JSON.
 
@@ -217,8 +123,6 @@ Or better: `#[derive(Deserialize)]` and use `serde_json::from_str`.
 **What:** `forge --mcp` flag starts MCP mode (stdio) instead of HTTP.
 
 **Where:** `crates/forge-app/src/main.rs`
-
-**How:** Add CLI arg parsing (clap or manual). If `--mcp`, run MCP server over stdin/stdout instead of Axum.
 
 **Verify:** `echo '{"jsonrpc":"2.0","method":"initialize","id":1}' | ./forge --mcp` returns valid response.
 
@@ -238,367 +142,323 @@ Or better: `#[derive(Deserialize)]` and use `serde_json::from_str`.
 #### D1: Create CLAUDE.md
 - [ ] **Done**
 
-**What:** Project context file for every AI/human session.
-
-**Where:** `CLAUDE.md` (project root)
-
-**Verify:** File exists, under 200 lines, covers build commands, architecture, current sprint.
+**What:** Project context file for AI/human sessions. Under 200 lines.
 
 ---
 
 #### D2: Doc consolidation
 - [ ] **Done**
 
-**What:** Cut doc count from 50+ to ~15.
-
-| Action | Files Affected |
-|--------|---------------|
-| Merge 35 frozen `00-08/` files into `docs/ORIGINAL_DESIGN_REFERENCE.md` | 35 files → 1 |
-| Merge 14 `docs/planning/` files into `docs/PLANNING_ARCHIVE.md` | 14 files → 1 |
-| Delete 10 superseded docs already marked in DOC_INDEX | WHAT_TO_DO_NEXT, REMAINING_APP_PLAN, PROPOSAL_2_3_4, STRATEGIC_ASSESSMENT, EXECUTIVE_SUMMARY, AUDIT_REPORT, PRODUCT_JOURNEY, REFERENCE_REPOS, PHASE1_DESIGN_NOTES |
-| Update DOC_INDEX.md | Reflect new structure |
-
-**Verify:** `find docs/ -name '*.md' | wc -l` shows ~15 or fewer.
+**What:** Merge 35 frozen `00-08/` files → `docs/ORIGINAL_DESIGN_REFERENCE.md`. Merge 14 `docs/planning/` → `docs/PLANNING_ARCHIVE.md`. Delete 10 superseded docs. Result: ~15 active docs.
 
 ---
 
-### Release
-
 #### R1: Tag and ship v0.2.0
 - [ ] **Done**
-
-**What:** Tag, push, verify release binaries work.
 
 **Verify:** Download binary from GitHub Releases, run it, MCP mode works, HTTP mode works.
 
 ---
 
-## SPRINT 2 → v0.3.0 — Worktrees + Middleware + Skills
+## SPRINTS 2-3 → v0.3.0 / v0.4.0 — Parallel Wave Execution
 
-> **Goal:** Git worktree isolation, structured run pipeline, skill system with content.
-> **Prerequisite:** Sprint 1 complete.
-> **Estimated effort:** 8-12 days
+> **Goal:** Worktrees, middleware, skills, sub-agents, memory, hooks — all features remaining to reach orchestrator status.
+> **Mode:** Parallel agents per wave. See `docs/agents/HANDOFF_SPRINT_2_3.md` for full task cards.
+> **Prerequisite:** Sprint 1 (v0.2.0) shipped.
 
-### Worktrees
+### Wave Overview
 
-#### WT1: Git worktree creation
-- [ ] **Done**
-
-**What:** Create git worktree per session for agent isolation.
-
-**Where:** New crate `crates/forge-git/` (wraps git2 or shell commands)
-
-**How:**
-```rust
-pub fn create_worktree(repo_dir: &Path, session_id: &str) -> Result<PathBuf> {
-    let worktree_dir = repo_dir.join(".worktrees").join(session_id);
-    let branch = format!("forge/{}", session_id);
-    Command::new("git")
-        .args(["worktree", "add", &worktree_dir.to_string_lossy(), "-b", &branch])
-        .current_dir(repo_dir)
-        .status()?;
-    Ok(worktree_dir)
-}
+```
+WAVE 1 — 5 agents in parallel (all NEW files, zero conflicts)
+  ├── Agent A: forge-git crate (WT1+WT2)
+  ├── Agent B: Middleware trait + chain (MW1)
+  ├── Agent C: Skill loader + 10 seed files (SK1+SK2)
+  ├── Agent D: Memory table + repo + routes (ME1)
+  └── Agent E: Hook table + repo + routes (HK1+HK2)
+          │
+          ▼ GATE: cargo test && cargo clippy && pnpm build
+          │
+WAVE 2 — 1 integration agent (wires shared files)
+  └── Agent F: Migrations, state.rs, routes/mod.rs, run.rs, events.rs, main.rs
+          │
+          ▼ GATE: cargo test && cargo clippy && pnpm build
+          │
+WAVE 3 — 3 agents in parallel (depend on Wave 2)
+  ├── Agent G: Middleware extraction + skill injection (MW2+SK3)
+  ├── Agent H: Memory extraction + injection (ME2+ME3)
+  └── Agent I: Sub-agent runner + coordinator (SA1-SA3)
+          │
+          ▼ GATE: cargo test && cargo clippy && pnpm build
+          │
+WAVE 4 — 4 agents in parallel (frontend + polish)
+  ├── Agent J: Worktree UI + integration test (WT3+T1)
+  ├── Agent K: Memory UI + Hook UI (ME4+HK3)
+  ├── Agent L: Multi-agent dashboard + domains (SA4+SA5)
+  └── Agent M: Polish (SA6+P1+P2+P3)
 ```
 
-**Why worktrees first:** Industry-converged pattern (Claude official `--worktree`, ccswarm). Prerequisite for sub-agent parallelism in Sprint 3. Estimated ~300-500 LOC.
+### Wave 1 — Build Components (5 parallel agents)
 
-**Verify:** Run creates `.worktrees/{session_id}/` with its own branch. Agent operates in isolation.
+All agents create NEW files/crates. Zero shared files. Can run simultaneously.
+
+#### Agent A: forge-git crate (WT1+WT2)
+- [ ] **Done**
+
+**Exclusive files:** `crates/forge-git/` (NEW crate), `Cargo.toml` (add workspace member only)
+
+**Delivers:**
+- New crate `forge-git` with `create_worktree(repo_dir, session_id) → PathBuf`
+- `remove_worktree(repo_dir, session_id)` for cleanup
+- `list_worktrees(repo_dir) → Vec<WorktreeInfo>`
+- Unit tests for create/remove/list
 
 ---
 
-#### WT2: Worktree cleanup
+#### Agent B: Middleware trait + chain (MW1)
 - [ ] **Done**
 
-**What:** Remove worktree when session is deleted or completed.
+**Exclusive files:** `crates/forge-api/src/middleware.rs` (NEW file)
 
-**How:** `git worktree remove .worktrees/{session_id}` + `git branch -d forge/{session_id}`
+**Delivers:**
+- `Middleware` trait with `process(&self, ctx, next) → Result`
+- `MiddlewareChain` struct with `add()` and `execute()`
+- `RunContext` struct (agent, prompt, session_id, working_dir)
+- `Next` type for chain progression
+- Unit tests for chain execution order
 
-**Verify:** Delete session → worktree directory removed, branch deleted.
+**Pattern:** DeerFlow — 8 middlewares, 1,089 LOC. See `docs/BORROWED_IDEAS.md` §1.
 
 ---
 
-#### WT3: Worktree cleanup / merge UI
+#### Agent C: Skill loader + seed files (SK1+SK2)
 - [ ] **Done**
 
-**What:** Frontend controls for worktree branch status, merge, and delete.
+**Exclusive files:** `skills/` (NEW dir, 10+ `.md` files), `crates/forge-db/src/repos/skills.rs` (existing read-only stubs → add write + loader)
 
-**Where:** `frontend/src/routes/sessions/`
+**Delivers:**
+- YAML frontmatter parser (name, description, tags, tools)
+- `load_skills_from_dir(dir) → Vec<Skill>` function
+- `SkillRepo::upsert()` method
+- 10 seed skill files: deep-research, code-review, refactor, test-writer, debug, security-audit, document, architect, explore, fix-bug
+- Unit tests for parsing + loading
 
-**Verify:** Session detail page shows branch name, merge button works.
+**Pattern:** DeerFlow — 15 SKILL.md files, 208-line loader. See `docs/BORROWED_IDEAS.md` §2.
 
 ---
 
-### Middleware
-
-#### MW1: Middleware trait and chain
+#### Agent D: Memory table + repo + routes (ME1)
 - [ ] **Done**
 
-**What:** Define `Middleware` trait, build `MiddlewareChain`, refactor `handle_run`.
+**Exclusive files:** `crates/forge-db/src/repos/memory.rs` (NEW), `crates/forge-api/src/routes/memory.rs` (NEW), `migrations/0003_add_memory.sql` (NEW)
 
-**Where:** New file `crates/forge-api/src/middleware.rs`
+**Delivers:**
+- Migration: `memory` table (id, category, content, confidence, source_session_id, created_at, updated_at)
+- `MemoryRepo` with CRUD (create, list, get, update, delete, search)
+- API routes: GET/POST `/api/v1/memory`, GET/PUT/DELETE `/api/v1/memory/:id`
+- Unit tests for repo CRUD
 
-**How:**
-```rust
-#[async_trait]
-pub trait Middleware: Send + Sync {
-    async fn process(&self, ctx: &mut RunContext, next: Next<'_>) -> Result<RunResponse, ApiError>;
-}
+---
 
-pub struct MiddlewareChain {
-    middlewares: Vec<Box<dyn Middleware>>,
-}
+#### Agent E: Hook table + repo + routes (HK1+HK2)
+- [ ] **Done**
+
+**Exclusive files:** `crates/forge-db/src/repos/hooks.rs` (NEW), `crates/forge-api/src/routes/hooks.rs` (NEW), `migrations/0004_add_hooks.sql` (NEW)
+
+**Delivers:**
+- Migration: `hooks` table (id, name, event_type, timing pre/post, command, enabled, created_at)
+- `HookRepo` with CRUD
+- `HookRunner` struct with `run_hooks(event_type, timing) → Result`
+- API routes: GET/POST `/api/v1/hooks`, GET/PUT/DELETE `/api/v1/hooks/:id`
+- Unit tests for repo + runner
+
+**Pattern:** hooks-mastery (13 types), hooks-observability (event interception). See `docs/BORROWED_IDEAS.md` §6.
+
+---
+
+### ⬛ GATE 1: Verify Wave 1
+
+```bash
+cargo build --workspace
+cargo test --workspace
+cargo clippy --workspace -- -D warnings
 ```
 
-**Pattern from:** DeerFlow — 8 real middlewares, 1,089 LOC total. See `docs/BORROWED_IDEAS.md` §1.
-
-**Verify:** `handle_run` uses chain instead of inline logic. All existing tests pass.
+All 5 agents' work must compile and pass tests before Wave 2.
 
 ---
 
-#### MW2: Extract existing logic into middlewares
+### Wave 2 — Integration Wiring (1 agent, sequential)
+
+Touches shared files. Must run alone after Wave 1 gate passes.
+
+#### Agent F: Integration wiring
 - [ ] **Done**
 
-**What:** Move rate limit, circuit breaker, spawn, persist, cost into middleware components.
+**Shared files:** `forge-db/src/migrations.rs`, `forge-db/src/repos/mod.rs`, `forge-db/src/lib.rs`, `forge-api/src/state.rs`, `forge-api/src/routes/mod.rs`, `forge-api/src/routes/run.rs`, `forge-api/src/lib.rs`, `forge-core/src/events.rs`, `forge-app/src/main.rs`
 
-**Chain order:**
-1. `RateLimitMiddleware` — token bucket check
-2. `CircuitBreakerMiddleware` — failure threshold check
-3. `SkillInjectionMiddleware` — (wired in SK3)
-4. `SpawnMiddleware` — run claude process
-5. `PersistMiddleware` — save events via BatchWriter
-6. `CostMiddleware` — track cost, check budget
-
-**Verify:** E2E smoke test passes. Same behavior, better structure.
+**Delivers:**
+- Apply migrations 0003 (memory) + 0004 (hooks) in `migrations.rs`
+- Export MemoryRepo + HookRepo in `repos/mod.rs` and `lib.rs`
+- Add `memory_repo` + `hook_repo` + `worktree_manager` to AppState
+- Nest memory + hook routes in `routes/mod.rs`
+- Add worktree path extraction in `run.rs`
+- Add middleware chain initialization in `lib.rs`
+- Add event types to `events.rs`: `HookStarted`, `HookCompleted`, `HookFailed`, `SubAgentRequested`, `SubAgentStarted`, `SubAgentCompleted`, `SubAgentFailed`
+- Wire skill loader at startup in `main.rs`
+- All tests pass, all routes resolve
 
 ---
 
-### Skills
+### ⬛ GATE 2: Verify Wave 2
 
-#### SK1: Skill file format and loader
-- [ ] **Done**
-
-**What:** Define skill Markdown format, write loader, populate skills table at startup.
-
-**Where:** New directory `skills/`, new code in `crates/forge-db/src/repos/skills.rs`
-
-**Skill format:**
-```markdown
----
-name: deep-research
-description: Systematic multi-angle research methodology
-tags: [research, analysis]
-tools: [Read, WebSearch, Grep]
----
-
-# Deep Research
-
-## When to Use
-Use this skill when the user asks for thorough research...
-
-## Methodology
-1. Identify key questions
-2. Search multiple angles
-...
+```bash
+cargo build --workspace
+cargo test --workspace
+cargo clippy --workspace -- -D warnings
+cd frontend && pnpm build && cd ..
 ```
 
-**Loader:** At startup, scan `skills/` directory, parse YAML frontmatter + body, upsert into `skills` table.
+---
 
-**Pattern from:** DeerFlow — 15 SKILL.md files + 208-line loader. See `docs/BORROWED_IDEAS.md` §2.
+### Wave 3 — Feature Logic (3 parallel agents)
 
-**Verify:** `cargo test`. Start app, `GET /api/v1/skills` returns populated list.
+Depends on Wave 2. Each agent owns distinct files.
+
+#### Agent G: Middleware extraction + skill injection (MW2+SK3)
+- [ ] **Done**
+
+**Files:** `crates/forge-api/src/middleware.rs` (extend), `crates/forge-api/src/routes/run.rs` (refactor)
+
+**Delivers:**
+- Extract run.rs inline logic into 6 middlewares: RateLimitMiddleware, CircuitBreakerMiddleware, SkillInjectionMiddleware, SpawnMiddleware, PersistMiddleware, CostMiddleware
+- Skill injection: keyword-match prompt against skill tags, append skill body to system prompt
+- `run.rs` becomes thin: parse request → build RunContext → execute chain → return response
+- All existing tests pass + new middleware tests
 
 ---
 
-#### SK2: Seed 10-15 skills
+#### Agent H: Memory extraction + injection (ME2+ME3)
 - [ ] **Done**
 
-**What:** Create Markdown skill files for the most useful workflows.
+**Files:** `crates/forge-db/src/repos/memory.rs` (extend)
 
-**Skills to create:**
-1. `deep-research` — multi-angle research
-2. `code-review` — thorough code review
-3. `refactor` — systematic refactoring
-4. `test-writer` — comprehensive test generation
-5. `debug` — systematic debugging
-6. `security-audit` — security vulnerability analysis
-7. `document` — documentation generation
-8. `architect` — system design and architecture
-9. `explore` — codebase exploration and understanding
-10. `fix-bug` — bug diagnosis and fix
+**Delivers:**
+- Post-session extraction: after session completes, send transcript to Claude with extraction prompt, parse structured facts, store with confidence scores
+- Memory injection: on new run, query relevant memories by category/keyword, format as context block, prepend to system prompt
+- Tests for extraction parsing + injection formatting
 
-**Verify:** `skills/` directory has 10+ `.md` files. All load correctly at startup.
+**Pattern:** DeerFlow MemoryUpdater — 319 lines. See `docs/BORROWED_IDEAS.md` §5.
 
 ---
 
-#### SK3: Skill injection middleware
+#### Agent I: Sub-agent runner + coordinator (SA1-SA3)
 - [ ] **Done**
 
-**What:** Match user prompt against skills, inject matched skill content into agent system prompt.
+**Files:** `crates/forge-process/src/concurrent.rs` (NEW), `crates/forge-agent/src/lib.rs` (add Coordinator preset)
 
-**Where:** `SkillInjectionMiddleware` (created in MW2)
+**Delivers:**
+- `ConcurrentRunner` wrapping N `ProcessRunner` instances, each in own worktree
+- Configurable concurrency limit (default 3), uses `tokio::JoinSet`
+- New `Coordinator` agent preset with task decomposition system prompt
+- Result aggregation: collect sub-agent outputs, synthesize final response
+- Tests for concurrent spawn + aggregation
 
-**How:** Keyword match: scan prompt for skill tags/names, if match found, append skill body to system prompt before spawn.
-
-**Verify:** Run with prompt "review this code" → Reviewer agent gets `code-review` skill injected.
+**Pattern:** DeerFlow SubagentExecutor — 414 lines. See `docs/BORROWED_IDEAS.md` §4.
 
 ---
 
-### Testing
+### ⬛ GATE 3: Verify Wave 3
 
-#### T1: Integration test: happy path E2E
-- [ ] **Done**
-
-**What:** Automated integration test covering the full flow.
-
-**Where:** `tests/`
-
-**How:** Start server → create agent → run → stream → verify session created → verify events persisted.
-
-**Verify:** `cargo test --test integration` passes.
+```bash
+cargo build --workspace
+cargo test --workspace
+cargo clippy --workspace -- -D warnings
+```
 
 ---
 
-## SPRINT 3 → v0.4.0 — Multi-Agent + Memory + Hooks
+### Wave 4 — Frontend + Polish (4 parallel agents)
 
-> **Goal:** Parallel agent spawning, cross-session learning, lifecycle hooks.
-> **Prerequisite:** Sprint 2 complete (middleware chain + worktrees).
-> **Estimated effort:** 10-14 days
+All frontend work. No backend file conflicts between agents.
 
-### Sub-Agent Parallelism
-
-#### SA1: Sub-agent events
+#### Agent J: Worktree UI + integration test (WT3+T1)
 - [ ] **Done**
 
-**What:** Add sub-agent event types to forge-core.
+**Files:** `frontend/src/routes/sessions/` (modify), `tests/` (NEW integration test)
 
-**Events:** `SubAgentRequested`, `SubAgentStarted`, `SubAgentCompleted`, `SubAgentFailed`
+**Delivers:**
+- Session detail page shows worktree branch name, status
+- Merge button: merge worktree branch back to main
+- Delete button: cleanup worktree + branch
+- Integration test: start server → create agent → run → stream → verify session + events
 
 ---
 
-#### SA2: Concurrent process manager
+#### Agent K: Memory UI + Hook UI (ME4+HK3)
 - [ ] **Done**
 
-**What:** Extend ProcessRunner to manage N concurrent spawns.
+**Files:** `frontend/src/routes/memory/` (NEW), `frontend/src/routes/hooks/` (NEW)
 
-**How:** `ConcurrentRunner` wraps N `ProcessRunner` instances, each in its own worktree. Configurable limit (default 3). Uses `tokio::JoinSet` for concurrent execution.
-
-**Pattern from:** DeerFlow SubagentExecutor — 414 lines, real ThreadPool + timeout. See `docs/BORROWED_IDEAS.md` §4.
+**Delivers:**
+- Memory page: list facts, edit content/confidence, delete, search
+- Hook page: list hooks, create new, enable/disable toggle, delete
+- Both use `$state` runes consistently
 
 ---
 
-#### SA3: Coordinator agent
+#### Agent L: Multi-agent dashboard + domains (SA4+SA5)
 - [ ] **Done**
 
-**What:** A meta-agent that analyzes a task, picks sub-agents, spawns them, aggregates results.
+**Files:** `frontend/src/routes/+page.svelte` (modify), `frontend/src/lib/api.ts` (extend)
 
-**How:** Coordinator receives prompt → asks Claude to decompose task → spawns sub-agents in parallel → collects results → synthesizes final output.
+**Delivers:**
+- Per-sub-agent progress panels when coordinator is running
+- Status indicators: pending/running/completed/failed per sub-agent
+- Agent domain badges (code/quality/ops) in agent list
+- WebSocket event handling for SubAgent* events
 
 ---
 
-#### SA4: Agent domains
+#### Agent M: Polish (SA6+P1+P2+P3)
 - [ ] **Done**
 
-**What:** Add `domain` field to Agent model. Group 9 presets into domains.
+**Files:** `frontend/` (various pages, no overlap with J/K/L)
 
-**Domains:**
-- `code`: CodeWriter, Refactorer
-- `quality`: Reviewer, Tester, Debugger
-- `ops`: SecurityAuditor, Architect, Documenter, Explorer
+**Delivers:**
+- Pagination (limit/offset) on agents, sessions, skills list pages
+- Shutdown timeout (10s default) in `forge-app/src/main.rs`
+- Svelte 5 `$state` rune normalization across all pages
+- Loading spinners during API calls on all forms
 
 ---
 
-#### SA5: WebSocket sub-agent events + multi-agent dashboard UI
+### ⬛ GATE 4: Final Verification
+
+```bash
+cargo build --workspace
+cargo test --workspace
+cargo clippy --workspace -- -D warnings
+cd frontend && pnpm build && cd ..
+# Run E2E smoke test
+./scripts/e2e-smoke.sh
+```
+
+### R2: Tag and ship v0.3.0 + v0.4.0
 - [ ] **Done**
 
-**What:** Frontend shows per-sub-agent progress in real time. Per-agent progress panels, status indicators.
+Tag after Wave 2 gate (v0.3.0) or after Wave 4 gate (v0.4.0), depending on desired release cadence.
 
 ---
 
-### Memory
+## Timeline (Parallel Execution)
 
-#### ME1: Memory table and repo
-- [ ] **Done**
+```
+Week 1:  Sprint 1 — MCP rewrite (M1-M5) + D1 + D2 → ship v0.2.0
+Week 2:  Wave 1 (5 agents) + Wave 2 (1 agent)
+Week 3:  Wave 3 (3 agents) + Wave 4 (4 agents)         → ship v0.4.0
+```
 
-**What:** Add `memory` table: id, category, content, confidence, created_at, updated_at. MemoryRepo with CRUD.
-
----
-
-#### ME2: Post-session memory extraction
-- [ ] **Done**
-
-**What:** After session completes, send transcript to Claude with extraction prompt. Store facts with confidence scores.
-
-**Pattern from:** DeerFlow MemoryUpdater — 319 lines, LLM-powered, atomic file writes. See `docs/BORROWED_IDEAS.md` §5.
-
----
-
-#### ME3: Memory injection middleware
-- [ ] **Done**
-
-**What:** On new run, query relevant memories, prepend to system prompt.
-
----
-
-#### ME4: Memory management UI
-- [ ] **Done**
-
-**What:** Frontend page to view, edit, delete memory facts.
-
----
-
-### Hooks
-
-#### HK1: Hook table and runner
-- [ ] **Done**
-
-**What:** `hooks` table: id, event_type, timing (pre/post), command, enabled. HookRunner executes shell commands around process spawn.
-
-**Pattern from:** Reference repos — hooks-mastery (13 types), hooks-observability (event interception). See `docs/BORROWED_IDEAS.md` §6.
-
----
-
-#### HK2: Hook events
-- [ ] **Done**
-
-**What:** `HookStarted`, `HookCompleted`, `HookFailed` events in forge-core.
-
----
-
-#### HK3: Hook management UI
-- [ ] **Done**
-
-**What:** Frontend page to create, enable/disable, delete hooks.
-
----
-
-### Polish
-
-#### SA6: Frontend pagination
-- [ ] **Done**
-
-**What:** Add limit/offset to agents, sessions, skills list endpoints and UI.
-
----
-
-#### P1: Shutdown timeout
-- [ ] **Done**
-
-**What:** Add timeout to graceful shutdown (default 10s) to prevent hanging.
-
----
-
-#### P2: Svelte 5 rune normalization
-- [ ] **Done**
-
-**What:** Use `$state` consistently across all pages (Dashboard and Sessions still use `let`).
-
----
-
-#### P3: Loading states
-- [ ] **Done**
-
-**What:** Add loading spinners during API calls on all forms.
+**~3 weeks parallel vs ~5-7 weeks sequential.**
 
 ---
 
@@ -623,19 +483,9 @@ Use this skill when the user asks for thorough research...
 
 | Release | Key Metric |
 |---------|------------|
-| v0.2.0 | MCP server passes compliance test, all 3 bugs fixed, docs consolidated |
-| v0.3.0 | Agent run creates worktree in isolation, skills injected into prompts, middleware chain active |
-| v0.4.0 | 3 sub-agents run in parallel worktrees, memory persists across sessions, hooks fire on events |
-
----
-
-## Dependencies
-
-```
-Sprint 1 (v0.2.0) — bugs + MCP + docs
-  └── Sprint 2 (v0.3.0) — worktrees + middleware + skills
-        └── Sprint 3 (v0.4.0) — sub-agents use worktrees, memory uses middleware, hooks use events
-```
+| v0.2.0 | MCP server passes compliance test, docs consolidated to ~15 |
+| v0.3.0 | Worktree isolation works, middleware chain active, skills loaded |
+| v0.4.0 | 3 sub-agents run in parallel worktrees, memory persists, hooks fire |
 
 ---
 
