@@ -13,6 +13,7 @@ uuid = { workspace = true }
 chrono = { workspace = true }
 tracing = "0.1"
 crossbeam-channel = "0.5"
+tokio = { version = "1", features = ["process"] }
 
 [dev-dependencies]
 tokio = { workspace = true }

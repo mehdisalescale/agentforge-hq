@@ -101,7 +101,7 @@ impl HookRepo {
             .map_err(|e| ForgeError::Database(Box::new(e)))?;
 
         let hook = stmt
-            .query_row(rusqlite::params![id], |row| row_to_hook(row))
+            .query_row(rusqlite::params![id], row_to_hook)
             .optional()
             .map_err(|e| ForgeError::Database(Box::new(e)))?;
 
@@ -118,7 +118,7 @@ impl HookRepo {
             .map_err(|e| ForgeError::Database(Box::new(e)))?;
 
         let hooks = stmt
-            .query_map([], |row| row_to_hook(row))
+            .query_map([], row_to_hook)
             .map_err(|e| ForgeError::Database(Box::new(e)))?
             .collect::<Result<Vec<_>, _>>()
             .map_err(|e| ForgeError::Database(Box::new(e)))?;
@@ -172,9 +172,7 @@ impl HookRepo {
             .map_err(|e| ForgeError::Database(Box::new(e)))?;
 
         let hooks = stmt
-            .query_map(rusqlite::params![event_type, timing], |row| {
-                row_to_hook(row)
-            })
+            .query_map(rusqlite::params![event_type, timing], row_to_hook)
             .map_err(|e| ForgeError::Database(Box::new(e)))?
             .collect::<Result<Vec<_>, _>>()
             .map_err(|e| ForgeError::Database(Box::new(e)))?;

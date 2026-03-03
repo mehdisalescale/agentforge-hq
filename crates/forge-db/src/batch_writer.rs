@@ -145,6 +145,13 @@ fn event_type_name(event: &ForgeEvent) -> &'static str {
         ForgeEvent::CircuitBreakerTripped { .. } => "CircuitBreakerTripped",
         ForgeEvent::BudgetWarning { .. } => "BudgetWarning",
         ForgeEvent::BudgetExceeded { .. } => "BudgetExceeded",
+        ForgeEvent::HookStarted { .. } => "HookStarted",
+        ForgeEvent::HookCompleted { .. } => "HookCompleted",
+        ForgeEvent::HookFailed { .. } => "HookFailed",
+        ForgeEvent::SubAgentRequested { .. } => "SubAgentRequested",
+        ForgeEvent::SubAgentStarted { .. } => "SubAgentStarted",
+        ForgeEvent::SubAgentCompleted { .. } => "SubAgentCompleted",
+        ForgeEvent::SubAgentFailed { .. } => "SubAgentFailed",
         ForgeEvent::Error { .. } => "Error",
     }
 }

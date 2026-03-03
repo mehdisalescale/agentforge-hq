@@ -1,7 +1,7 @@
 # Documentation Index
 
 > What's current, what's archived, what to read.
-> Updated: 2026-03-03
+> Updated: 2026-03-03 (Sprint 1 done, Wave 1 done)
 
 ---
 
@@ -26,13 +26,13 @@
 | `docs/E2E_SMOKE_TEST.md` | E2E test documentation | 2026-02-27 |
 | `docs/DOC_INDEX.md` | This file | 2026-03-03 |
 
-## Agent Coordination (live during wave execution)
+## Agent Coordination
 
-| File | Purpose |
-|------|---------|
-| `docs/agents/AGENT_PROTOCOL.md` | Read/write protocol for parallel agents |
-| `docs/agents/WAVE1_STATUS.md` | Live status tracker — agents update this as they work |
-| `docs/agents/WAVE1_PROMPTS.md` | Copy-paste prompts for each Wave 1 agent session |
+| File | Purpose | Status |
+|------|---------|--------|
+| `docs/agents/AGENT_PROTOCOL.md` | Read/write protocol for parallel agents | Active |
+| `docs/agents/WAVE1_STATUS.md` | Wave 1 status tracker — all agents complete | Done |
+| `docs/agents/WAVE1_PROMPTS.md` | Copy-paste prompts for Wave 1 agent sessions | Done |
 
 ## Historical Task Records (read-only)
 

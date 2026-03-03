@@ -4,7 +4,7 @@
 use forge_api::state::SafetyState;
 use forge_api::{serve_until_signal, AppState};
 use forge_core::EventBus;
-use forge_db::{AgentRepo, BatchWriter, DbPool, EventRepo, Migrator, SessionRepo, SkillRepo, WorkflowRepo};
+use forge_db::{AgentRepo, BatchWriter, DbPool, EventRepo, HookRepo, MemoryRepo, Migrator, SessionRepo, SkillRepo, WorkflowRepo};
 use forge_safety::{CircuitBreaker, CostTracker, RateLimiter};
 use std::env;
 use std::net::SocketAddr;
@@ -53,7 +53,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let event_repo = EventRepo::new(Arc::clone(&conn_arc));
     let skill_repo = SkillRepo::new(Arc::clone(&conn_arc));
     let workflow_repo = WorkflowRepo::new(Arc::clone(&conn_arc));
+    let memory_repo = MemoryRepo::new(Arc::clone(&conn_arc));
+    let hook_repo = HookRepo::new(Arc::clone(&conn_arc));
     let event_bus = EventBus::new(256);
+
+    // Load seed skills from the skills/ directory.
+    if let Err(e) = skill_repo.load_from_dir(std::path::Path::new("skills")) {
+        tracing::warn!("skill loading failed: {}", e);
+    }
 
     // S1: Wire BatchWriter to EventBus — persist all events to SQLite.
     let batch_writer = Arc::new(BatchWriter::spawn(Arc::clone(&conn_arc)));
@@ -106,6 +113,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         Arc::new(event_bus),
         Arc::new(skill_repo),
         Arc::new(workflow_repo),
+        Arc::new(memory_repo),
+        Arc::new(hook_repo),
         safety,
     );
 

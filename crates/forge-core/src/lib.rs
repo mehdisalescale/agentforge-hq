@@ -160,6 +160,48 @@ mod tests {
                 limit: 10.0,
                 timestamp: ts,
             },
+            ForgeEvent::HookStarted {
+                hook_id: "h1".into(),
+                hook_name: "lint".into(),
+                event_type: "session.complete".into(),
+                timestamp: ts,
+            },
+            ForgeEvent::HookCompleted {
+                hook_id: "h1".into(),
+                hook_name: "lint".into(),
+                duration_ms: 42,
+                timestamp: ts,
+            },
+            ForgeEvent::HookFailed {
+                hook_id: "h1".into(),
+                hook_name: "lint".into(),
+                error: "exit 1".into(),
+                timestamp: ts,
+            },
+            ForgeEvent::SubAgentRequested {
+                parent_session_id: session_id.clone(),
+                sub_agent_id: agent_id.clone(),
+                prompt: "do stuff".into(),
+                timestamp: ts,
+            },
+            ForgeEvent::SubAgentStarted {
+                parent_session_id: session_id.clone(),
+                sub_agent_id: agent_id.clone(),
+                session_id: SessionId::new(),
+                timestamp: ts,
+            },
+            ForgeEvent::SubAgentCompleted {
+                parent_session_id: session_id.clone(),
+                sub_agent_id: agent_id.clone(),
+                session_id: SessionId::new(),
+                timestamp: ts,
+            },
+            ForgeEvent::SubAgentFailed {
+                parent_session_id: session_id.clone(),
+                sub_agent_id: agent_id.clone(),
+                error: "oops".into(),
+                timestamp: ts,
+            },
             ForgeEvent::Error {
                 message: "m".into(),
                 context: None,

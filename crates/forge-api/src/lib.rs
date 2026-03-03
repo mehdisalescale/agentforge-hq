@@ -143,7 +143,7 @@ mod tests {
     use super::*;
     use axum::body::Body;
     use forge_core::EventBus;
-    use forge_db::{AgentRepo, EventRepo, Migrator, DbPool, SessionRepo, SkillRepo, WorkflowRepo};
+    use forge_db::{AgentRepo, EventRepo, HookRepo, MemoryRepo, Migrator, DbPool, SessionRepo, SkillRepo, WorkflowRepo};
     use crate::state::SafetyState;
     use forge_safety::{CircuitBreaker, RateLimiter};
     use std::time::Duration;
@@ -165,6 +165,8 @@ mod tests {
         let event_repo = EventRepo::new(Arc::clone(&conn_arc));
         let skill_repo = SkillRepo::new(Arc::clone(&conn_arc));
         let workflow_repo = WorkflowRepo::new(Arc::clone(&conn_arc));
+        let memory_repo = MemoryRepo::new(Arc::clone(&conn_arc));
+        let hook_repo = HookRepo::new(Arc::clone(&conn_arc));
         let event_bus = EventBus::new(16);
         let state = AppState::new(
             Arc::new(agent_repo),
@@ -173,6 +175,8 @@ mod tests {
             Arc::new(event_bus),
             Arc::new(skill_repo),
             Arc::new(workflow_repo),
+            Arc::new(memory_repo),
+            Arc::new(hook_repo),
             SafetyState {
                 circuit_breaker: Arc::new(CircuitBreaker::default()),
                 rate_limiter: Arc::new(RateLimiter::new(100, Duration::from_secs(1))),
@@ -206,6 +210,8 @@ mod tests {
         let event_repo = EventRepo::new(Arc::clone(&conn_arc));
         let skill_repo = SkillRepo::new(Arc::clone(&conn_arc));
         let workflow_repo = WorkflowRepo::new(Arc::clone(&conn_arc));
+        let memory_repo = MemoryRepo::new(Arc::clone(&conn_arc));
+        let hook_repo = HookRepo::new(Arc::clone(&conn_arc));
         let event_bus = EventBus::new(16);
         let state = AppState::new(
             Arc::new(agent_repo),
@@ -214,6 +220,8 @@ mod tests {
             Arc::new(event_bus),
             Arc::new(skill_repo),
             Arc::new(workflow_repo),
+            Arc::new(memory_repo),
+            Arc::new(hook_repo),
             SafetyState {
                 circuit_breaker: Arc::new(CircuitBreaker::default()),
                 rate_limiter: Arc::new(RateLimiter::new(100, Duration::from_secs(1))),
@@ -246,6 +254,8 @@ mod tests {
         let event_repo = EventRepo::new(Arc::clone(&conn_arc));
         let skill_repo = SkillRepo::new(Arc::clone(&conn_arc));
         let workflow_repo = WorkflowRepo::new(Arc::clone(&conn_arc));
+        let memory_repo = MemoryRepo::new(Arc::clone(&conn_arc));
+        let hook_repo = HookRepo::new(Arc::clone(&conn_arc));
         let event_bus = EventBus::new(16);
         let state = AppState::new(
             Arc::new(agent_repo),
@@ -254,6 +264,8 @@ mod tests {
             Arc::new(event_bus),
             Arc::new(skill_repo),
             Arc::new(workflow_repo),
+            Arc::new(memory_repo),
+            Arc::new(hook_repo),
             SafetyState {
                 circuit_breaker: Arc::new(CircuitBreaker::default()),
                 rate_limiter: Arc::new(RateLimiter::new(100, Duration::from_secs(1))),
@@ -278,7 +290,7 @@ mod tests {
         use axum::body::Body;
         use forge_core::EventBus;
         use forge_agent::model::NewAgent;
-        use forge_db::{AgentRepo, EventRepo, Migrator, DbPool, SessionRepo, SkillRepo, WorkflowRepo};
+        use forge_db::{AgentRepo, EventRepo, HookRepo, MemoryRepo, Migrator, DbPool, SessionRepo, SkillRepo, WorkflowRepo};
         use http::{Request, StatusCode};
         use std::sync::Arc;
         use tower::ServiceExt;
@@ -308,6 +320,8 @@ mod tests {
         let event_repo = EventRepo::new(Arc::clone(&conn_arc));
         let skill_repo = SkillRepo::new(Arc::clone(&conn_arc));
         let workflow_repo = WorkflowRepo::new(Arc::clone(&conn_arc));
+        let memory_repo = MemoryRepo::new(Arc::clone(&conn_arc));
+        let hook_repo = HookRepo::new(Arc::clone(&conn_arc));
         let event_bus = EventBus::new(16);
         let state = AppState::new(
             Arc::new(agent_repo),
@@ -316,6 +330,8 @@ mod tests {
             Arc::new(event_bus),
             Arc::new(skill_repo),
             Arc::new(workflow_repo),
+            Arc::new(memory_repo),
+            Arc::new(hook_repo),
             SafetyState {
                 circuit_breaker: Arc::new(CircuitBreaker::default()),
                 rate_limiter: Arc::new(RateLimiter::new(100, Duration::from_secs(1))),
@@ -385,7 +401,7 @@ mod tests {
         use axum::body::Body;
         use forge_core::EventBus;
         use forge_agent::model::NewAgent;
-        use forge_db::{AgentRepo, EventRepo, Migrator, DbPool, SessionRepo, SkillRepo, WorkflowRepo};
+        use forge_db::{AgentRepo, EventRepo, HookRepo, MemoryRepo, Migrator, DbPool, SessionRepo, SkillRepo, WorkflowRepo};
         use http::{Request, StatusCode};
         use std::sync::Arc;
         use tower::ServiceExt;
@@ -415,6 +431,8 @@ mod tests {
         let event_repo = EventRepo::new(Arc::clone(&conn_arc));
         let skill_repo = SkillRepo::new(Arc::clone(&conn_arc));
         let workflow_repo = WorkflowRepo::new(Arc::clone(&conn_arc));
+        let memory_repo = MemoryRepo::new(Arc::clone(&conn_arc));
+        let hook_repo = HookRepo::new(Arc::clone(&conn_arc));
         let event_bus = EventBus::new(16);
         let state = AppState::new(
             Arc::new(agent_repo),
@@ -423,6 +441,8 @@ mod tests {
             Arc::new(event_bus),
             Arc::new(skill_repo),
             Arc::new(workflow_repo),
+            Arc::new(memory_repo),
+            Arc::new(hook_repo),
             SafetyState {
                 circuit_breaker: Arc::new(CircuitBreaker::default()),
                 rate_limiter: Arc::new(RateLimiter::new(100, Duration::from_secs(1))),

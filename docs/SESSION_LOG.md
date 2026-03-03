@@ -5,6 +5,22 @@
 
 ---
 
+### Session 13 — 2026-03-03 — Wave 1 parallel execution + Wave 2 launch
+
+- **Branch**: `main`
+- **What was done**:
+  - **Wave 1 coordination system**: Created AGENT_PROTOCOL.md, WAVE1_STATUS.md, WAVE1_PROMPTS.md for 5 parallel Claude Code sessions. Wrote self-contained copy-paste prompts for Agents A-E.
+  - **Wave 1 execution**: Monitored 5 agents (A-E) running in parallel. All created new files with zero conflicts. Caught Agent E making unauthorized changes to forge-mcp-bin (rogue MCP resource support) — reverted.
+  - **Gate verification**: Fixed 2 pre-existing clippy issues (derivable_impls in forge-safety, needless_borrow in forge-db/agents.rs). All 75 tests passed. Committed all Wave 1 work.
+  - **Wave 2 launch**: Prepared Agent F prompt (integration wiring). Agent F wired migrations 0003/0004, repos/mod.rs, lib.rs re-exports, AppState (memory_repo + hook_repo), routes/mod.rs, and events.rs (+7 event variants: Hook* + SubAgent*).
+  - **Build fixes during Wave 2**: Fixed tokio dep in forge-db (hooks.rs needs tokio::process), added 7 new event arms to batch_writer.rs event_type_name, fixed Path type in skill loader call in main.rs, suppressed clippy too_many_arguments on AppState::new.
+  - **Doc updates**: Updated all docs (CLAUDE.md, NORTH_STAR.md, MASTER_TASK_LIST.md, DOC_INDEX.md, SESSION_LOG.md, MEMORY.md) to reflect current state: 9 crates, 94 tests, 27 events, Sprint 1 done, Wave 1 done.
+- **Key commits**: `534d909` (coordination files), `d6cd408` (Wave 1 delivery, 25 files, +2,320 LOC)
+- **What's next**: Agent F finishes Wave 2 remaining steps. Then Wave 3 (3 parallel agents) + Wave 4 (4 parallel agents).
+- **Files touched**: CLAUDE.md, NORTH_STAR.md, MASTER_TASK_LIST.md, docs/SESSION_LOG.md, docs/DOC_INDEX.md, crates/forge-db/Cargo.toml, crates/forge-db/src/batch_writer.rs, crates/forge-api/src/state.rs, crates/forge-app/src/main.rs, docs/agents/* (3 coordination files), all Wave 1 outputs (25 files)
+
+---
+
 ### Session 12 — 2026-03-03 — Bug fixes, harvester assessment, plan merge
 
 - **Branch**: `main`

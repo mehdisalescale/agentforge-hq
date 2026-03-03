@@ -8,3 +8,5 @@ CREATE TABLE IF NOT EXISTS memory (
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_memory_category ON memory(category);
+
+INSERT INTO schema_version (version) VALUES (3);

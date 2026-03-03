@@ -110,6 +110,52 @@ pub enum ForgeEvent {
         timestamp: DateTime<Utc>,
     },
 
+    // Hook lifecycle
+    HookStarted {
+        hook_id: String,
+        hook_name: String,
+        event_type: String,
+        timestamp: DateTime<Utc>,
+    },
+    HookCompleted {
+        hook_id: String,
+        hook_name: String,
+        duration_ms: u64,
+        timestamp: DateTime<Utc>,
+    },
+    HookFailed {
+        hook_id: String,
+        hook_name: String,
+        error: String,
+        timestamp: DateTime<Utc>,
+    },
+
+    // Sub-agent lifecycle
+    SubAgentRequested {
+        parent_session_id: SessionId,
+        sub_agent_id: AgentId,
+        prompt: String,
+        timestamp: DateTime<Utc>,
+    },
+    SubAgentStarted {
+        parent_session_id: SessionId,
+        sub_agent_id: AgentId,
+        session_id: SessionId,
+        timestamp: DateTime<Utc>,
+    },
+    SubAgentCompleted {
+        parent_session_id: SessionId,
+        sub_agent_id: AgentId,
+        session_id: SessionId,
+        timestamp: DateTime<Utc>,
+    },
+    SubAgentFailed {
+        parent_session_id: SessionId,
+        sub_agent_id: AgentId,
+        error: String,
+        timestamp: DateTime<Utc>,
+    },
+
     // Generic error
     Error {
         message: String,
@@ -141,6 +187,13 @@ impl ForgeEvent {
             | ForgeEvent::CircuitBreakerTripped { timestamp, .. }
             | ForgeEvent::BudgetWarning { timestamp, .. }
             | ForgeEvent::BudgetExceeded { timestamp, .. }
+            | ForgeEvent::HookStarted { timestamp, .. }
+            | ForgeEvent::HookCompleted { timestamp, .. }
+            | ForgeEvent::HookFailed { timestamp, .. }
+            | ForgeEvent::SubAgentRequested { timestamp, .. }
+            | ForgeEvent::SubAgentStarted { timestamp, .. }
+            | ForgeEvent::SubAgentCompleted { timestamp, .. }
+            | ForgeEvent::SubAgentFailed { timestamp, .. }
             | ForgeEvent::Error { timestamp, .. } => *timestamp,
         }
     }

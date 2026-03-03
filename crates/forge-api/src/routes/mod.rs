@@ -2,6 +2,8 @@
 
 mod agents;
 mod health;
+mod hooks;
+mod memory;
 mod run;
 mod sessions;
 mod skills;
@@ -21,4 +23,6 @@ pub fn router() -> Router<AppState> {
         .merge(skills::routes())
         .merge(workflows::routes())
         .merge(ws::routes())
+        .nest("/memory", memory::routes())
+        .merge(hooks::routes())
 }

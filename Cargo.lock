@@ -384,7 +384,6 @@ dependencies = [
  "forge-api",
  "forge-core",
  "forge-db",
- "forge-mcp-bin",
  "forge-safety",
  "tokio",
  "tracing",

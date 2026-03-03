@@ -1,7 +1,7 @@
 # Claude Forge — North Star
 
 > **Read this first in every session.** This is the single source of truth.
-> Last updated: 2026-03-02 (Post-audit — 4-sprint plan)
+> Last updated: 2026-03-03 (Sprint 1 done, Wave 1 done, Wave 2 in progress)
 
 ---
 
@@ -14,27 +14,28 @@ The only Rust-native tool in the space — everyone else is TypeScript/Electron 
 
 ---
 
-## Current State (Verified 2026-03-02)
+## Current State (Verified 2026-03-03)
 
-Full audit completed. See `docs/FORGE_AUDIT_2026_03_02.md` for details.
+Sprint 1 complete. Wave 1 complete. Wave 2 (Agent F integration) in progress.
 
 ### Build Status
 - `cargo check` — clean, zero warnings, all 9 crates compile
-- `cargo test` — 33 tests, all pass
+- `cargo test` — 94 tests, all pass
+- `cargo clippy` — clean, zero warnings
 - Frontend — built and embedded (SvelteKit 5 + adapter-static)
 
-### What Works (verified in code, 3,400 LOC Rust + 1,400 LOC frontend)
+### What Works (verified in code)
 
-**Backend (9 crates):**
-- forge-core (A): ForgeEvent (20 variants), EventBus broadcast, ForgeError, typed IDs
+**Backend (9 workspace crates):**
+- forge-core (A): ForgeEvent (27 variants), EventBus broadcast, ForgeError, typed IDs
 - forge-agent (A-): 9 presets, Agent/NewAgent/UpdateAgent, name validation
-- forge-db (A): SQLite WAL, migrations, BatchWriter (50/2s), AgentRepo CRUD, SessionRepo CRUD, EventRepo
+- forge-db (A): SQLite WAL, 4 migrations, BatchWriter (50/2s), AgentRepo, SessionRepo, EventRepo, SkillRepo, MemoryRepo, HookRepo
 - forge-process (B+): Claude CLI spawn with stream-json, content block parsing
-- forge-safety (B+): CircuitBreaker (3-state FSM), RateLimiter (token bucket)
-- forge-api (A-): Full HTTP API + WebSocket, CORS, TraceLayer, rust-embed SPA
-- forge-app (A): Binary wiring, graceful shutdown, env config
-- forge-mcp (D): Type stubs only — needs rewrite with rmcp
-- forge-mcp-bin (B): Stdio JSON-RPC dispatch, functional but untested
+- forge-safety (B+): CircuitBreaker (3-state FSM), RateLimiter (token bucket), CostTracker (budget warn/limit)
+- forge-api (A-): Full HTTP API + WebSocket, CORS, TraceLayer, rust-embed SPA, middleware trait/chain
+- forge-app (A): Binary wiring, graceful shutdown, env config, skill loading at startup
+- forge-git (B+): Worktree create/remove/list for multi-agent isolation (7 tests)
+- forge-mcp-bin (B): MCP stdio server (rmcp, 10 tools)
 
 **Frontend:**
 - Dashboard — agent selector, prompt input, WebSocket streaming, markdown rendering, session resume
@@ -53,22 +54,17 @@ Full audit completed. See `docs/FORGE_AUDIT_2026_03_02.md` for details.
 
 | Gap | Severity | Sprint |
 |-----|----------|--------|
-| MCP server (should use rmcp, not hand-rolled) | High | 1 |
-| Skills system (table exists, zero content/loader) | High | 2 |
-| Middleware chain (run handler is monolith) | High | 2 |
-| Git worktree isolation (no multi-agent safety) | High | 2 |
-| Sub-agent parallelism (single process only) | High | 3 |
-| Cross-session memory (no semantic recall) | Medium | 4 |
-| Hook system (no pre/post actions) | Medium | 4 |
+| Middleware extraction (run handler still monolith) | High | Wave 3 |
+| Sub-agent parallelism (single process only) | High | Wave 3 |
+| Memory injection/extraction logic | Medium | Wave 3 |
+| Frontend for memory, hooks, worktrees | Medium | Wave 4 |
+| Multi-agent dashboard UI | Medium | Wave 4 |
 | Authentication (none anywhere) | Medium | Later |
 
 ### Known Bugs
 
 | Bug | File | Severity |
 |-----|------|----------|
-| Dashboard null-safety: `last.content += content` when outputBlocks empty | frontend/+page.svelte | Critical |
-| Budget warning logic confusing (`cost >= warn AND cost < limit`) | forge-api/routes/run.rs | Medium |
-| Preset serialization uses Debug format fallback (brittle) | forge-db/repos/agents.rs | Medium |
 | No shutdown timeout (server can hang on Ctrl+C) | forge-app/main.rs | Low |
 | Default model hardcoded in Agents UI | frontend/agents/+page.svelte | Low |
 
@@ -78,12 +74,12 @@ Full audit completed. See `docs/FORGE_AUDIT_2026_03_02.md` for details.
 
 Single source of truth: `MASTER_TASK_LIST.md`. Agent task cards: `docs/agents/HANDOFF_SPRINT_2_3.md`.
 
-### Sprint 1 → v0.2.0 — MCP + Ship (sequential)
+### Sprint 1 → v0.2.0 — MCP + Ship (sequential) — DONE
 
 - [x] F1-F3: Bug fixes (done Session 12)
-- [ ] M1-M5: MCP rewrite with rmcp
-- [ ] D1: CLAUDE.md, D2: Doc consolidation
-- [ ] R1: Tag v0.2.0
+- [x] M1-M5: MCP rewrite with rmcp (done Session 12)
+- [x] D1: CLAUDE.md, D2: Doc consolidation (done Session 12)
+- [ ] R1: Tag v0.2.0 (pending)
 
 ### Sprints 2-3 → v0.3.0 / v0.4.0 — Parallel Wave Execution
 
@@ -159,27 +155,26 @@ These are NOT in scope until users demand them:
 
 ```
 forge-project/                    <-- Everything lives here
-  crates/                         <-- 9 Rust crates (workspace)
-    forge-core/                   Event types, EventBus, errors, IDs
+  crates/                         <-- 9 workspace crates
+    forge-core/                   ForgeEvent (27 variants), EventBus, errors, IDs
     forge-agent/                  Agent model, 9 presets, validation
-    forge-db/                     SQLite WAL, migrations, repos, BatchWriter
+    forge-db/                     SQLite WAL, 4 migrations, 6 repos, BatchWriter
     forge-process/                Claude CLI spawn, stream-json parsing
-    forge-safety/                 CircuitBreaker, RateLimiter
-    forge-api/                    Axum HTTP + WebSocket + embedded frontend
+    forge-safety/                 CircuitBreaker, RateLimiter, CostTracker
+    forge-api/                    Axum HTTP + WebSocket + middleware + embedded frontend
     forge-app/                    Binary entry point, wiring, shutdown
-    forge-mcp/                    MCP types (needs rewrite with rmcp)
-    forge-mcp-bin/                MCP stdio server
+    forge-git/                    Git worktree create/remove/list
+    forge-mcp-bin/                MCP stdio server (rmcp)
   frontend/                       SvelteKit 5 + TailwindCSS 4
-  migrations/                     0001_init.sql, 0002_add_cost.sql
-  skills/                         (Sprint 2: Markdown skill files go here)
+  migrations/                     0001_init, 0002_add_cost, 0003_add_memory, 0004_add_hooks
+  skills/                         10 seed Markdown skill files
   scripts/                        e2e-smoke.sh
   .github/workflows/              ci.yml, release.yml
   docs/                           Current docs (audit, borrowed ideas, tasks)
     FORGE_AUDIT_2026_03_02.md     Full audit report
     BORROWED_IDEAS.md             DeerFlow + Claude-Flow + industry analysis
-    agents/TASK_*.md              Historical agent task completions
-    planning/                     Old planning docs (archived)
-  00-vision/ through 08-reference/  Frozen reference material (don't update)
+    agents/                       Agent task records, wave coordination
+  archive/                        Frozen reference + old planning docs
   NORTH_STAR.md                   YOU ARE HERE
   MASTER_TASK_LIST.md             Sprint tasks
   README.md                       GitHub landing page

@@ -11,6 +11,8 @@ pub use migrations::Migrator;
 pub use pool::DbPool;
 pub use repos::agents::AgentRepo;
 pub use repos::events::{EventRepo, StoredEvent};
+pub use repos::hooks::{Hook, HookRepo, NewHook, UpdateHook};
+pub use repos::memory::{Memory, MemoryRepo, NewMemory, UpdateMemory};
 pub use repos::sessions::{NewSession, Session, SessionRepo};
 pub use repos::skills::{Skill, SkillRepo};
 pub use repos::workflows::{Workflow, WorkflowRepo};

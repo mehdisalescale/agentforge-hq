@@ -1,6 +1,6 @@
 # Claude Forge — Master Task List
 
-> **Updated:** 2026-03-03 (wave-based parallel execution structure)
+> **Updated:** 2026-03-03 (Sprint 1 done, Wave 1 done, Wave 2 in progress)
 > **Source:** `docs/FORGE_AUDIT_2026_03_02.md` (audit), `docs/BORROWED_IDEAS.md` (patterns)
 > **Agent task cards:** `docs/agents/HANDOFF_SPRINT_2_3.md`
 
@@ -62,16 +62,16 @@
 
 ---
 
-## SPRINT 1 → v0.2.0 — MCP + Ship (Sequential)
+## SPRINT 1 → v0.2.0 — MCP + Ship (Sequential) — COMPLETE
 
 > **Goal:** Rewrite MCP server with official SDK, consolidate docs, ship tagged release.
-> **Estimated effort:** 3-5 days
+> **Status:** ALL DONE (Sessions 12-13). 94 tests pass, clippy clean.
 > **Mode:** Sequential (one developer)
 
 ### MCP Rewrite
 
 #### M1: Add rmcp dependency
-- [ ] **Done**
+- [x] **Done**
 
 **What:** Replace hand-rolled JSON-RPC with official Rust MCP SDK.
 
@@ -87,7 +87,7 @@
 ---
 
 #### M2: Implement MCP tools with rmcp
-- [ ] **Done**
+- [x] **Done**
 
 **What:** 10 tools using `#[tool]` macro.
 
@@ -109,7 +109,7 @@
 ---
 
 #### M3: Implement MCP resources
-- [ ] **Done**
+- [x] **Done**
 
 **What:** 5 resources: `forge://agents`, `forge://sessions`, `forge://config`, `forge://health`, `forge://skills`
 
@@ -118,7 +118,7 @@
 ---
 
 #### M4: MCP stdio server entry point
-- [ ] **Done**
+- [x] **Done**
 
 **What:** `forge --mcp` flag starts MCP mode (stdio) instead of HTTP.
 
@@ -129,7 +129,7 @@
 ---
 
 #### M5: MCP protocol compliance tests
-- [ ] **Done**
+- [x] **Done**
 
 **What:** Tests covering handshake, all tools, all resources, error handling.
 
@@ -140,14 +140,14 @@
 ### Housekeeping
 
 #### D1: Create CLAUDE.md
-- [ ] **Done**
+- [x] **Done**
 
 **What:** Project context file for AI/human sessions. Under 200 lines.
 
 ---
 
 #### D2: Doc consolidation
-- [ ] **Done**
+- [x] **Done**
 
 **What:** Merge 35 frozen `00-08/` files → `docs/ORIGINAL_DESIGN_REFERENCE.md`. Merge 14 `docs/planning/` → `docs/PLANNING_ARCHIVE.md`. Delete 10 superseded docs. Result: ~15 active docs.
 
@@ -164,7 +164,7 @@
 
 > **Goal:** Worktrees, middleware, skills, sub-agents, memory, hooks — all features remaining to reach orchestrator status.
 > **Mode:** Parallel agents per wave. See `docs/agents/HANDOFF_SPRINT_2_3.md` for full task cards.
-> **Prerequisite:** Sprint 1 (v0.2.0) shipped.
+> **Status:** Wave 1 DONE (commit d6cd408). Wave 2 IN PROGRESS.
 
 ### Wave Overview
 
@@ -202,7 +202,7 @@ WAVE 4 — 4 agents in parallel (frontend + polish)
 All agents create NEW files/crates. Zero shared files. Can run simultaneously.
 
 #### Agent A: forge-git crate (WT1+WT2)
-- [ ] **Done**
+- [x] **Done** (Session 13 — 215 LOC, 7 tests)
 
 **Exclusive files:** `crates/forge-git/` (NEW crate), `Cargo.toml` (add workspace member only)
 
@@ -215,7 +215,7 @@ All agents create NEW files/crates. Zero shared files. Can run simultaneously.
 ---
 
 #### Agent B: Middleware trait + chain (MW1)
-- [ ] **Done**
+- [x] **Done** (Session 13 — 211 LOC, 3 tests)
 
 **Exclusive files:** `crates/forge-api/src/middleware.rs` (NEW file)
 
@@ -231,7 +231,7 @@ All agents create NEW files/crates. Zero shared files. Can run simultaneously.
 ---
 
 #### Agent C: Skill loader + seed files (SK1+SK2)
-- [ ] **Done**
+- [x] **Done** (Session 13 — 10 skill files, +139 LOC skills.rs, 9 tests)
 
 **Exclusive files:** `skills/` (NEW dir, 10+ `.md` files), `crates/forge-db/src/repos/skills.rs` (existing read-only stubs → add write + loader)
 
@@ -247,7 +247,7 @@ All agents create NEW files/crates. Zero shared files. Can run simultaneously.
 ---
 
 #### Agent D: Memory table + repo + routes (ME1)
-- [ ] **Done**
+- [x] **Done** (Session 13 — 417 LOC repo, 76 LOC routes, migration, 8 tests)
 
 **Exclusive files:** `crates/forge-db/src/repos/memory.rs` (NEW), `crates/forge-api/src/routes/memory.rs` (NEW), `migrations/0003_add_memory.sql` (NEW)
 
@@ -260,7 +260,7 @@ All agents create NEW files/crates. Zero shared files. Can run simultaneously.
 ---
 
 #### Agent E: Hook table + repo + routes (HK1+HK2)
-- [ ] **Done**
+- [x] **Done** (Session 13 — 519 LOC repo, 71 LOC routes, migration, 10+ tests)
 
 **Exclusive files:** `crates/forge-db/src/repos/hooks.rs` (NEW), `crates/forge-api/src/routes/hooks.rs` (NEW), `migrations/0004_add_hooks.sql` (NEW)
 
@@ -287,12 +287,12 @@ All 5 agents' work must compile and pass tests before Wave 2.
 
 ---
 
-### Wave 2 — Integration Wiring (1 agent, sequential)
+### Wave 2 — Integration Wiring (1 agent, sequential) — IN PROGRESS
 
 Touches shared files. Must run alone after Wave 1 gate passes.
 
 #### Agent F: Integration wiring
-- [ ] **Done**
+- [ ] **In progress** (Steps 1-6 of 9 done: migrations, repos/mod, lib.rs, state.rs, routes/mod.rs. Remaining: events.rs update, main.rs wiring, verify gate)
 
 **Shared files:** `forge-db/src/migrations.rs`, `forge-db/src/repos/mod.rs`, `forge-db/src/lib.rs`, `forge-api/src/state.rs`, `forge-api/src/routes/mod.rs`, `forge-api/src/routes/run.rs`, `forge-api/src/lib.rs`, `forge-core/src/events.rs`, `forge-app/src/main.rs`
 

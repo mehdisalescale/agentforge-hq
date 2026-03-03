@@ -1,7 +1,7 @@
 //! Application state shared across handlers.
 
 use forge_core::EventBus;
-use forge_db::{AgentRepo, EventRepo, SessionRepo, SkillRepo, WorkflowRepo};
+use forge_db::{AgentRepo, EventRepo, HookRepo, MemoryRepo, SessionRepo, SkillRepo, WorkflowRepo};
 use forge_safety::{CircuitBreaker, CostTracker, RateLimiter};
 use std::sync::Arc;
 
@@ -22,10 +22,13 @@ pub struct AppState {
     pub event_bus: Arc<EventBus>,
     pub skill_repo: Arc<SkillRepo>,
     pub workflow_repo: Arc<WorkflowRepo>,
+    pub memory_repo: Arc<MemoryRepo>,
+    pub hook_repo: Arc<HookRepo>,
     pub safety: SafetyState,
 }
 
 impl AppState {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         agent_repo: Arc<AgentRepo>,
         session_repo: Arc<SessionRepo>,
@@ -33,6 +36,8 @@ impl AppState {
         event_bus: Arc<EventBus>,
         skill_repo: Arc<SkillRepo>,
         workflow_repo: Arc<WorkflowRepo>,
+        memory_repo: Arc<MemoryRepo>,
+        hook_repo: Arc<HookRepo>,
         safety: SafetyState,
     ) -> Self {
         Self {
@@ -42,6 +47,8 @@ impl AppState {
             event_bus,
             skill_repo,
             workflow_repo,
+            memory_repo,
+            hook_repo,
             safety,
         }
     }
