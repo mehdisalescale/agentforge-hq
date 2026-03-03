@@ -192,16 +192,10 @@ pub enum BudgetStatus {
 
 /// Tracks cost/budget for agent usage. Holds warning and limit thresholds,
 /// returns a `BudgetStatus` when checked against a cost value.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct CostTracker {
     warn: Option<f64>,
     limit: Option<f64>,
-}
-
-impl Default for CostTracker {
-    fn default() -> Self {
-        Self { warn: None, limit: None }
-    }
 }
 
 impl CostTracker {

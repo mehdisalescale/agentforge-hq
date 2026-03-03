@@ -77,7 +77,7 @@ impl AgentRepo {
 
         stmt.query_row(
             rusqlite::params![id.0.to_string()],
-            |row| row_to_agent(&row).map_err(|e| rusqlite::Error::InvalidParameterName(e.to_string())),
+            |row| row_to_agent(row).map_err(|e| rusqlite::Error::InvalidParameterName(e.to_string())),
         )
         .map_err(|e| match e {
             rusqlite::Error::QueryReturnedNoRows => ForgeError::AgentNotFound(id.clone()),
@@ -97,7 +97,7 @@ impl AgentRepo {
 
         let agents: Vec<Agent> = stmt
             .query_map([], |row| {
-                row_to_agent(&row).map_err(|e| rusqlite::Error::InvalidParameterName(e.to_string()))
+                row_to_agent(row).map_err(|e| rusqlite::Error::InvalidParameterName(e.to_string()))
             })
             .map_err(|e| ForgeError::Database(Box::new(e)))?
             .collect::<Result<Vec<_>, _>>()
