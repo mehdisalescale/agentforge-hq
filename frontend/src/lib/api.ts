@@ -251,3 +251,123 @@ export async function listWorkflows(): Promise<Workflow[]> {
   const res = await fetch(`${API_BASE}/api/v1/workflows`);
   return handleResponse<Workflow[]>(res);
 }
+
+// --- Memory (Phase 2) ---
+
+export interface Memory {
+  id: string;
+  category: string;
+  content: string;
+  confidence: number;
+  source_session_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NewMemory {
+  category?: string;
+  content: string;
+  confidence?: number;
+  source_session_id?: string;
+}
+
+export interface UpdateMemory {
+  content?: string;
+  category?: string;
+  confidence?: number;
+}
+
+export async function listMemories(opts?: { q?: string; limit?: number; offset?: number }): Promise<Memory[]> {
+  const params = new URLSearchParams();
+  if (opts?.q) params.set('q', opts.q);
+  if (opts?.limit != null) params.set('limit', String(opts.limit));
+  if (opts?.offset != null) params.set('offset', String(opts.offset));
+  const qs = params.toString();
+  const res = await fetch(`${API_BASE}/api/v1/memory${qs ? '?' + qs : ''}`);
+  return handleResponse<Memory[]>(res);
+}
+
+export async function getMemory(id: string): Promise<Memory> {
+  const res = await fetch(`${API_BASE}/api/v1/memory/${encodeURIComponent(id)}`);
+  return handleResponse<Memory>(res);
+}
+
+export async function createMemory(data: NewMemory): Promise<Memory> {
+  const res = await fetch(`${API_BASE}/api/v1/memory`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<Memory>(res);
+}
+
+export async function updateMemory(id: string, data: UpdateMemory): Promise<Memory> {
+  const res = await fetch(`${API_BASE}/api/v1/memory/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<Memory>(res);
+}
+
+export async function deleteMemory(id: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/v1/memory/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+  await handleResponse<void>(res);
+}
+
+// --- Hooks (Phase 2) ---
+
+export interface Hook {
+  id: string;
+  name: string;
+  event_type: string;
+  timing: string;
+  command: string;
+  enabled: boolean;
+  created_at: string;
+}
+
+export interface NewHook {
+  name: string;
+  event_type: string;
+  timing: string;
+  command: string;
+}
+
+export interface UpdateHook {
+  name?: string;
+  command?: string;
+  enabled?: boolean;
+}
+
+export async function listHooks(): Promise<Hook[]> {
+  const res = await fetch(`${API_BASE}/api/v1/hooks`);
+  return handleResponse<Hook[]>(res);
+}
+
+export async function createHook(data: NewHook): Promise<Hook> {
+  const res = await fetch(`${API_BASE}/api/v1/hooks`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<Hook>(res);
+}
+
+export async function updateHook(id: string, data: UpdateHook): Promise<Hook> {
+  const res = await fetch(`${API_BASE}/api/v1/hooks/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<Hook>(res);
+}
+
+export async function deleteHook(id: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/v1/hooks/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+  await handleResponse<void>(res);
+}

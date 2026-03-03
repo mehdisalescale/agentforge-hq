@@ -33,23 +33,37 @@
     return 'assistant';
   }
 
+  interface SubAgentStatus {
+    agentId: string;
+    status: 'requested' | 'running' | 'completed' | 'failed';
+    sessionId?: string;
+    prompt?: string;
+    error?: string;
+    timestamp: string;
+  }
+
   setContext('pageTitle', 'Dashboard');
 
-  let agents: Agent[] = [];
-  let agentsError = '';
-  let selectedAgentId = '';
-  let prompt = '';
-  let directory = '';
-  let running = false;
-  let runError = '';
-  let outputBlocks: OutputBlock[] = [];
-  let streamStatus: 'idle' | 'connecting' | 'streaming' | 'completed' | 'failed' = 'idle';
-  let streamStatusDetail = '';
-  let currentSessionId: string | null = null;
-  let ws: WebSocket | null = null;
-  let wsReconnectTimer: ReturnType<typeof setTimeout> | null = null;
-  let wsReconnectDelay = 1000;
+  // --- Svelte 5 rune state ---
+  let agents = $state<Agent[]>([]);
+  let agentsError = $state('');
+  let selectedAgentId = $state('');
+  let prompt = $state('');
+  let directory = $state('');
+  let running = $state(false);
+  let runError = $state('');
+  let outputBlocks = $state<OutputBlock[]>([]);
+  let streamStatus = $state<'idle' | 'connecting' | 'streaming' | 'completed' | 'failed'>('idle');
+  let streamStatusDetail = $state('');
+  let currentSessionId = $state<string | null>(null);
+  let ws = $state<WebSocket | null>(null);
+  let wsReconnectTimer = $state<ReturnType<typeof setTimeout> | null>(null);
+  let wsReconnectDelay = $state(1000);
+  let subAgents = $state<SubAgentStatus[]>([]);
   const WS_MAX_RECONNECT_DELAY = 30000;
+
+  /** Session ID from ?resume= (Sessions page "Resume"). Only in browser (prerender-safe). */
+  let resumeSessionId = $derived(browser ? ($page.url.searchParams.get('resume') || null) : null);
 
   async function loadAgents() {
     agentsError = '';
@@ -86,7 +100,7 @@
             streamStatus = 'streaming';
           }
           if (currentSessionId && isProcessLifecycleEvent(ev, currentSessionId)) {
-            if (ev.type === 'ProcessStarted') streamStatusDetail = 'Started…';
+            if (ev.type === 'ProcessStarted') streamStatusDetail = 'Started...';
             if (ev.type === 'ProcessCompleted') {
               streamStatus = 'completed';
               streamStatusDetail = `Done (exit ${ev.data?.exit_code ?? 0})`;
@@ -96,6 +110,61 @@
               streamStatusDetail = ev.data?.error ?? 'Process failed';
             }
           }
+
+          // --- Sub-agent event handling ---
+          if (ev.type === 'SubAgentRequested' && ev.data) {
+            const parentSid = ev.data.parent_session_id as string | undefined;
+            if (parentSid === currentSessionId) {
+              subAgents = [...subAgents, {
+                agentId: (ev.data.sub_agent_id as string) ?? 'unknown',
+                status: 'requested',
+                prompt: (ev.data.prompt as string) ?? undefined,
+                timestamp: (ev.data.timestamp as string) ?? new Date().toISOString(),
+              }];
+            }
+          }
+          if (ev.type === 'SubAgentStarted' && ev.data) {
+            const parentSid = ev.data.parent_session_id as string | undefined;
+            if (parentSid === currentSessionId) {
+              const subId = ev.data.sub_agent_id as string;
+              const idx = subAgents.findIndex(sa => sa.agentId === subId && sa.status === 'requested');
+              if (idx >= 0) {
+                subAgents[idx].status = 'running';
+                subAgents[idx].sessionId = (ev.data.session_id as string) ?? undefined;
+                subAgents = subAgents;
+              } else {
+                subAgents = [...subAgents, {
+                  agentId: subId ?? 'unknown',
+                  status: 'running',
+                  sessionId: (ev.data.session_id as string) ?? undefined,
+                  timestamp: (ev.data.timestamp as string) ?? new Date().toISOString(),
+                }];
+              }
+            }
+          }
+          if (ev.type === 'SubAgentCompleted' && ev.data) {
+            const parentSid = ev.data.parent_session_id as string | undefined;
+            if (parentSid === currentSessionId) {
+              const subId = ev.data.sub_agent_id as string;
+              const idx = subAgents.findIndex(sa => sa.agentId === subId && (sa.status === 'running' || sa.status === 'requested'));
+              if (idx >= 0) {
+                subAgents[idx].status = 'completed';
+                subAgents = subAgents;
+              }
+            }
+          }
+          if (ev.type === 'SubAgentFailed' && ev.data) {
+            const parentSid = ev.data.parent_session_id as string | undefined;
+            if (parentSid === currentSessionId) {
+              const subId = ev.data.sub_agent_id as string;
+              const idx = subAgents.findIndex(sa => sa.agentId === subId && (sa.status === 'running' || sa.status === 'requested'));
+              if (idx >= 0) {
+                subAgents[idx].status = 'failed';
+                subAgents[idx].error = (ev.data.error as string) ?? undefined;
+                subAgents = subAgents;
+              }
+            }
+          }
         } catch {
           // ignore parse errors
         }
@@ -103,7 +172,7 @@
       ws.onclose = () => {
         ws = null;
         if (streamStatus === 'streaming' || streamStatus === 'connecting') {
-          streamStatusDetail = 'WebSocket closed — reconnecting…';
+          streamStatusDetail = 'WebSocket closed — reconnecting...';
         }
         scheduleReconnect();
       };
@@ -125,18 +194,16 @@
     wsReconnectDelay = Math.min(wsReconnectDelay * 2, WS_MAX_RECONNECT_DELAY);
   }
 
-  /** Session ID from ?resume= (Sessions page "Resume"). Only in browser (prerender-safe). */
-  $: resumeSessionId = browser ? ($page.url.searchParams.get('resume') || null) : null;
-
   async function run() {
     if (!selectedAgentId?.trim() || !prompt.trim()) {
       runError = 'Select an agent and enter a prompt.';
       return;
     }
     runError = '';
-      outputBlocks = [];
+    outputBlocks = [];
+    subAgents = [];
     streamStatus = 'connecting';
-    streamStatusDetail = resumeSessionId ? 'Resuming…' : 'Starting…';
+    streamStatusDetail = resumeSessionId ? 'Resuming...' : 'Starting...';
     running = true;
     connectWs();
 
@@ -149,7 +216,7 @@
       });
       currentSessionId = res.session_id;
       streamStatus = 'streaming';
-      streamStatusDetail = 'Streaming…';
+      streamStatusDetail = 'Streaming...';
     } catch (e) {
       runError = e instanceof Error ? e.message : String(e);
       streamStatus = 'failed';
@@ -162,6 +229,7 @@
 
   function clearStream() {
     outputBlocks = [];
+    subAgents = [];
     streamStatus = 'idle';
     streamStatusDetail = '';
     currentSessionId = null;
@@ -178,14 +246,14 @@
 </script>
 
 <svelte:head>
-  <title>Dashboard · Claude Forge</title>
+  <title>Dashboard - Claude Forge</title>
 </svelte:head>
 
 <div class="page dashboard">
   <section class="run-section">
     <h2>Run</h2>
     {#if resumeSessionId}
-      <p class="resume-badge">Resuming session <code>{resumeSessionId.slice(0, 8)}…</code></p>
+      <p class="resume-badge">Resuming session <code>{resumeSessionId.slice(0, 8)}...</code></p>
     {/if}
     {#if agentsError}
       <p class="error">{agentsError}</p>
@@ -201,7 +269,7 @@
         <textarea
           id="prompt-input"
           bind:value={prompt}
-          placeholder="Enter your prompt…"
+          placeholder="Enter your prompt..."
           rows="4"
           disabled={running}
         ></textarea>
@@ -214,11 +282,11 @@
           disabled={running}
         />
         <div class="form-actions">
-          <button type="button" class="primary" on:click={run} disabled={running || agents.length === 0}>
-            {running ? 'Running…' : 'Run'}
+          <button type="button" class="primary" onclick={run} disabled={running || agents.length === 0}>
+            {running ? 'Running...' : 'Run'}
           </button>
           {#if outputBlocks.length > 0 || streamStatus !== 'idle'}
-            <button type="button" class="secondary" on:click={clearStream}>Clear</button>
+            <button type="button" class="secondary" onclick={clearStream}>Clear</button>
           {/if}
         </div>
       </div>
@@ -252,7 +320,7 @@
             </details>
           {:else if block.kind === 'thinking'}
             <details class="block-thinking">
-              <summary>Thinking…</summary>
+              <summary>Thinking...</summary>
               <pre class="dimmed">{block.content}</pre>
             </details>
           {/if}
@@ -262,6 +330,24 @@
       {/if}
     </div>
   </section>
+
+  {#if subAgents.length > 0}
+    <section class="subagents-section">
+      <h2>Sub-agents</h2>
+      <div class="subagent-grid">
+        {#each subAgents as sa}
+          <div class="subagent-card" class:requested={sa.status === 'requested'} class:running={sa.status === 'running'} class:completed={sa.status === 'completed'} class:failed={sa.status === 'failed'}>
+            <div class="subagent-header">
+              <span class="subagent-id">{sa.agentId.slice(0, 8)}...</span>
+              <span class="status-badge {sa.status}">{sa.status}</span>
+            </div>
+            {#if sa.prompt}<p class="subagent-prompt">{sa.prompt.slice(0, 80)}{sa.prompt.length > 80 ? '...' : ''}</p>{/if}
+            {#if sa.error}<p class="subagent-error">{sa.error}</p>{/if}
+          </div>
+        {/each}
+      </div>
+    </section>
+  {/if}
 </div>
 
 <style>
@@ -425,5 +511,81 @@
     background: var(--surface);
     padding: 0.15rem 0.4rem;
     border-radius: 4px;
+  }
+
+  /* --- Sub-agent progress panel --- */
+  .subagents-section {
+    margin-top: 1.5rem;
+  }
+  .subagent-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 0.75rem;
+  }
+  .subagent-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.75rem;
+  }
+  .subagent-card.requested {
+    border-color: #71717a;
+  }
+  .subagent-card.running {
+    border-color: #60a5fa;
+  }
+  .subagent-card.completed {
+    border-color: #86efac;
+  }
+  .subagent-card.failed {
+    border-color: #f87171;
+  }
+  .subagent-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.35rem;
+  }
+  .subagent-id {
+    font-family: ui-monospace, monospace;
+    font-size: 0.8rem;
+    color: var(--text);
+  }
+  .status-badge {
+    font-size: 0.7rem;
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .status-badge.requested {
+    background: rgba(113, 113, 122, 0.2);
+    color: #71717a;
+  }
+  .status-badge.running {
+    background: rgba(96, 165, 250, 0.2);
+    color: #60a5fa;
+  }
+  .status-badge.completed {
+    background: rgba(134, 239, 172, 0.2);
+    color: #86efac;
+  }
+  .status-badge.failed {
+    background: rgba(248, 113, 113, 0.2);
+    color: #f87171;
+  }
+  .subagent-prompt {
+    margin: 0.25rem 0 0 0;
+    font-size: 0.8rem;
+    color: var(--muted);
+    line-height: 1.3;
+  }
+  .subagent-error {
+    margin: 0.25rem 0 0 0;
+    font-size: 0.8rem;
+    color: #f87171;
+    line-height: 1.3;
   }
 </style>

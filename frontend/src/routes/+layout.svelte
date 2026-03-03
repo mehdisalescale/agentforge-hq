@@ -11,6 +11,8 @@
       <a class="link" href="/sessions">Sessions</a>
       <a class="link" href="/workflows">Workflows</a>
       <a class="link" href="/skills">Skills</a>
+      <a class="link" href="/memory">Memory</a>
+      <a class="link" href="/hooks">Hooks</a>
       <a class="link" href="/settings">Settings</a>
     </nav>
   </aside>
@@ -18,7 +20,7 @@
     <slot />
   </main>
   <footer class="statusbar">
-    <span>Phase 1</span>
-    <span class="statusbar-note">Run + Sessions UI (Agent F)</span>
+    <span>v0.4.0-dev</span>
+    <span class="statusbar-note">Multi-agent orchestrator</span>
   </footer>
 </div>

@@ -14,6 +14,28 @@
 
   setContext('pageTitle', 'Agents');
 
+  // Extended presets list including Coordinator (10th preset added to backend)
+  const ALL_PRESETS = [...PRESETS, 'Coordinator' as const];
+
+  // Domain mapping: preset -> domain category
+  const DOMAIN_MAP: Record<string, { label: string; color: string }> = {
+    CodeWriter:     { label: 'code',          color: '#60a5fa' },
+    Refactorer:     { label: 'code',          color: '#60a5fa' },
+    Reviewer:       { label: 'quality',       color: '#86efac' },
+    Tester:         { label: 'quality',       color: '#86efac' },
+    SecurityAuditor:{ label: 'quality',       color: '#86efac' },
+    Architect:      { label: 'ops',           color: '#fbbf24' },
+    Documenter:     { label: 'ops',           color: '#fbbf24' },
+    Explorer:       { label: 'ops',           color: '#fbbf24' },
+    Debugger:       { label: 'ops',           color: '#fbbf24' },
+    Coordinator:    { label: 'orchestration', color: '#c084fc' },
+  };
+
+  function getDomain(preset: string | null): { label: string; color: string } | null {
+    if (!preset) return null;
+    return DOMAIN_MAP[preset] ?? null;
+  }
+
   let agents = $state<Agent[]>([]);
   let loading = $state(true);
   let error = $state<string | null>(null);
@@ -167,12 +189,16 @@
   {:else}
     <div class="agent-cards">
       {#each agents as agent (agent.id)}
+        {@const domain = getDomain(agent.preset)}
         <article class="card">
           <div class="card-header">
             <h2 class="card-title">{agent.name}</h2>
             <span class="card-meta">{agent.model}</span>
             {#if agent.preset}
               <span class="badge">{agent.preset}</span>
+            {/if}
+            {#if domain}
+              <span class="domain-badge" style="--domain-color: {domain.color}">{domain.label}</span>
             {/if}
           </div>
           {#if agent.system_prompt}
@@ -227,7 +253,7 @@
             <span>Preset</span>
             <select bind:value={formPreset}>
               <option value="">None</option>
-              {#each PRESETS as p}
+              {#each ALL_PRESETS as p}
                 <option value={p}>{p}</option>
               {/each}
             </select>
@@ -255,3 +281,17 @@
     </div>
   {/if}
 </div>
+
+<style>
+  .domain-badge {
+    font-size: 0.65rem;
+    padding: 0.15rem 0.45rem;
+    border-radius: 4px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    background: color-mix(in srgb, var(--domain-color) 18%, transparent);
+    color: var(--domain-color);
+    border: 1px solid color-mix(in srgb, var(--domain-color) 30%, transparent);
+  }
+</style>

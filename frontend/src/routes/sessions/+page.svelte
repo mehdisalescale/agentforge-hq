@@ -13,12 +13,16 @@
 
   setContext('pageTitle', 'Sessions');
 
-  let sessions: Session[] = [];
-  let sessionsError = '';
-  let selectedId: string | null = null;
-  let detail: Session | null = null;
-  let detailError = '';
-  let agents: Agent[] = [];
+  let sessions: Session[] = $state([]);
+  let sessionsError: string = $state('');
+  let selectedId: string | null = $state(null);
+  let detail: Session | null = $state(null);
+  let detailError: string = $state('');
+  let agents: Agent[] = $state([]);
+
+  function isWorktree(dir: string | null | undefined): boolean {
+    return !!dir && dir.includes('.claude/worktrees/');
+  }
 
   async function loadSessions() {
     sessionsError = '';
@@ -79,11 +83,16 @@
                   type="button"
                   class="session-item"
                   class:selected={selectedId === s.id}
-                  on:click={() => loadDetail(s.id)}
+                  onclick={() => loadDetail(s.id)}
                 >
                   <span class="session-header">
                     <span class="session-id">{s.id.slice(0, 8)}…</span>
-                    <span class="status-badge" class:running={s.status === 'running'} class:completed={s.status === 'completed'} class:failed={s.status === 'failed'}>{s.status}</span>
+                    <span class="session-badges">
+                      {#if isWorktree(s.directory)}
+                        <span class="worktree-badge">Worktree</span>
+                      {/if}
+                      <span class="status-badge" class:running={s.status === 'running'} class:completed={s.status === 'completed'} class:failed={s.status === 'failed'}>{s.status}</span>
+                    </span>
                   </span>
                   <span class="session-meta">{s.directory || '—'}</span>
                 </button>
@@ -105,7 +114,14 @@
             <dt>Agent ID</dt>
             <dd><code>{detail.agent_id}</code></dd>
             <dt>Directory</dt>
-            <dd><code>{detail.directory || '—'}</code></dd>
+            <dd>
+              <span class="directory-value">
+                {#if isWorktree(detail.directory)}
+                  <span class="worktree-badge">Worktree</span>
+                {/if}
+                <code class="directory-path">{detail.directory || '—'}</code>
+              </span>
+            </dd>
             <dt>Status</dt>
             <dd><span class="status-badge" class:running={detail.status === 'running'} class:completed={detail.status === 'completed'} class:failed={detail.status === 'failed'}>{detail.status}</span></dd>
             {#if detail.cost_usd != null && detail.cost_usd !== undefined}
@@ -116,13 +132,21 @@
             <dd>{detail.created_at}</dd>
           </dl>
           <div class="detail-actions">
-            <button type="button" class="primary" on:click={() => detail && resume(detail)}>Resume</button>
-            <button type="button" class="secondary" on:click={() => detail && exportAs(detail.id, 'json')}>
+            <button type="button" class="primary" onclick={() => detail && resume(detail)}>Resume</button>
+            <button type="button" class="secondary" onclick={() => detail && exportAs(detail.id, 'json')}>
               Export JSON
             </button>
-            <button type="button" class="secondary" on:click={() => detail && exportAs(detail.id, 'markdown')}>
+            <button type="button" class="secondary" onclick={() => detail && exportAs(detail.id, 'markdown')}>
               Export Markdown
             </button>
+            {#if isWorktree(detail.directory)}
+              <button type="button" class="secondary" disabled title="Coming soon — requires worktree API">
+                Merge
+              </button>
+              <button type="button" class="secondary" disabled title="Coming soon — requires worktree API">
+                Cleanup
+              </button>
+            {/if}
           </div>
         {:else}
           <p class="muted">Select a session to see details and Resume or Export.</p>
@@ -183,6 +207,11 @@
     justify-content: space-between;
     gap: 0.5rem;
   }
+  .session-badges {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
   .session-id {
     font-size: 0.9rem;
     font-weight: 500;
@@ -207,6 +236,16 @@
   .status-badge.failed {
     background: rgba(248, 113, 113, 0.15);
     color: #f87171;
+  }
+  .worktree-badge {
+    font-size: 0.7rem;
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    background: rgba(96, 165, 250, 0.15);
+    color: #60a5fa;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    font-weight: 500;
   }
   .session-meta {
     display: block;
@@ -234,6 +273,15 @@
     padding: 0.15rem 0.4rem;
     border-radius: 4px;
   }
+  .directory-value {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .directory-path {
+    font-size: 0.9rem;
+    word-break: break-all;
+  }
   .detail-actions {
     display: flex;
     gap: 0.5rem;
@@ -246,6 +294,10 @@
     cursor: pointer;
     border: none;
     font-family: inherit;
+  }
+  .detail-actions button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
   .detail-actions button.primary {
     background: var(--accent);
