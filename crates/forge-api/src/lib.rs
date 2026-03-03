@@ -176,8 +176,8 @@ mod tests {
             SafetyState {
                 circuit_breaker: Arc::new(CircuitBreaker::default()),
                 rate_limiter: Arc::new(RateLimiter::new(100, Duration::from_secs(1))),
+                cost_tracker: Arc::new(forge_safety::CostTracker::default()),
             },
-            crate::state::BudgetConfig::default(),
         );
         let app = app(state);
         let request = Request::builder()
@@ -217,8 +217,8 @@ mod tests {
             SafetyState {
                 circuit_breaker: Arc::new(CircuitBreaker::default()),
                 rate_limiter: Arc::new(RateLimiter::new(100, Duration::from_secs(1))),
+                cost_tracker: Arc::new(forge_safety::CostTracker::default()),
             },
-            crate::state::BudgetConfig::default(),
         );
         let app = app(state);
         let request = Request::builder()
@@ -257,8 +257,8 @@ mod tests {
             SafetyState {
                 circuit_breaker: Arc::new(CircuitBreaker::default()),
                 rate_limiter: Arc::new(RateLimiter::new(100, Duration::from_secs(1))),
+                cost_tracker: Arc::new(forge_safety::CostTracker::default()),
             },
-            crate::state::BudgetConfig::default(),
         );
 
         let app = app(state);
@@ -319,8 +319,8 @@ mod tests {
             SafetyState {
                 circuit_breaker: Arc::new(CircuitBreaker::default()),
                 rate_limiter: Arc::new(RateLimiter::new(100, Duration::from_secs(1))),
+                cost_tracker: Arc::new(forge_safety::CostTracker::default()),
             },
-            crate::state::BudgetConfig::default(),
         );
 
         let app = app(state);
@@ -426,8 +426,8 @@ mod tests {
             SafetyState {
                 circuit_breaker: Arc::new(CircuitBreaker::default()),
                 rate_limiter: Arc::new(RateLimiter::new(100, Duration::from_secs(1))),
+                cost_tracker: Arc::new(forge_safety::CostTracker::default()),
             },
-            crate::state::BudgetConfig::default(),
         );
 
         let app = app(state);

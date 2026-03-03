@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/forge-core", "crates/forge-agent", "crates/forge-db", "crates/forge-api", "crates/forge-process", "crates/forge-safety", "crates/forge-mcp", "crates/forge-mcp-bin", "crates/forge-app"]
+members = ["crates/forge-core", "crates/forge-agent", "crates/forge-db", "crates/forge-api", "crates/forge-process", "crates/forge-safety", "crates/forge-mcp-bin", "crates/forge-app"]
 
 [workspace.dependencies]
 tokio = { version = "1", features = ["sync", "rt", "macros", "test-util"] }

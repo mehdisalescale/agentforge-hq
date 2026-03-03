@@ -2,7 +2,7 @@
 name = "forge-mcp-bin"
 version = "0.1.0"
 edition = "2021"
-description = "Forge MCP server binary (stdio)"
+description = "Forge MCP server binary (stdio, rmcp-based)"
 
 [[bin]]
 name = "forge-mcp"
@@ -12,7 +12,11 @@ path = "src/main.rs"
 forge-core = { path = "../forge-core" }
 forge-agent = { path = "../forge-agent" }
 forge-db = { path = "../forge-db" }
-forge-mcp = { path = "../forge-mcp" }
+rmcp = { version = "0.17", features = ["server", "transport-io", "macros"] }
+tokio = { workspace = true, features = ["full"] }
 uuid = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+schemars = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }

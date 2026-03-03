@@ -1,266 +1,287 @@
-//! Forge MCP server: stdio JSON-RPC loop, agent and session tools.
-//! Usage: FORGE_DB_PATH=~/.claude-forge/forge.db forge-mcp (or from IDE MCP config).
+//! Forge MCP server: stdio transport via rmcp, agent and session tools.
+//! Usage: FORGE_DB_PATH=~/.claude-forge/forge.db forge-mcp
 
+use forge_agent::model::{NewAgent, UpdateAgent};
 use forge_core::ids::{AgentId, SessionId};
 use forge_db::{AgentRepo, EventRepo, Migrator, NewSession, SessionRepo, StoredEvent};
-use forge_mcp::{McpError, McpRequest, McpResponse};
-use forge_agent::model::{NewAgent, UpdateAgent};
+use rmcp::handler::server::tool::ToolRouter;
+use rmcp::handler::server::wrapper::Parameters;
+use rmcp::model::*;
+use rmcp::{tool, tool_handler, tool_router, ErrorData, ServerHandler, ServiceExt};
+use schemars::JsonSchema;
+use serde::Deserialize;
 use std::env;
-use std::io::{self, BufRead, Write};
 use std::path::Path;
 use std::sync::Arc;
+use tracing_subscriber::EnvFilter;
 
 fn default_db_path() -> String {
     let home = env::var("HOME").unwrap_or_else(|_| "/tmp".into());
     format!("{}/.claude-forge/forge.db", home)
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let db_path = env::var("FORGE_DB_PATH").unwrap_or_else(|_| default_db_path());
-    let path = Path::new(&db_path);
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).ok();
-    }
+#[derive(Clone)]
+pub struct ForgeMcp {
+    agent_repo: Arc<AgentRepo>,
+    session_repo: Arc<SessionRepo>,
+    event_repo: Arc<EventRepo>,
+    tool_router: ToolRouter<Self>,
+}
 
-    let db = forge_db::DbPool::new(path)?;
-    {
-        let conn = db.connection();
-        let migrator = Migrator::new(&conn);
-        migrator.apply_pending()?;
-    }
-    let conn = db.conn_arc();
-    let agent_repo = Arc::new(AgentRepo::new(Arc::clone(&conn)));
-    let session_repo = Arc::new(SessionRepo::new(Arc::clone(&conn)));
-    let event_repo = Arc::new(EventRepo::new(Arc::clone(&conn)));
+// --- Parameter types ---
 
-    let stdin = io::stdin();
-    let mut stdout = io::stdout();
-    let mut lines = stdin.lock().lines();
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct IdParam {
+    #[schemars(description = "UUID of the entity")]
+    id: String,
+}
 
-    while let Some(Ok(line)) = lines.next() {
-        let line = line.trim();
-        if line.is_empty() {
-            continue;
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct AgentCreateParam {
+    #[schemars(description = "Agent name (alphanumeric, dashes, underscores)")]
+    name: String,
+    #[schemars(description = "Model identifier (e.g. claude-sonnet-4-20250514)")]
+    model: Option<String>,
+    #[schemars(description = "System prompt for the agent")]
+    system_prompt: Option<String>,
+    #[schemars(description = "Preset name: CodeWriter, Reviewer, Tester, Debugger, Architect, Documenter, SecurityAuditor, Refactorer, Explorer")]
+    preset: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct AgentUpdateParam {
+    #[schemars(description = "UUID of the agent to update")]
+    id: String,
+    #[schemars(description = "New name")]
+    name: Option<String>,
+    #[schemars(description = "New model identifier")]
+    model: Option<String>,
+    #[schemars(description = "New system prompt")]
+    system_prompt: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SessionCreateParam {
+    #[schemars(description = "UUID of the agent for this session")]
+    agent_id: String,
+    #[schemars(description = "Working directory for the session")]
+    directory: Option<String>,
+    #[schemars(description = "Claude session ID for resume")]
+    claude_session_id: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SessionExportParam {
+    #[schemars(description = "UUID of the session to export")]
+    id: String,
+    #[schemars(description = "Export format: json or markdown (default: json)")]
+    format: Option<String>,
+}
+
+// --- Helper ---
+
+fn parse_uuid(s: &str) -> Result<uuid::Uuid, ErrorData> {
+    uuid::Uuid::parse_str(s).map_err(|_| ErrorData::invalid_params(format!("invalid UUID: {}", s), None))
+}
+
+fn forge_err(e: forge_core::ForgeError) -> ErrorData {
+    ErrorData::internal_error(e.to_string(), None)
+}
+
+fn to_json_content(value: &impl serde::Serialize) -> Result<CallToolResult, ErrorData> {
+    let json = serde_json::to_string_pretty(value)
+        .map_err(|e| ErrorData::internal_error(e.to_string(), None))?;
+    Ok(CallToolResult::success(vec![Content::text(json)]))
+}
+
+// --- Tool implementations ---
+
+#[tool_router]
+impl ForgeMcp {
+    fn new(
+        agent_repo: Arc<AgentRepo>,
+        session_repo: Arc<SessionRepo>,
+        event_repo: Arc<EventRepo>,
+    ) -> Self {
+        Self {
+            agent_repo,
+            session_repo,
+            event_repo,
+            tool_router: Self::tool_router(),
         }
-        let response = match serde_json::from_str::<McpRequest>(line) {
-            Ok(req) => dispatch(&req, &agent_repo, &session_repo, &event_repo),
-            Err(e) => McpResponse {
-                jsonrpc: "2.0".into(),
-                id: None,
-                result: None,
-                error: Some(McpError {
-                    code: -32700,
-                    message: format!("Parse error: {}", e),
-                }),
-            },
+    }
+
+    #[tool(description = "List all agents")]
+    async fn agent_list(&self) -> Result<CallToolResult, ErrorData> {
+        let agents = self.agent_repo.list().map_err(forge_err)?;
+        to_json_content(&agents)
+    }
+
+    #[tool(description = "Get an agent by ID")]
+    async fn agent_get(
+        &self,
+        Parameters(IdParam { id }): Parameters<IdParam>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let agent_id = AgentId(parse_uuid(&id)?);
+        let agent = self.agent_repo.get(&agent_id).map_err(forge_err)?;
+        to_json_content(&agent)
+    }
+
+    #[tool(description = "Create a new agent with name, optional model, system_prompt, and preset")]
+    async fn agent_create(
+        &self,
+        Parameters(params): Parameters<AgentCreateParam>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let preset = params
+            .preset
+            .as_deref()
+            .and_then(|s| serde_json::from_str(&format!("\"{}\"", s)).ok());
+        let input = NewAgent {
+            name: params.name,
+            model: params.model,
+            system_prompt: params.system_prompt,
+            allowed_tools: None,
+            max_turns: None,
+            use_max: Some(false),
+            preset,
+            config: None,
         };
-        if let Err(e) = writeln!(stdout, "{}", serde_json::to_string(&response).unwrap_or_default()) {
-            eprintln!("write error: {}", e);
-            break;
-        }
-        stdout.flush()?;
+        let agent = self.agent_repo.create(&input).map_err(forge_err)?;
+        to_json_content(&agent)
     }
-    Ok(())
-}
 
-fn dispatch(
-    req: &McpRequest,
-    agent_repo: &AgentRepo,
-    session_repo: &SessionRepo,
-    event_repo: &EventRepo,
-) -> McpResponse {
-    let id = req.id.clone();
-    let method = req.method.as_str();
-    let params = req.params.clone().unwrap_or(serde_json::Value::Null);
+    #[tool(description = "Update an existing agent's name, model, or system_prompt")]
+    async fn agent_update(
+        &self,
+        Parameters(params): Parameters<AgentUpdateParam>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let agent_id = AgentId(parse_uuid(&params.id)?);
+        let input = UpdateAgent {
+            name: params.name,
+            model: params.model,
+            system_prompt: params.system_prompt.map(Some),  // Option<Option<String>> for PATCH semantics
+            allowed_tools: None,
+            max_turns: None,
+            use_max: None,
+            preset: None,
+            config: None,
+        };
+        let agent = self.agent_repo.update(&agent_id, &input).map_err(forge_err)?;
+        to_json_content(&agent)
+    }
 
-    let result = match method {
-        "agent_list" => agent_list(agent_repo),
-        "agent_get" => agent_get(agent_repo, &params),
-        "agent_create" => agent_create(agent_repo, &params),
-        "agent_update" => agent_update(agent_repo, &params),
-        "agent_delete" => agent_delete(agent_repo, &params),
-        "session_list" => session_list(session_repo),
-        "session_get" => session_get(session_repo, &params),
-        "session_create" => session_create(agent_repo, session_repo, &params),
-        "session_delete" => session_delete(session_repo, &params),
-        "session_export" => session_export(session_repo, event_repo, &params),
-        _ => Err(forge_core::ForgeError::Validation(format!(
-            "unknown method: {}",
-            method
-        ))),
-    };
+    #[tool(description = "Delete an agent by ID")]
+    async fn agent_delete(
+        &self,
+        Parameters(IdParam { id }): Parameters<IdParam>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let agent_id = AgentId(parse_uuid(&id)?);
+        self.agent_repo.delete(&agent_id).map_err(forge_err)?;
+        Ok(CallToolResult::success(vec![Content::text(
+            r#"{"ok": true}"#,
+        )]))
+    }
 
-    match result {
-        Ok(value) => McpResponse {
-            jsonrpc: "2.0".into(),
-            id: id.clone(),
-            result: Some(value),
-            error: None,
-        },
-        Err(e) => {
-            let (code, message) = forge_error_to_rpc(&e);
-            McpResponse {
-                jsonrpc: "2.0".into(),
-                id: id.clone(),
-                result: None,
-                error: Some(McpError { code, message }),
+    #[tool(description = "List all sessions")]
+    async fn session_list(&self) -> Result<CallToolResult, ErrorData> {
+        let sessions = self.session_repo.list().map_err(forge_err)?;
+        to_json_content(&sessions)
+    }
+
+    #[tool(description = "Get a session by ID")]
+    async fn session_get(
+        &self,
+        Parameters(IdParam { id }): Parameters<IdParam>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let session_id = SessionId(parse_uuid(&id)?);
+        let session = self.session_repo.get(&session_id).map_err(forge_err)?;
+        to_json_content(&session)
+    }
+
+    #[tool(description = "Create a new session for an agent")]
+    async fn session_create(
+        &self,
+        Parameters(params): Parameters<SessionCreateParam>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let agent_id = AgentId(parse_uuid(&params.agent_id)?);
+        self.agent_repo.get(&agent_id).map_err(forge_err)?;
+        let input = NewSession {
+            agent_id,
+            directory: params.directory.unwrap_or_else(|| ".".into()),
+            claude_session_id: params.claude_session_id,
+        };
+        let session = self.session_repo.create(&input).map_err(forge_err)?;
+        to_json_content(&session)
+    }
+
+    #[tool(description = "Delete a session by ID")]
+    async fn session_delete(
+        &self,
+        Parameters(IdParam { id }): Parameters<IdParam>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let session_id = SessionId(parse_uuid(&id)?);
+        self.session_repo.delete(&session_id).map_err(forge_err)?;
+        Ok(CallToolResult::success(vec![Content::text(
+            r#"{"ok": true}"#,
+        )]))
+    }
+
+    #[tool(description = "Export a session with its events as JSON or Markdown")]
+    async fn session_export(
+        &self,
+        Parameters(params): Parameters<SessionExportParam>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let session_id = SessionId(parse_uuid(&params.id)?);
+        let session = self.session_repo.get(&session_id).map_err(forge_err)?;
+        let events = self.event_repo.query_by_session(&session_id).map_err(forge_err)?;
+        let format = params.format.as_deref().unwrap_or("json");
+        if format == "markdown" {
+            let md = session_to_markdown(&session, &events);
+            Ok(CallToolResult::success(vec![Content::text(md)]))
+        } else {
+            #[derive(serde::Serialize)]
+            struct Export {
+                session: forge_db::Session,
+                events: Vec<ExportEvent>,
             }
+            #[derive(serde::Serialize)]
+            struct ExportEvent {
+                id: String,
+                session_id: Option<String>,
+                agent_id: Option<String>,
+                event_type: String,
+                data_json: String,
+                timestamp: String,
+            }
+            let events_export: Vec<ExportEvent> = events
+                .iter()
+                .map(|e| ExportEvent {
+                    id: e.id.clone(),
+                    session_id: e.session_id.clone(),
+                    agent_id: e.agent_id.clone(),
+                    event_type: e.event_type.clone(),
+                    data_json: e.data_json.clone(),
+                    timestamp: e.timestamp.clone(),
+                })
+                .collect();
+            to_json_content(&Export { session, events: events_export })
         }
     }
 }
 
-fn forge_error_to_rpc(e: &forge_core::ForgeError) -> (i32, String) {
-    use forge_core::ForgeError;
-    let message = e.to_string();
-    let code = match e {
-        ForgeError::AgentNotFound(_) | ForgeError::SessionNotFound(_) => -32001,
-        ForgeError::Validation(_) => -32602,
-        ForgeError::Database(_) | ForgeError::Internal(_) => -32000,
-        _ => -32603,
-    };
-    (code, message)
-}
-
-fn agent_list(repo: &AgentRepo) -> Result<serde_json::Value, forge_core::ForgeError> {
-    let agents = repo.list()?;
-    Ok(serde_json::to_value(agents).map_err(forge_core::ForgeError::Serialization)?)
-}
-
-fn agent_get(repo: &AgentRepo, params: &serde_json::Value) -> Result<serde_json::Value, forge_core::ForgeError> {
-    let id = params
-        .get("id")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| forge_core::ForgeError::Validation("missing id".into()))?;
-    let agent_id = AgentId(uuid::Uuid::parse_str(id).map_err(|_| forge_core::ForgeError::Validation("invalid id".into()))?);
-    let agent = repo.get(&agent_id)?;
-    Ok(serde_json::to_value(agent).map_err(forge_core::ForgeError::Serialization)?)
-}
-
-fn agent_create(repo: &AgentRepo, params: &serde_json::Value) -> Result<serde_json::Value, forge_core::ForgeError> {
-    let input: NewAgent = serde_json::from_value(params.clone()).map_err(forge_core::ForgeError::Serialization)?;
-    let agent = repo.create(&input)?;
-    Ok(serde_json::to_value(agent).map_err(forge_core::ForgeError::Serialization)?)
-}
-
-fn agent_update(repo: &AgentRepo, params: &serde_json::Value) -> Result<serde_json::Value, forge_core::ForgeError> {
-    let id = params
-        .get("id")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| forge_core::ForgeError::Validation("missing id".into()))?;
-    let agent_id = AgentId(uuid::Uuid::parse_str(id).map_err(|_| forge_core::ForgeError::Validation("invalid id".into()))?);
-    let input: UpdateAgent = serde_json::from_value(params.clone()).map_err(forge_core::ForgeError::Serialization)?;
-    let agent = repo.update(&agent_id, &input)?;
-    Ok(serde_json::to_value(agent).map_err(forge_core::ForgeError::Serialization)?)
-}
-
-fn agent_delete(repo: &AgentRepo, params: &serde_json::Value) -> Result<serde_json::Value, forge_core::ForgeError> {
-    let id = params
-        .get("id")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| forge_core::ForgeError::Validation("missing id".into()))?;
-    let agent_id = AgentId(uuid::Uuid::parse_str(id).map_err(|_| forge_core::ForgeError::Validation("invalid id".into()))?);
-    repo.delete(&agent_id)?;
-    Ok(serde_json::json!({ "ok": true }))
-}
-
-fn session_list(repo: &SessionRepo) -> Result<serde_json::Value, forge_core::ForgeError> {
-    let sessions = repo.list()?;
-    Ok(serde_json::to_value(sessions).map_err(forge_core::ForgeError::Serialization)?)
-}
-
-fn session_get(repo: &SessionRepo, params: &serde_json::Value) -> Result<serde_json::Value, forge_core::ForgeError> {
-    let id = params
-        .get("id")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| forge_core::ForgeError::Validation("missing id".into()))?;
-    let session_id = SessionId(uuid::Uuid::parse_str(id).map_err(|_| forge_core::ForgeError::Validation("invalid id".into()))?);
-    let session = repo.get(&session_id)?;
-    Ok(serde_json::to_value(session).map_err(forge_core::ForgeError::Serialization)?)
-}
-
-fn session_create(
-    agent_repo: &AgentRepo,
-    session_repo: &SessionRepo,
-    params: &serde_json::Value,
-) -> Result<serde_json::Value, forge_core::ForgeError> {
-    let agent_id_str = params
-        .get("agent_id")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| forge_core::ForgeError::Validation("missing agent_id".into()))?;
-    let agent_id = AgentId(uuid::Uuid::parse_str(agent_id_str).map_err(|_| forge_core::ForgeError::Validation("invalid agent_id".into()))?);
-    agent_repo.get(&agent_id)?;
-    let directory = params
-        .get("directory")
-        .and_then(|v| v.as_str())
-        .unwrap_or(".")
-        .to_string();
-    let claude_session_id = params.get("claude_session_id").and_then(|v| v.as_str()).map(String::from);
-    let input = NewSession {
-        agent_id,
-        directory,
-        claude_session_id,
-    };
-    let session = session_repo.create(&input)?;
-    Ok(serde_json::to_value(session).map_err(forge_core::ForgeError::Serialization)?)
-}
-
-fn session_delete(repo: &SessionRepo, params: &serde_json::Value) -> Result<serde_json::Value, forge_core::ForgeError> {
-    let id = params
-        .get("id")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| forge_core::ForgeError::Validation("missing id".into()))?;
-    let session_id = SessionId(uuid::Uuid::parse_str(id).map_err(|_| forge_core::ForgeError::Validation("invalid id".into()))?);
-    repo.delete(&session_id)?;
-    Ok(serde_json::json!({ "ok": true }))
-}
-
-fn session_export(
-    session_repo: &SessionRepo,
-    event_repo: &EventRepo,
-    params: &serde_json::Value,
-) -> Result<serde_json::Value, forge_core::ForgeError> {
-    let id = params
-        .get("id")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| forge_core::ForgeError::Validation("missing id".into()))?;
-    let session_id = SessionId(uuid::Uuid::parse_str(id).map_err(|_| forge_core::ForgeError::Validation("invalid id".into()))?);
-    let session = session_repo.get(&session_id)?;
-    let events = event_repo.query_by_session(&session_id)?;
-    let format = params.get("format").and_then(|v| v.as_str()).unwrap_or("json");
-    if format == "markdown" {
-        let md = session_to_markdown(&session, &events);
-        Ok(serde_json::Value::String(md))
-    } else {
-        #[derive(serde::Serialize)]
-        struct ExportEvent {
-            id: String,
-            session_id: Option<String>,
-            agent_id: Option<String>,
-            event_type: String,
-            data_json: String,
-            timestamp: String,
+#[tool_handler]
+impl ServerHandler for ForgeMcp {
+    fn get_info(&self) -> ServerInfo {
+        ServerInfo {
+            instructions: Some(
+                "Forge MCP server: manage Claude Code agents and sessions. \
+                 Tools: agent_list, agent_get, agent_create, agent_update, agent_delete, \
+                 session_list, session_get, session_create, session_delete, session_export."
+                    .into(),
+            ),
+            capabilities: ServerCapabilities::builder().enable_tools().build(),
+            ..Default::default()
         }
-        #[derive(serde::Serialize)]
-        struct ExportJson {
-            session: forge_db::Session,
-            events: Vec<ExportEvent>,
-        }
-        let events_export: Vec<ExportEvent> = events
-            .iter()
-            .map(|e| ExportEvent {
-                id: e.id.clone(),
-                session_id: e.session_id.clone(),
-                agent_id: e.agent_id.clone(),
-                event_type: e.event_type.clone(),
-                data_json: e.data_json.clone(),
-                timestamp: e.timestamp.clone(),
-            })
-            .collect();
-        Ok(serde_json::to_value(ExportJson {
-            session,
-            events: events_export,
-        })
-        .map_err(forge_core::ForgeError::Serialization)?)
     }
 }
 
@@ -270,10 +291,7 @@ fn session_to_markdown(session: &forge_db::Session, events: &[StoredEvent]) -> S
     md.push_str(&format!("- **Agent ID:** {}\n", session.agent_id));
     md.push_str(&format!("- **Directory:** {}\n", session.directory));
     md.push_str(&format!("- **Status:** {}\n", session.status));
-    md.push_str(&format!(
-        "- **Created:** {}\n",
-        session.created_at.to_rfc3339()
-    ));
+    md.push_str(&format!("- **Created:** {}\n", session.created_at.to_rfc3339()));
     if let Some(ref c) = session.claude_session_id {
         md.push_str(&format!("- **Claude session:** {}\n", c));
     }
@@ -285,4 +303,40 @@ fn session_to_markdown(session: &forge_db::Session, events: &[StoredEvent]) -> S
         md.push_str("\n```\n\n");
     }
     md
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    // Logs go to stderr — stdout is reserved for MCP JSON-RPC transport
+    tracing_subscriber::fmt()
+        .with_env_filter(EnvFilter::from_default_env())
+        .with_writer(std::io::stderr)
+        .with_ansi(false)
+        .init();
+
+    let db_path = env::var("FORGE_DB_PATH").unwrap_or_else(|_| default_db_path());
+    let path = Path::new(&db_path);
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).ok();
+    }
+
+    tracing::info!(path = %db_path, "opening database");
+    let db = forge_db::DbPool::new(path)?;
+    {
+        let conn = db.connection();
+        let migrator = Migrator::new(&conn);
+        migrator.apply_pending()?;
+    }
+    let conn = db.conn_arc();
+    let agent_repo = Arc::new(AgentRepo::new(Arc::clone(&conn)));
+    let session_repo = Arc::new(SessionRepo::new(Arc::clone(&conn)));
+    let event_repo = Arc::new(EventRepo::new(Arc::clone(&conn)));
+
+    tracing::info!("starting Forge MCP server (stdio)");
+    let server = ForgeMcp::new(agent_repo, session_repo, event_repo);
+    let service = server.serve(rmcp::transport::stdio()).await?;
+    service.waiting().await?;
+
+    tracing::info!("Forge MCP server stopped");
+    Ok(())
 }

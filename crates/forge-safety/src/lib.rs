@@ -179,13 +179,57 @@ impl std::fmt::Debug for RateLimiter {
     }
 }
 
-/// Tracks cost/budget for agent usage. Stub for Phase 4.
-#[derive(Debug, Clone, Default)]
-pub struct CostTracker;
+/// Result of a budget check against current cost.
+#[derive(Debug, Clone, PartialEq)]
+pub enum BudgetStatus {
+    /// Cost is within acceptable range.
+    Ok,
+    /// Cost has crossed the warning threshold.
+    Warning { current_cost: f64, threshold: f64 },
+    /// Cost has reached or exceeded the hard limit.
+    Exceeded { current_cost: f64, limit: f64 },
+}
+
+/// Tracks cost/budget for agent usage. Holds warning and limit thresholds,
+/// returns a `BudgetStatus` when checked against a cost value.
+#[derive(Debug, Clone)]
+pub struct CostTracker {
+    warn: Option<f64>,
+    limit: Option<f64>,
+}
+
+impl Default for CostTracker {
+    fn default() -> Self {
+        Self { warn: None, limit: None }
+    }
+}
 
 impl CostTracker {
-    pub fn new() -> Self {
-        Self
+    pub fn new(warn: Option<f64>, limit: Option<f64>) -> Self {
+        Self { warn, limit }
+    }
+
+    /// Check cost against thresholds. Exceeded takes priority over Warning.
+    pub fn check(&self, cost: f64) -> BudgetStatus {
+        if let Some(limit) = self.limit {
+            if cost >= limit {
+                return BudgetStatus::Exceeded { current_cost: cost, limit };
+            }
+        }
+        if let Some(warn) = self.warn {
+            if cost >= warn {
+                return BudgetStatus::Warning { current_cost: cost, threshold: warn };
+            }
+        }
+        BudgetStatus::Ok
+    }
+
+    pub fn warn_threshold(&self) -> Option<f64> {
+        self.warn
+    }
+
+    pub fn limit_threshold(&self) -> Option<f64> {
+        self.limit
     }
 }
 
@@ -292,5 +336,35 @@ mod tests {
         assert!(!rl.try_acquire());
         thread::sleep(Duration::from_millis(60));
         assert!(rl.try_acquire());
+    }
+
+    #[test]
+    fn cost_tracker_ok_when_no_thresholds() {
+        let ct = CostTracker::default();
+        assert_eq!(ct.check(100.0), BudgetStatus::Ok);
+    }
+
+    #[test]
+    fn cost_tracker_warning_when_above_warn() {
+        let ct = CostTracker::new(Some(5.0), None);
+        assert_eq!(ct.check(3.0), BudgetStatus::Ok);
+        assert_eq!(ct.check(5.0), BudgetStatus::Warning { current_cost: 5.0, threshold: 5.0 });
+        assert_eq!(ct.check(8.0), BudgetStatus::Warning { current_cost: 8.0, threshold: 5.0 });
+    }
+
+    #[test]
+    fn cost_tracker_exceeded_takes_priority() {
+        let ct = CostTracker::new(Some(5.0), Some(10.0));
+        assert_eq!(ct.check(3.0), BudgetStatus::Ok);
+        assert_eq!(ct.check(7.0), BudgetStatus::Warning { current_cost: 7.0, threshold: 5.0 });
+        assert_eq!(ct.check(10.0), BudgetStatus::Exceeded { current_cost: 10.0, limit: 10.0 });
+        assert_eq!(ct.check(15.0), BudgetStatus::Exceeded { current_cost: 15.0, limit: 10.0 });
+    }
+
+    #[test]
+    fn cost_tracker_limit_only_no_warn() {
+        let ct = CostTracker::new(None, Some(10.0));
+        assert_eq!(ct.check(9.0), BudgetStatus::Ok);
+        assert_eq!(ct.check(10.0), BudgetStatus::Exceeded { current_cost: 10.0, limit: 10.0 });
     }
 }

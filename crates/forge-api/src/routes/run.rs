@@ -13,6 +13,7 @@ use forge_core::ids::{AgentId, SessionId};
 use forge_db::NewSession;
 use forge_process::stream_event::StreamJsonEvent;
 use forge_process::{parse_line, ProcessRunner, spawn, SpawnConfig, SpawnError};
+use forge_safety::BudgetStatus;
 use serde::Deserialize;
 use std::sync::Arc;
 use tokio::io::AsyncBufReadExt;
@@ -91,8 +92,7 @@ async fn run_handler(
     let event_bus = Arc::clone(&state.event_bus);
     let session_repo = Arc::clone(&state.session_repo);
     let circuit_breaker = Arc::clone(&state.safety.circuit_breaker);
-    let budget_warn = state.budget.warn;
-    let budget_limit = state.budget.limit;
+    let cost_tracker = Arc::clone(&state.safety.cost_tracker);
     let sid = session_id.clone();
     let aid = agent_id.clone();
     tokio::spawn(async move {
@@ -135,21 +135,22 @@ async fn run_handler(
                         if session_repo.update_cost(&sid, cost).is_err() {
                             tracing::warn!(session_id = %sid, "run task: failed to update session cost");
                         } else {
-                            let exceeded = budget_limit.is_some_and(|l| cost >= l);
-                            if exceeded {
-                                let _ = runner.emit(ForgeEvent::BudgetExceeded {
-                                    current_cost: cost,
-                                    limit: budget_limit.unwrap(),
-                                    timestamp: chrono::Utc::now(),
-                                });
-                            } else if let Some(warn) = budget_warn {
-                                if cost >= warn {
-                                    let _ = runner.emit(ForgeEvent::BudgetWarning {
-                                        current_cost: cost,
-                                        limit: warn,
+                            match cost_tracker.check(cost) {
+                                BudgetStatus::Exceeded { current_cost, limit } => {
+                                    let _ = runner.emit(ForgeEvent::BudgetExceeded {
+                                        current_cost,
+                                        limit,
                                         timestamp: chrono::Utc::now(),
                                     });
                                 }
+                                BudgetStatus::Warning { current_cost, threshold } => {
+                                    let _ = runner.emit(ForgeEvent::BudgetWarning {
+                                        current_cost,
+                                        limit: threshold,
+                                        timestamp: chrono::Utc::now(),
+                                    });
+                                }
+                                BudgetStatus::Ok => {}
                             }
                         }
                     }
