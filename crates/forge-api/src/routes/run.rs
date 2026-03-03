@@ -7,18 +7,16 @@ use axum::{
     routing::post,
     Json, Router,
 };
-use forge_core::error::ForgeError;
-use forge_core::events::ForgeEvent;
 use forge_core::ids::{AgentId, SessionId};
 use forge_db::NewSession;
-use forge_process::stream_event::StreamJsonEvent;
-use forge_process::{parse_line, ProcessRunner, spawn, SpawnConfig, SpawnError};
-use forge_safety::BudgetStatus;
 use serde::Deserialize;
 use std::sync::Arc;
-use tokio::io::AsyncBufReadExt;
 
 use crate::error::{api_error, parse_uuid, rate_limit_exceeded};
+use crate::middleware::{
+    CircuitBreakerMiddleware, CostCheckMiddleware, MiddlewareChain, MiddlewareError,
+    PersistMiddleware, RateLimitMiddleware, RunContext, SkillInjectionMiddleware, SpawnMiddleware,
+};
 use crate::state::AppState;
 
 #[derive(Debug, Deserialize)]
@@ -45,6 +43,7 @@ async fn run_handler(
     State(state): State<AppState>,
     Json(body): Json<RunRequest>,
 ) -> Result<impl IntoResponse, axum::response::Response> {
+    // 1. Parse & validate
     let agent_id = AgentId(parse_uuid(&body.agent_id)?);
     state.agent_repo.get(&agent_id).map_err(api_error)?;
 
@@ -52,152 +51,80 @@ async fn run_handler(
         let id = SessionId(parse_uuid(sid)?);
         state.session_repo.get(&id).map_err(api_error)?
     } else {
-        let directory = body
-            .directory
-            .as_deref()
-            .unwrap_or(".")
-            .to_string();
-        let input = NewSession {
-            agent_id: agent_id.clone(),
-            directory: directory.clone(),
-            claude_session_id: None,
-        };
-        state.session_repo.create(&input).map_err(api_error)?
+        let directory = body.directory.as_deref().unwrap_or(".").to_string();
+        state
+            .session_repo
+            .create(&NewSession {
+                agent_id: agent_id.clone(),
+                directory: directory.clone(),
+                claude_session_id: None,
+            })
+            .map_err(api_error)?
     };
     let session_id = session.id.clone();
 
-    if !state.safety.rate_limiter.try_acquire() {
-        return Err(rate_limit_exceeded());
-    }
+    // 2. Build RunContext
+    let mut ctx = RunContext {
+        agent_id: body.agent_id.clone(),
+        prompt: body.prompt.clone(),
+        session_id: session_id.0.to_string(),
+        working_dir: body.directory.clone(),
+        metadata: Default::default(),
+        agent_id_typed: agent_id,
+        session_id_typed: session_id.clone(),
+        resume_session_id: body.session_id.clone(),
+        directory: session.directory.clone(),
+    };
 
-    state
-        .safety
-        .circuit_breaker
-        .check()
-        .map_err(|_| api_error(ForgeError::Internal("circuit breaker open".into())))?;
-
-    let resume_arg = body.session_id.as_deref();
-    let config = SpawnConfig::from_env().with_working_dir(&session.directory);
-    let mut handle = spawn(&config, &body.prompt, resume_arg)
-        .await
-        .map_err(|e| {
-            tracing::error!(error = %e, "run: spawn failed");
-            use forge_core::error::ForgeError;
-            crate::error::api_error(match e {
-                SpawnError::Io(io) => ForgeError::Io(io),
-                SpawnError::CommandMissing => ForgeError::Internal("command missing".into()),
-            })
-        })?;
-
-    let event_bus = Arc::clone(&state.event_bus);
-    let session_repo = Arc::clone(&state.session_repo);
-    let circuit_breaker = Arc::clone(&state.safety.circuit_breaker);
-    let cost_tracker = Arc::clone(&state.safety.cost_tracker);
-    let sid = session_id.clone();
-    let aid = agent_id.clone();
-    tokio::spawn(async move {
-        let runner = ProcessRunner::new(event_bus);
-        if runner
-            .emit(ForgeEvent::ProcessStarted {
-                session_id: sid.clone(),
-                agent_id: aid.clone(),
-                timestamp: chrono::Utc::now(),
-            })
-            .is_err()
-        {
-            tracing::warn!("run task: failed to emit ProcessStarted");
-        }
-        if session_repo.update_status(&sid, "running").is_err() {
-            tracing::warn!(session_id = %sid, "run task: failed to update session status to running");
-        }
-        let mut stdout = match handle.take_stdout() {
-            Some(s) => s,
-            None => {
-                let _ = handle.wait().await;
-                return;
-            }
-        };
-        let mut reader = tokio::io::BufReader::new(&mut stdout);
-        let mut buf = String::new();
-        loop {
-            buf.clear();
-            match reader.read_line(&mut buf).await {
-                Ok(0) => break,
-                Err(e) => {
-                    tracing::warn!(error = %e, "run task: read_line error");
-                    break;
-                }
-                _ => {}
-            }
-            if let Ok(Some(ev)) = parse_line(buf.trim()) {
-                if let StreamJsonEvent::Result(payload) = &ev {
-                    if let Some(cost) = payload.cost_usd {
-                        if session_repo.update_cost(&sid, cost).is_err() {
-                            tracing::warn!(session_id = %sid, "run task: failed to update session cost");
-                        } else {
-                            match cost_tracker.check(cost) {
-                                BudgetStatus::Exceeded { current_cost, limit } => {
-                                    let _ = runner.emit(ForgeEvent::BudgetExceeded {
-                                        current_cost,
-                                        limit,
-                                        timestamp: chrono::Utc::now(),
-                                    });
-                                }
-                                BudgetStatus::Warning { current_cost, threshold } => {
-                                    let _ = runner.emit(ForgeEvent::BudgetWarning {
-                                        current_cost,
-                                        limit: threshold,
-                                        timestamp: chrono::Utc::now(),
-                                    });
-                                }
-                                BudgetStatus::Ok => {}
-                            }
-                        }
-                    }
-                }
-                if runner.emit_parsed_event(&sid, &aid, &ev).is_err() {
-                    tracing::warn!("run task: emit_parsed_event failed");
-                }
-            }
-        }
-        match handle.wait().await {
-            Ok(status) => {
-                let code = status.code().unwrap_or(-1);
-                circuit_breaker.record_success();
-                if session_repo.update_status(&sid, "completed").is_err() {
-                    tracing::warn!(session_id = %sid, "run task: failed to update session status to completed");
-                }
-                if runner
-                    .emit(ForgeEvent::ProcessCompleted {
-                        session_id: sid,
-                        exit_code: code,
-                        timestamp: chrono::Utc::now(),
-                    })
-                    .is_err()
-                {
-                    tracing::warn!("run task: failed to emit ProcessCompleted");
-                }
-            }
-            Err(e) => {
-                circuit_breaker.record_failure();
-                tracing::warn!(error = %e, "run task: wait failed");
-                if session_repo.update_status(&sid, "failed").is_err() {
-                    tracing::warn!(session_id = %sid, "run task: failed to update session status to failed");
-                }
-                if runner
-                    .emit(ForgeEvent::ProcessFailed {
-                        session_id: sid,
-                        error: e.to_string(),
-                        timestamp: chrono::Utc::now(),
-                    })
-                    .is_err()
-                {
-                    tracing::warn!("run task: failed to emit ProcessFailed");
-                }
-            }
-        }
+    // 3. Build middleware chain
+    let mut chain = MiddlewareChain::new();
+    chain.add(RateLimitMiddleware {
+        rate_limiter: Arc::clone(&state.safety.rate_limiter),
+    });
+    chain.add(CircuitBreakerMiddleware {
+        circuit_breaker: Arc::clone(&state.safety.circuit_breaker),
+    });
+    chain.add(CostCheckMiddleware {
+        cost_tracker: Arc::clone(&state.safety.cost_tracker),
+        session_repo: Arc::clone(&state.session_repo),
+    });
+    chain.add(SkillInjectionMiddleware {
+        skill_repo: Arc::clone(&state.skill_repo),
+    });
+    chain.add(PersistMiddleware {
+        session_repo: Arc::clone(&state.session_repo),
+        event_bus: Arc::clone(&state.event_bus),
+    });
+    chain.add(SpawnMiddleware {
+        event_bus: Arc::clone(&state.event_bus),
+        session_repo: Arc::clone(&state.session_repo),
+        circuit_breaker: Arc::clone(&state.safety.circuit_breaker),
+        cost_tracker: Arc::clone(&state.safety.cost_tracker),
     });
 
+    // 4. Execute and map errors to HTTP responses
+    let chain_result: Result<crate::middleware::RunResponse, MiddlewareError> =
+        chain.execute(&mut ctx).await;
+    chain_result.map_err(|e| match e {
+        MiddlewareError::RateLimited => rate_limit_exceeded(),
+        MiddlewareError::CircuitOpen => {
+            api_error(forge_core::error::ForgeError::Internal("circuit breaker open".into()))
+        }
+        MiddlewareError::BudgetExceeded { cost, limit } => api_error(
+            forge_core::error::ForgeError::Internal(format!(
+                "budget exceeded: ${:.2} >= ${:.2}",
+                cost, limit
+            )),
+        ),
+        MiddlewareError::SpawnFailed(msg) => {
+            api_error(forge_core::error::ForgeError::Internal(msg))
+        }
+        MiddlewareError::Internal(msg) => {
+            api_error(forge_core::error::ForgeError::Internal(msg))
+        }
+    })?;
+
+    // 5. Return 202 Accepted
     Ok((
         StatusCode::ACCEPTED,
         Json(RunResponse {

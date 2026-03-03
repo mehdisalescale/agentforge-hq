@@ -13,6 +13,7 @@ pub enum AgentPreset {
     SecurityAuditor,
     Refactorer,
     Explorer,
+    Coordinator,
 }
 
 pub struct PresetDefaults {
@@ -69,6 +70,11 @@ impl AgentPreset {
                 model: "claude-sonnet-4-20250514".into(),
                 allowed_tools: Some(vec!["Read".into(), "Grep".into(), "Glob".into()]),
             },
+            Self::Coordinator => PresetDefaults {
+                system_prompt: "You are a task coordinator. Break down complex tasks into independent sub-tasks that can run in parallel. For each sub-task, specify: the agent type (CodeWriter, Tester, Reviewer, etc.), a clear prompt, and the working directory. After all sub-tasks complete, synthesize their outputs into a coherent final response.".into(),
+                model: "claude-sonnet-4-20250514".into(),
+                allowed_tools: None,
+            },
         }
     }
 
@@ -83,6 +89,7 @@ impl AgentPreset {
             Self::SecurityAuditor,
             Self::Refactorer,
             Self::Explorer,
+            Self::Coordinator,
         ]
     }
 }

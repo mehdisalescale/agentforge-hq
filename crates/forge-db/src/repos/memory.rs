@@ -36,6 +36,20 @@ pub struct UpdateMemory {
     pub confidence: Option<f64>,
 }
 
+/// A fact extracted from a session transcript.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExtractedFact {
+    pub category: String,
+    pub content: String,
+    pub confidence: f64,
+}
+
+/// Stopwords filtered out during keyword extraction.
+const STOPWORDS: &[&str] = &[
+    "the", "a", "an", "is", "are", "was", "were", "to", "in", "for", "of", "and", "or", "it",
+    "this", "that", "with",
+];
+
 pub struct MemoryRepo {
     conn: Arc<Mutex<Connection>>,
 }
@@ -153,6 +167,143 @@ impl MemoryRepo {
         }
 
         Ok(())
+    }
+
+    /// Extract facts from a session transcript.
+    /// Parses structured patterns like key decisions, error solutions,
+    /// codebase patterns, and user preferences. No LLM — pattern-based only.
+    pub fn extract_facts(transcript: &[String]) -> Vec<ExtractedFact> {
+        let mut facts = Vec::new();
+
+        let decision_patterns = ["decided to", "chose", "prefer", "went with", "selected"];
+        let solution_patterns = ["fixed by", "solved by", "the fix was", "resolved by", "the solution was"];
+        let pattern_patterns = ["pattern:", "convention:", "always", "never", "rule:"];
+        let codebase_patterns = ["/src/", "/crates/", ".rs", ".ts", ".svelte"];
+
+        for line in transcript {
+            let lower = line.to_lowercase();
+
+            if decision_patterns.iter().any(|p| lower.contains(p)) {
+                facts.push(ExtractedFact {
+                    category: "decisions".into(),
+                    content: line.trim().to_string(),
+                    confidence: 0.8,
+                });
+            }
+
+            if solution_patterns.iter().any(|p| lower.contains(p)) {
+                facts.push(ExtractedFact {
+                    category: "solutions".into(),
+                    content: line.trim().to_string(),
+                    confidence: 0.9,
+                });
+            }
+
+            if pattern_patterns.iter().any(|p| lower.contains(p)) {
+                facts.push(ExtractedFact {
+                    category: "patterns".into(),
+                    content: line.trim().to_string(),
+                    confidence: 0.7,
+                });
+            }
+
+            if codebase_patterns.iter().any(|p| lower.contains(p)) && lower.contains(' ') {
+                facts.push(ExtractedFact {
+                    category: "codebase".into(),
+                    content: line.trim().to_string(),
+                    confidence: 0.6,
+                });
+            }
+        }
+
+        facts
+    }
+
+    /// Store extracted facts from a completed session.
+    /// Deduplicates against existing memories by content similarity (LIKE match).
+    /// Returns the number of new/updated memories.
+    pub fn store_extracted(&self, facts: &[ExtractedFact], session_id: &str) -> ForgeResult<usize> {
+        let mut stored = 0;
+
+        for fact in facts {
+            let existing = self.search(&fact.content)?;
+
+            let similar = existing.iter().find(|m| {
+                m.category == fact.category
+                    && (m.content.contains(&fact.content) || fact.content.contains(&m.content))
+            });
+
+            match similar {
+                Some(existing_mem) if existing_mem.confidence >= fact.confidence => {
+                    // Existing has equal or higher confidence — skip
+                }
+                Some(existing_mem) => {
+                    // Existing has lower confidence — update
+                    self.update(
+                        &existing_mem.id,
+                        &UpdateMemory {
+                            content: Some(fact.content.clone()),
+                            category: Some(fact.category.clone()),
+                            confidence: Some(fact.confidence),
+                        },
+                    )?;
+                    stored += 1;
+                }
+                None => {
+                    // No similar — create new
+                    self.create(&NewMemory {
+                        category: Some(fact.category.clone()),
+                        content: fact.content.clone(),
+                        confidence: Some(fact.confidence),
+                        source_session_id: Some(session_id.to_string()),
+                    })?;
+                    stored += 1;
+                }
+            }
+        }
+
+        Ok(stored)
+    }
+
+    /// Find memories relevant to a prompt via keyword overlap.
+    /// Returns a formatted context block for prepending to a system prompt,
+    /// or None if no relevant memories are found.
+    pub fn inject_context(&self, prompt: &str, max_memories: usize) -> ForgeResult<Option<String>> {
+        let keywords: Vec<String> = prompt
+            .split_whitespace()
+            .map(|w| w.to_lowercase().replace(|c: char| !c.is_alphanumeric(), ""))
+            .filter(|w| w.len() > 1 && !STOPWORDS.contains(&w.as_str()))
+            .collect();
+
+        if keywords.is_empty() {
+            return Ok(None);
+        }
+
+        let mut matched: Vec<Memory> = Vec::new();
+        for keyword in &keywords {
+            if let Ok(results) = self.search(keyword) {
+                for mem in results {
+                    if !matched.iter().any(|m| m.id == mem.id) {
+                        matched.push(mem);
+                    }
+                }
+            }
+        }
+
+        if matched.is_empty() {
+            return Ok(None);
+        }
+
+        // Sort by confidence descending
+        matched.sort_by(|a, b| b.confidence.partial_cmp(&a.confidence).unwrap_or(std::cmp::Ordering::Equal));
+        matched.truncate(max_memories);
+
+        let mut block = String::from("## Relevant Context (from previous sessions)\n\n");
+        for mem in &matched {
+            block.push_str(&format!("- [{}] {}\n", mem.category, mem.content));
+        }
+
+        Ok(Some(block))
     }
 
     /// Simple LIKE-based search across content and category.
@@ -369,6 +520,138 @@ mod tests {
 
         let result = repo.delete("nonexistent-id");
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn extract_facts_finds_decisions() {
+        let transcript = vec![
+            "Looking at the options...".into(),
+            "We decided to use Axum for the HTTP layer".into(),
+            "That should work well.".into(),
+        ];
+        let facts = MemoryRepo::extract_facts(&transcript);
+        assert!(!facts.is_empty());
+        let decision = facts.iter().find(|f| f.category == "decisions").unwrap();
+        assert!(decision.content.contains("Axum"));
+        assert!((decision.confidence - 0.8).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn extract_facts_finds_solutions() {
+        let transcript = vec![
+            "The test was failing because of a lifetime issue.".into(),
+            "Fixed by adding an explicit lifetime parameter to the struct.".into(),
+        ];
+        let facts = MemoryRepo::extract_facts(&transcript);
+        let solution = facts.iter().find(|f| f.category == "solutions").unwrap();
+        assert!(solution.content.contains("lifetime"));
+        assert!((solution.confidence - 0.9).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn extract_facts_empty_transcript() {
+        let facts = MemoryRepo::extract_facts(&[]);
+        assert!(facts.is_empty());
+    }
+
+    #[test]
+    fn store_extracted_deduplicates() {
+        let conn = setup_db();
+        let repo = MemoryRepo::new(conn);
+
+        let facts = vec![ExtractedFact {
+            category: "decisions".into(),
+            content: "decided to use Axum".into(),
+            confidence: 0.8,
+        }];
+
+        let stored1 = repo.store_extracted(&facts, "sess-1").unwrap();
+        assert_eq!(stored1, 1);
+
+        // Same fact again — should be skipped (same confidence)
+        let stored2 = repo.store_extracted(&facts, "sess-2").unwrap();
+        assert_eq!(stored2, 0);
+
+        // Only 1 memory in DB
+        let all = repo.list(100, 0).unwrap();
+        assert_eq!(all.len(), 1);
+    }
+
+    #[test]
+    fn store_extracted_updates_higher_confidence() {
+        let conn = setup_db();
+        let repo = MemoryRepo::new(conn);
+
+        let low = vec![ExtractedFact {
+            category: "decisions".into(),
+            content: "decided to use Axum".into(),
+            confidence: 0.5,
+        }];
+        repo.store_extracted(&low, "sess-1").unwrap();
+
+        let high = vec![ExtractedFact {
+            category: "decisions".into(),
+            content: "decided to use Axum".into(),
+            confidence: 0.9,
+        }];
+        let updated = repo.store_extracted(&high, "sess-2").unwrap();
+        assert_eq!(updated, 1);
+
+        let all = repo.list(100, 0).unwrap();
+        assert_eq!(all.len(), 1);
+        assert!((all[0].confidence - 0.9).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn inject_context_returns_relevant() {
+        let conn = setup_db();
+        let repo = MemoryRepo::new(conn);
+
+        repo.create(&NewMemory {
+            category: Some("decisions".into()),
+            content: "Use tokio for async runtime".into(),
+            confidence: Some(0.8),
+            source_session_id: None,
+        })
+        .unwrap();
+
+        let ctx = repo.inject_context("how does tokio work", 5).unwrap();
+        assert!(ctx.is_some());
+        let block = ctx.unwrap();
+        assert!(block.contains("Relevant Context"));
+        assert!(block.contains("tokio"));
+    }
+
+    #[test]
+    fn inject_context_returns_none_when_empty() {
+        let conn = setup_db();
+        let repo = MemoryRepo::new(conn);
+
+        let ctx = repo.inject_context("something random", 5).unwrap();
+        assert!(ctx.is_none());
+    }
+
+    #[test]
+    fn inject_context_respects_max() {
+        let conn = setup_db();
+        let repo = MemoryRepo::new(conn);
+
+        for i in 0..5 {
+            repo.create(&NewMemory {
+                category: Some("patterns".into()),
+                content: format!("rust pattern number {}", i),
+                confidence: Some(0.5 + (i as f64) * 0.1),
+                source_session_id: None,
+            })
+            .unwrap();
+        }
+
+        let ctx = repo.inject_context("rust pattern", 2).unwrap();
+        assert!(ctx.is_some());
+        let block = ctx.unwrap();
+        // Count bullet lines
+        let bullet_count = block.lines().filter(|l| l.starts_with("- ")).count();
+        assert_eq!(bullet_count, 2);
     }
 
     #[test]

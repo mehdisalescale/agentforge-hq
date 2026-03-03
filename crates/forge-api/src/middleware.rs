@@ -4,13 +4,21 @@
 //! the request context, short-circuit with an error, or delegate to the next
 //! middleware. Pattern inspired by DeerFlow's 8-middleware pipeline.
 //!
-//! This module defines the infrastructure only — concrete middlewares (rate limit,
-//! circuit breaker, skill injection, etc.) are added in Wave 3.
+//! Concrete middlewares: RateLimit, CircuitBreaker, CostCheck, SkillInjection,
+//! Persist, Spawn.
 
 use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
+
+use forge_core::event_bus::EventBus;
+use forge_core::events::ForgeEvent;
+use forge_core::ids::{AgentId, SessionId};
+use forge_db::{SessionRepo, SkillRepo};
+use forge_process::stream_event::StreamJsonEvent;
+use forge_process::{parse_line, spawn, ProcessRunner, SpawnConfig, SpawnError};
+use forge_safety::{BudgetStatus, CircuitBreaker, CostTracker, RateLimiter};
 
 /// Context passed through the middleware chain.
 pub struct RunContext {
@@ -19,6 +27,11 @@ pub struct RunContext {
     pub session_id: String,
     pub working_dir: Option<String>,
     pub metadata: HashMap<String, String>,
+    // Typed fields for middleware use
+    pub agent_id_typed: AgentId,
+    pub session_id_typed: SessionId,
+    pub resume_session_id: Option<String>,
+    pub directory: String,
 }
 
 /// Response from the middleware chain.
@@ -33,6 +46,7 @@ pub enum MiddlewareError {
     RateLimited,
     CircuitOpen,
     BudgetExceeded { cost: f64, limit: f64 },
+    SpawnFailed(String),
     Internal(String),
 }
 
@@ -109,9 +123,374 @@ impl Default for MiddlewareChain {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Concrete middleware implementations
+// ---------------------------------------------------------------------------
+
+/// Guards against request floods via token-bucket rate limiting.
+pub struct RateLimitMiddleware {
+    pub rate_limiter: Arc<RateLimiter>,
+}
+
+impl Middleware for RateLimitMiddleware {
+    fn process<'a>(
+        &'a self,
+        ctx: &'a mut RunContext,
+        next: Next<'a>,
+    ) -> Pin<Box<dyn Future<Output = Result<RunResponse, MiddlewareError>> + Send + 'a>> {
+        Box::pin(async move {
+            if !self.rate_limiter.try_acquire() {
+                return Err(MiddlewareError::RateLimited);
+            }
+            next.run(ctx).await
+        })
+    }
+
+    fn name(&self) -> &str {
+        "rate_limit"
+    }
+}
+
+/// Prevents cascading failures by checking the circuit breaker state.
+pub struct CircuitBreakerMiddleware {
+    pub circuit_breaker: Arc<CircuitBreaker>,
+}
+
+impl Middleware for CircuitBreakerMiddleware {
+    fn process<'a>(
+        &'a self,
+        ctx: &'a mut RunContext,
+        next: Next<'a>,
+    ) -> Pin<Box<dyn Future<Output = Result<RunResponse, MiddlewareError>> + Send + 'a>> {
+        Box::pin(async move {
+            self.circuit_breaker
+                .check()
+                .map_err(|_| MiddlewareError::CircuitOpen)?;
+            next.run(ctx).await
+        })
+    }
+
+    fn name(&self) -> &str {
+        "circuit_breaker"
+    }
+}
+
+/// Pre-flight budget check: rejects requests when the session cost already
+/// exceeds the configured budget limit.
+pub struct CostCheckMiddleware {
+    pub cost_tracker: Arc<CostTracker>,
+    pub session_repo: Arc<SessionRepo>,
+}
+
+impl Middleware for CostCheckMiddleware {
+    fn process<'a>(
+        &'a self,
+        ctx: &'a mut RunContext,
+        next: Next<'a>,
+    ) -> Pin<Box<dyn Future<Output = Result<RunResponse, MiddlewareError>> + Send + 'a>> {
+        Box::pin(async move {
+            let current_cost = self
+                .session_repo
+                .get(&ctx.session_id_typed)
+                .map(|s| s.cost_usd)
+                .unwrap_or(0.0);
+            if let BudgetStatus::Exceeded {
+                current_cost,
+                limit,
+            } = self.cost_tracker.check(current_cost)
+            {
+                return Err(MiddlewareError::BudgetExceeded {
+                    cost: current_cost,
+                    limit,
+                });
+            }
+            next.run(ctx).await
+        })
+    }
+
+    fn name(&self) -> &str {
+        "cost_check"
+    }
+}
+
+/// Matches the prompt against skill tags and injects matched skill content
+/// into `ctx.metadata["injected_skills"]`.
+pub struct SkillInjectionMiddleware {
+    pub skill_repo: Arc<SkillRepo>,
+}
+
+impl SkillInjectionMiddleware {
+    /// Extract keywords from a prompt: lowercase, split on whitespace, filter short words.
+    fn extract_keywords(prompt: &str) -> Vec<String> {
+        prompt
+            .split_whitespace()
+            .map(|w| w.to_lowercase().trim_matches(|c: char| !c.is_alphanumeric()).to_string())
+            .filter(|w| w.len() > 2)
+            .collect()
+    }
+}
+
+impl Middleware for SkillInjectionMiddleware {
+    fn process<'a>(
+        &'a self,
+        ctx: &'a mut RunContext,
+        next: Next<'a>,
+    ) -> Pin<Box<dyn Future<Output = Result<RunResponse, MiddlewareError>> + Send + 'a>> {
+        Box::pin(async move {
+            let keywords = Self::extract_keywords(&ctx.prompt);
+            if let Ok(skills) = self.skill_repo.list() {
+                let mut injected = Vec::new();
+                for skill in &skills {
+                    // Match keywords against skill tags stored in parameters_json
+                    if let Some(ref tags_json) = skill.parameters_json {
+                        if let Ok(tags) = serde_json::from_str::<Vec<String>>(tags_json) {
+                            let matched = keywords.iter().any(|kw| {
+                                tags.iter().any(|tag| tag.to_lowercase().contains(kw))
+                            });
+                            if matched {
+                                injected.push(format!(
+                                    "## Skill: {}\n{}",
+                                    skill.name, skill.content
+                                ));
+                            }
+                        }
+                    }
+                }
+                if !injected.is_empty() {
+                    ctx.metadata
+                        .insert("injected_skills".into(), injected.join("\n\n"));
+                }
+            }
+            next.run(ctx).await
+        })
+    }
+
+    fn name(&self) -> &str {
+        "skill_injection"
+    }
+}
+
+/// Wraps the inner chain: sets session to "running" before, updates to
+/// "completed"/"failed" after, and emits lifecycle events.
+pub struct PersistMiddleware {
+    pub session_repo: Arc<SessionRepo>,
+    pub event_bus: Arc<EventBus>,
+}
+
+impl Middleware for PersistMiddleware {
+    fn process<'a>(
+        &'a self,
+        ctx: &'a mut RunContext,
+        next: Next<'a>,
+    ) -> Pin<Box<dyn Future<Output = Result<RunResponse, MiddlewareError>> + Send + 'a>> {
+        Box::pin(async move {
+            // Emit ProcessStarted and set session to running
+            let _ = self.event_bus.emit(ForgeEvent::ProcessStarted {
+                session_id: ctx.session_id_typed.clone(),
+                agent_id: ctx.agent_id_typed.clone(),
+                timestamp: chrono::Utc::now(),
+            });
+            if self
+                .session_repo
+                .update_status(&ctx.session_id_typed, "running")
+                .is_err()
+            {
+                tracing::warn!(
+                    session_id = %ctx.session_id,
+                    "persist middleware: failed to set status to running"
+                );
+            }
+
+            match next.run(ctx).await {
+                Ok(response) => Ok(response),
+                Err(e) => {
+                    // On middleware error, mark session failed
+                    let error_msg = format!("{:?}", e);
+                    let _ = self
+                        .session_repo
+                        .update_status(&ctx.session_id_typed, "failed");
+                    let _ = self.event_bus.emit(ForgeEvent::ProcessFailed {
+                        session_id: ctx.session_id_typed.clone(),
+                        error: error_msg,
+                        timestamp: chrono::Utc::now(),
+                    });
+                    Err(e)
+                }
+            }
+        })
+    }
+
+    fn name(&self) -> &str {
+        "persist"
+    }
+}
+
+/// Terminal middleware: spawns the Claude CLI process, kicks off a background
+/// task to stream output and emit events. Does NOT call `next.run()`.
+pub struct SpawnMiddleware {
+    pub event_bus: Arc<EventBus>,
+    pub session_repo: Arc<SessionRepo>,
+    pub circuit_breaker: Arc<CircuitBreaker>,
+    pub cost_tracker: Arc<CostTracker>,
+}
+
+impl Middleware for SpawnMiddleware {
+    fn process<'a>(
+        &'a self,
+        ctx: &'a mut RunContext,
+        _next: Next<'a>,
+    ) -> Pin<Box<dyn Future<Output = Result<RunResponse, MiddlewareError>> + Send + 'a>> {
+        Box::pin(async move {
+            let resume_arg = ctx.resume_session_id.as_deref();
+            let config = SpawnConfig::from_env().with_working_dir(&ctx.directory);
+            let mut handle = spawn(&config, &ctx.prompt, resume_arg)
+                .await
+                .map_err(|e| match e {
+                    SpawnError::Io(io) => {
+                        MiddlewareError::SpawnFailed(format!("io: {}", io))
+                    }
+                    SpawnError::CommandMissing => {
+                        MiddlewareError::SpawnFailed("command missing".into())
+                    }
+                })?;
+
+            // Capture values for the background task
+            let event_bus = Arc::clone(&self.event_bus);
+            let session_repo = Arc::clone(&self.session_repo);
+            let circuit_breaker = Arc::clone(&self.circuit_breaker);
+            let cost_tracker = Arc::clone(&self.cost_tracker);
+            let sid = ctx.session_id_typed.clone();
+            let aid = ctx.agent_id_typed.clone();
+
+            tokio::spawn(async move {
+                use tokio::io::AsyncBufReadExt;
+
+                let runner = ProcessRunner::new(event_bus);
+                let mut stdout = match handle.take_stdout() {
+                    Some(s) => s,
+                    None => {
+                        let _ = handle.wait().await;
+                        return;
+                    }
+                };
+                let mut reader = tokio::io::BufReader::new(&mut stdout);
+                let mut buf = String::new();
+                loop {
+                    buf.clear();
+                    match reader.read_line(&mut buf).await {
+                        Ok(0) => break,
+                        Err(e) => {
+                            tracing::warn!(error = %e, "spawn middleware: read_line error");
+                            break;
+                        }
+                        _ => {}
+                    }
+                    if let Ok(Some(ev)) = parse_line(buf.trim()) {
+                        if let StreamJsonEvent::Result(payload) = &ev {
+                            if let Some(cost) = payload.cost_usd {
+                                if session_repo.update_cost(&sid, cost).is_err() {
+                                    tracing::warn!(
+                                        session_id = %sid.0,
+                                        "spawn middleware: failed to update session cost"
+                                    );
+                                } else {
+                                    match cost_tracker.check(cost) {
+                                        BudgetStatus::Exceeded {
+                                            current_cost,
+                                            limit,
+                                        } => {
+                                            let _ = runner.emit(ForgeEvent::BudgetExceeded {
+                                                current_cost,
+                                                limit,
+                                                timestamp: chrono::Utc::now(),
+                                            });
+                                        }
+                                        BudgetStatus::Warning {
+                                            current_cost,
+                                            threshold,
+                                        } => {
+                                            let _ = runner.emit(ForgeEvent::BudgetWarning {
+                                                current_cost,
+                                                limit: threshold,
+                                                timestamp: chrono::Utc::now(),
+                                            });
+                                        }
+                                        BudgetStatus::Ok => {}
+                                    }
+                                }
+                            }
+                        }
+                        if runner.emit_parsed_event(&sid, &aid, &ev).is_err() {
+                            tracing::warn!("spawn middleware: emit_parsed_event failed");
+                        }
+                    }
+                }
+                match handle.wait().await {
+                    Ok(status) => {
+                        let code = status.code().unwrap_or(-1);
+                        circuit_breaker.record_success();
+                        if session_repo.update_status(&sid, "completed").is_err() {
+                            tracing::warn!(
+                                session_id = %sid.0,
+                                "spawn middleware: failed to update status to completed"
+                            );
+                        }
+                        if runner
+                            .emit(ForgeEvent::ProcessCompleted {
+                                session_id: sid,
+                                exit_code: code,
+                                timestamp: chrono::Utc::now(),
+                            })
+                            .is_err()
+                        {
+                            tracing::warn!(
+                                "spawn middleware: failed to emit ProcessCompleted"
+                            );
+                        }
+                    }
+                    Err(e) => {
+                        circuit_breaker.record_failure();
+                        tracing::warn!(error = %e, "spawn middleware: wait failed");
+                        if session_repo.update_status(&sid, "failed").is_err() {
+                            tracing::warn!(
+                                session_id = %sid.0,
+                                "spawn middleware: failed to update status to failed"
+                            );
+                        }
+                        if runner
+                            .emit(ForgeEvent::ProcessFailed {
+                                session_id: sid,
+                                error: e.to_string(),
+                                timestamp: chrono::Utc::now(),
+                            })
+                            .is_err()
+                        {
+                            tracing::warn!(
+                                "spawn middleware: failed to emit ProcessFailed"
+                            );
+                        }
+                    }
+                }
+            });
+
+            Ok(RunResponse {
+                session_id: ctx.session_id.clone(),
+                status: "spawned".to_string(),
+            })
+        })
+    }
+
+    fn name(&self) -> &str {
+        "spawn"
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::Duration;
+
+    // -- helpers for tests --------------------------------------------------
 
     struct LogMiddleware {
         label: String,
@@ -163,8 +542,14 @@ mod tests {
             session_id: "sess-1".into(),
             working_dir: None,
             metadata: Default::default(),
+            agent_id_typed: AgentId::new(),
+            session_id_typed: SessionId::new(),
+            resume_session_id: None,
+            directory: ".".into(),
         }
     }
+
+    // -- existing tests (chain infrastructure) ------------------------------
 
     #[tokio::test]
     async fn chain_executes_in_order() {
@@ -207,5 +592,257 @@ mod tests {
         let mut ctx = test_context();
         let result = chain.execute(&mut ctx).await;
         assert!(result.is_ok());
+    }
+
+    // -- RateLimitMiddleware tests ------------------------------------------
+
+    #[tokio::test]
+    async fn rate_limit_allows_when_tokens_available() {
+        let rl = Arc::new(RateLimiter::new(5, Duration::from_secs(60)));
+        let mw = RateLimitMiddleware {
+            rate_limiter: rl,
+        };
+        let mut chain = MiddlewareChain::new();
+        chain.add(mw);
+        let mut ctx = test_context();
+        let result = chain.execute(&mut ctx).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn rate_limit_rejects_when_exhausted() {
+        let rl = Arc::new(RateLimiter::new(1, Duration::from_secs(60)));
+        // Exhaust the single token
+        assert!(rl.try_acquire());
+
+        let mw = RateLimitMiddleware {
+            rate_limiter: rl,
+        };
+        let mut chain = MiddlewareChain::new();
+        chain.add(mw);
+        let mut ctx = test_context();
+        let result = chain.execute(&mut ctx).await;
+        assert!(matches!(result, Err(MiddlewareError::RateLimited)));
+    }
+
+    // -- CircuitBreakerMiddleware tests -------------------------------------
+
+    #[tokio::test]
+    async fn circuit_breaker_allows_when_closed() {
+        let cb = Arc::new(CircuitBreaker::default());
+        let mw = CircuitBreakerMiddleware {
+            circuit_breaker: cb,
+        };
+        let mut chain = MiddlewareChain::new();
+        chain.add(mw);
+        let mut ctx = test_context();
+        let result = chain.execute(&mut ctx).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn circuit_breaker_rejects_when_open() {
+        let cb = Arc::new(CircuitBreaker::new(1, 1, Duration::from_secs(60)));
+        cb.record_failure(); // trips the breaker
+        assert!(cb.check().is_err());
+
+        let mw = CircuitBreakerMiddleware {
+            circuit_breaker: cb,
+        };
+        let mut chain = MiddlewareChain::new();
+        chain.add(mw);
+        let mut ctx = test_context();
+        let result = chain.execute(&mut ctx).await;
+        assert!(matches!(result, Err(MiddlewareError::CircuitOpen)));
+    }
+
+    // -- CostCheckMiddleware tests ------------------------------------------
+
+    fn setup_db() -> (Arc<forge_db::AgentRepo>, Arc<SessionRepo>, forge_db::DbPool) {
+        let db = forge_db::DbPool::in_memory().unwrap();
+        {
+            let c = db.connection();
+            forge_db::Migrator::new(&c).apply_pending().unwrap();
+        }
+        let agent_repo = Arc::new(forge_db::AgentRepo::new(db.conn_arc()));
+        let session_repo = Arc::new(SessionRepo::new(db.conn_arc()));
+        (agent_repo, session_repo, db)
+    }
+
+    fn create_test_session(
+        agent_repo: &forge_db::AgentRepo,
+        session_repo: &SessionRepo,
+    ) -> forge_db::repos::sessions::Session {
+        let agent = agent_repo
+            .create(&forge_agent::model::NewAgent {
+                name: "test-agent".into(),
+                model: None,
+                system_prompt: None,
+                allowed_tools: None,
+                max_turns: None,
+                use_max: None,
+                preset: None,
+                config: None,
+            })
+            .unwrap();
+        session_repo
+            .create(&forge_db::NewSession {
+                agent_id: agent.id,
+                directory: ".".into(),
+                claude_session_id: None,
+            })
+            .unwrap()
+    }
+
+    #[tokio::test]
+    async fn cost_check_allows_under_limit() {
+        let (agent_repo, session_repo, _db) = setup_db();
+
+        let ct = Arc::new(CostTracker::new(None, Some(100.0)));
+        let mw = CostCheckMiddleware {
+            cost_tracker: ct,
+            session_repo: Arc::clone(&session_repo),
+        };
+
+        let session = create_test_session(&agent_repo, &session_repo);
+
+        let mut chain = MiddlewareChain::new();
+        chain.add(mw);
+        let mut ctx = test_context();
+        ctx.session_id_typed = session.id;
+        let result = chain.execute(&mut ctx).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn cost_check_rejects_over_limit() {
+        let (agent_repo, session_repo, _db) = setup_db();
+
+        let ct = Arc::new(CostTracker::new(None, Some(10.0)));
+        let mw = CostCheckMiddleware {
+            cost_tracker: ct,
+            session_repo: Arc::clone(&session_repo),
+        };
+
+        let session = create_test_session(&agent_repo, &session_repo);
+        // Set cost above limit
+        session_repo.update_cost(&session.id, 15.0).unwrap();
+
+        let mut chain = MiddlewareChain::new();
+        chain.add(mw);
+        let mut ctx = test_context();
+        ctx.session_id_typed = session.id;
+        let result = chain.execute(&mut ctx).await;
+        assert!(matches!(
+            result,
+            Err(MiddlewareError::BudgetExceeded { .. })
+        ));
+    }
+
+    // -- SkillInjectionMiddleware tests -------------------------------------
+
+    #[tokio::test]
+    async fn skill_injection_adds_matching_skills() {
+        let conn = forge_db::DbPool::in_memory().unwrap();
+        {
+            let c = conn.connection();
+            forge_db::Migrator::new(&c).apply_pending().unwrap();
+        }
+        let skill_repo = Arc::new(SkillRepo::new(conn.conn_arc()));
+
+        // Insert a skill with matching tags
+        skill_repo
+            .upsert(&forge_db::repos::skills::UpsertSkill {
+                id: "review-skill".into(),
+                name: "code-review".into(),
+                description: Some("Review methodology".into()),
+                category: Some("review".into()),
+                subcategory: None,
+                content: "Review checklist here".into(),
+                source_repo: None,
+                parameters_json: Some(r#"["review","quality"]"#.into()),
+                examples_json: None,
+            })
+            .unwrap();
+
+        let mw = SkillInjectionMiddleware {
+            skill_repo: Arc::clone(&skill_repo),
+        };
+        let mut chain = MiddlewareChain::new();
+        chain.add(mw);
+        let mut ctx = test_context();
+        ctx.prompt = "please review my code for quality".into();
+        let result = chain.execute(&mut ctx).await;
+        assert!(result.is_ok());
+        let injected = ctx.metadata.get("injected_skills");
+        assert!(injected.is_some());
+        assert!(injected.unwrap().contains("code-review"));
+        assert!(injected.unwrap().contains("Review checklist here"));
+    }
+
+    #[tokio::test]
+    async fn skill_injection_no_match_no_metadata() {
+        let conn = forge_db::DbPool::in_memory().unwrap();
+        {
+            let c = conn.connection();
+            forge_db::Migrator::new(&c).apply_pending().unwrap();
+        }
+        let skill_repo = Arc::new(SkillRepo::new(conn.conn_arc()));
+
+        let mw = SkillInjectionMiddleware { skill_repo };
+        let mut chain = MiddlewareChain::new();
+        chain.add(mw);
+        let mut ctx = test_context();
+        ctx.prompt = "hello world".into();
+        let result = chain.execute(&mut ctx).await;
+        assert!(result.is_ok());
+        assert!(ctx.metadata.get("injected_skills").is_none());
+    }
+
+    // -- PersistMiddleware tests --------------------------------------------
+
+    #[tokio::test]
+    async fn persist_sets_running_and_propagates_ok() {
+        let (agent_repo, session_repo, _db) = setup_db();
+        let event_bus = Arc::new(EventBus::new(32));
+
+        let session = create_test_session(&agent_repo, &session_repo);
+
+        let mw = PersistMiddleware {
+            session_repo: Arc::clone(&session_repo),
+            event_bus,
+        };
+        let mut chain = MiddlewareChain::new();
+        chain.add(mw);
+        let mut ctx = test_context();
+        ctx.session_id_typed = session.id.clone();
+        let result = chain.execute(&mut ctx).await;
+        assert!(result.is_ok());
+
+        let updated = session_repo.get(&session.id).unwrap();
+        assert_eq!(updated.status, "running");
+    }
+
+    #[tokio::test]
+    async fn persist_marks_failed_on_error() {
+        let (agent_repo, session_repo, _db) = setup_db();
+        let event_bus = Arc::new(EventBus::new(32));
+
+        let session = create_test_session(&agent_repo, &session_repo);
+
+        let mw = PersistMiddleware {
+            session_repo: Arc::clone(&session_repo),
+            event_bus,
+        };
+        let mut chain = MiddlewareChain::new();
+        chain.add(mw);
+        chain.add(BlockMiddleware); // will cause an error
+        let mut ctx = test_context();
+        ctx.session_id_typed = session.id.clone();
+        let result = chain.execute(&mut ctx).await;
+        assert!(result.is_err());
+
+        let updated = session_repo.get(&session.id).unwrap();
+        assert_eq!(updated.status, "failed");
     }
 }
