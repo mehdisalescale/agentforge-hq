@@ -26,6 +26,14 @@
 | `docs/E2E_SMOKE_TEST.md` | E2E test documentation | 2026-02-27 |
 | `docs/DOC_INDEX.md` | This file | 2026-03-03 |
 
+## Agent Coordination (live during wave execution)
+
+| File | Purpose |
+|------|---------|
+| `docs/agents/AGENT_PROTOCOL.md` | Read/write protocol for parallel agents |
+| `docs/agents/WAVE1_STATUS.md` | Live status tracker — agents update this as they work |
+| `docs/agents/WAVE1_PROMPTS.md` | Copy-paste prompts for each Wave 1 agent session |
+
 ## Historical Task Records (read-only)
 
 | File | Purpose |
