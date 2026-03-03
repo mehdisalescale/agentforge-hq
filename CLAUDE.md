@@ -18,8 +18,8 @@ Multi-agent Claude Code orchestrator. Rust/Axum backend + Svelte 5 frontend, shi
 ```
 forge-app          binary: DB setup, API server, embedded frontend, graceful shutdown
 ├── forge-api      Axum HTTP + WebSocket, routes, CORS, TraceLayer, rust-embed SPA
-├── forge-process  spawn Claude CLI, stream-json parsing, process lifecycle
-├── forge-agent    agent model, 9 presets, validation
+├── forge-process  spawn Claude CLI, stream-json parsing, ConcurrentRunner (parallel sub-agents)
+├── forge-agent    agent model, 10 presets (incl. Coordinator), validation
 ├── forge-db       SQLite WAL, 4 migrations, AgentRepo, SessionRepo, EventRepo, SkillRepo, MemoryRepo, HookRepo, BatchWriter
 ├── forge-core     ForgeEvent (27 variants), EventBus broadcast, shared types
 ├── forge-safety   CircuitBreaker, RateLimiter, CostTracker
@@ -35,7 +35,7 @@ cd frontend && pnpm install && pnpm build && cd ..
 
 # Backend
 cargo build --release
-cargo test              # 94 tests, all should pass
+cargo test              # 118 tests, all should pass
 cargo check             # should be zero warnings
 
 # Run
@@ -79,9 +79,12 @@ cargo check             # should be zero warnings
 
 Sprint 1 (v0.2.0) is **complete**: bug fixes (F1-F3), CostTracker (B2), MCP rewrite (B1), CLAUDE.md (D1), doc consolidation (D2) — all done.
 
-Wave 1 (5 parallel agents) is **complete**: forge-git crate, middleware trait/chain, skill loader + 10 seed files, memory repo/routes, hook repo/routes — all committed (75 tests pass).
+Waves 1-3 are **complete** (118 tests pass):
+- Wave 1: forge-git, middleware trait/chain, skill loader, memory repo, hook repo
+- Wave 2: Agent F integration wiring (migrations, state, routes, events)
+- Wave 3: 6 middleware extraction, memory extract/inject, ConcurrentRunner + Coordinator preset
 
-Wave 2 (Agent F integration wiring) is **in progress**: wiring Wave 1 outputs into shared files (migrations, state, routes).
+Wave 4 (4 frontend agents) is **next**: memory UI, hook UI, multi-agent dashboard, polish.
 
 ## Don't
 

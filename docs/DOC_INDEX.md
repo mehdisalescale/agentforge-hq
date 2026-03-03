@@ -1,7 +1,7 @@
 # Documentation Index
 
 > What's current, what's archived, what to read.
-> Updated: 2026-03-03 (Sprint 1 done, Wave 1 done)
+> Updated: 2026-03-03 (Sprint 1 done, Waves 1-3 done)
 
 ---
 
@@ -33,6 +33,8 @@
 | `docs/agents/AGENT_PROTOCOL.md` | Read/write protocol for parallel agents | Active |
 | `docs/agents/WAVE1_STATUS.md` | Wave 1 status tracker — all agents complete | Done |
 | `docs/agents/WAVE1_PROMPTS.md` | Copy-paste prompts for Wave 1 agent sessions | Done |
+| `docs/agents/WAVE3_PROMPTS.md` | Copy-paste prompts for Wave 3 agent sessions | Done |
+| `docs/agents/WAVE4_PROMPTS.md` | Copy-paste prompts for Wave 4 agent sessions | Ready |
 
 ## Historical Task Records (read-only)
 

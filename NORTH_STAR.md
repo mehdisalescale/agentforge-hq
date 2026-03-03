@@ -1,7 +1,7 @@
 # Claude Forge — North Star
 
 > **Read this first in every session.** This is the single source of truth.
-> Last updated: 2026-03-03 (Sprint 1 done, Wave 1 done, Wave 2 in progress)
+> Last updated: 2026-03-03 (Sprint 1 done, Waves 1-3 done, Wave 4 next)
 
 ---
 
@@ -16,11 +16,11 @@ The only Rust-native tool in the space — everyone else is TypeScript/Electron 
 
 ## Current State (Verified 2026-03-03)
 
-Sprint 1 complete. Wave 1 complete. Wave 2 (Agent F integration) in progress.
+Sprint 1 complete. Waves 1-3 complete. Wave 4 (4 frontend agents) is next.
 
 ### Build Status
 - `cargo check` — clean, zero warnings, all 9 crates compile
-- `cargo test` — 94 tests, all pass
+- `cargo test` — 118 tests, all pass
 - `cargo clippy` — clean, zero warnings
 - Frontend — built and embedded (SvelteKit 5 + adapter-static)
 
@@ -28,11 +28,11 @@ Sprint 1 complete. Wave 1 complete. Wave 2 (Agent F integration) in progress.
 
 **Backend (9 workspace crates):**
 - forge-core (A): ForgeEvent (27 variants), EventBus broadcast, ForgeError, typed IDs
-- forge-agent (A-): 9 presets, Agent/NewAgent/UpdateAgent, name validation
+- forge-agent (A-): 10 presets (incl. Coordinator), Agent/NewAgent/UpdateAgent, name validation
 - forge-db (A): SQLite WAL, 4 migrations, BatchWriter (50/2s), AgentRepo, SessionRepo, EventRepo, SkillRepo, MemoryRepo, HookRepo
-- forge-process (B+): Claude CLI spawn with stream-json, content block parsing
+- forge-process (B+): Claude CLI spawn with stream-json, content block parsing, ConcurrentRunner (semaphore-limited parallel spawning)
 - forge-safety (B+): CircuitBreaker (3-state FSM), RateLimiter (token bucket), CostTracker (budget warn/limit)
-- forge-api (A-): Full HTTP API + WebSocket, CORS, TraceLayer, rust-embed SPA, middleware trait/chain
+- forge-api (A-): Full HTTP API + WebSocket, CORS, TraceLayer, rust-embed SPA, 6-middleware chain (RateLimit, CircuitBreaker, CostCheck, SkillInjection, Persist, Spawn)
 - forge-app (A): Binary wiring, graceful shutdown, env config, skill loading at startup
 - forge-git (B+): Worktree create/remove/list for multi-agent isolation (7 tests)
 - forge-mcp-bin (B): MCP stdio server (rmcp, 10 tools)
@@ -54,11 +54,9 @@ Sprint 1 complete. Wave 1 complete. Wave 2 (Agent F integration) in progress.
 
 | Gap | Severity | Sprint |
 |-----|----------|--------|
-| Middleware extraction (run handler still monolith) | High | Wave 3 |
-| Sub-agent parallelism (single process only) | High | Wave 3 |
-| Memory injection/extraction logic | Medium | Wave 3 |
 | Frontend for memory, hooks, worktrees | Medium | Wave 4 |
 | Multi-agent dashboard UI | Medium | Wave 4 |
+| Frontend polish (pagination, loading, rune normalization) | Low | Wave 4 |
 | Authentication (none anywhere) | Medium | Later |
 
 ### Known Bugs

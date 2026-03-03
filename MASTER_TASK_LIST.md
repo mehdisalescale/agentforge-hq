@@ -1,6 +1,6 @@
 # Claude Forge — Master Task List
 
-> **Updated:** 2026-03-03 (Sprint 1 done, Wave 1 done, Wave 2 in progress)
+> **Updated:** 2026-03-03 (Sprint 1 done, Waves 1-3 done, Wave 4 next)
 > **Source:** `docs/FORGE_AUDIT_2026_03_02.md` (audit), `docs/BORROWED_IDEAS.md` (patterns)
 > **Agent task cards:** `docs/agents/HANDOFF_SPRINT_2_3.md`
 
@@ -164,7 +164,7 @@
 
 > **Goal:** Worktrees, middleware, skills, sub-agents, memory, hooks — all features remaining to reach orchestrator status.
 > **Mode:** Parallel agents per wave. See `docs/agents/HANDOFF_SPRINT_2_3.md` for full task cards.
-> **Status:** Wave 1 DONE (commit d6cd408). Wave 2 IN PROGRESS.
+> **Status:** Wave 1 DONE (d6cd408). Wave 2 DONE (7084758). Wave 3 DONE (b802a27). Wave 4 NEXT.
 
 ### Wave Overview
 
@@ -287,12 +287,12 @@ All 5 agents' work must compile and pass tests before Wave 2.
 
 ---
 
-### Wave 2 — Integration Wiring (1 agent, sequential) — IN PROGRESS
+### Wave 2 — Integration Wiring (1 agent, sequential) — DONE
 
 Touches shared files. Must run alone after Wave 1 gate passes.
 
 #### Agent F: Integration wiring
-- [ ] **In progress** (Steps 1-6 of 9 done: migrations, repos/mod, lib.rs, state.rs, routes/mod.rs. Remaining: events.rs update, main.rs wiring, verify gate)
+- [x] **Done** (Session 13-14 — wired migrations 0003/0004, repos, state, routes, 7 new event variants, skill loading)
 
 **Shared files:** `forge-db/src/migrations.rs`, `forge-db/src/repos/mod.rs`, `forge-db/src/lib.rs`, `forge-api/src/state.rs`, `forge-api/src/routes/mod.rs`, `forge-api/src/routes/run.rs`, `forge-api/src/lib.rs`, `forge-core/src/events.rs`, `forge-app/src/main.rs`
 
@@ -320,12 +320,12 @@ cd frontend && pnpm build && cd ..
 
 ---
 
-### Wave 3 — Feature Logic (3 parallel agents)
+### Wave 3 — Feature Logic (3 parallel agents) — DONE
 
 Depends on Wave 2. Each agent owns distinct files.
 
 #### Agent G: Middleware extraction + skill injection (MW2+SK3)
-- [ ] **Done**
+- [x] **Done** (Session 14 — 862 LOC middleware.rs with 6 middlewares, 14 tests. run.rs refactored to 136 lines)
 
 **Files:** `crates/forge-api/src/middleware.rs` (extend), `crates/forge-api/src/routes/run.rs` (refactor)
 
@@ -338,7 +338,7 @@ Depends on Wave 2. Each agent owns distinct files.
 ---
 
 #### Agent H: Memory extraction + injection (ME2+ME3)
-- [ ] **Done**
+- [x] **Done** (Session 14 — 700 LOC memory.rs, extract_facts + store_extracted + inject_context, 8 new tests)
 
 **Files:** `crates/forge-db/src/repos/memory.rs` (extend)
 
@@ -352,7 +352,7 @@ Depends on Wave 2. Each agent owns distinct files.
 ---
 
 #### Agent I: Sub-agent runner + coordinator (SA1-SA3)
-- [ ] **Done**
+- [x] **Done** (Session 14 — 307 LOC concurrent.rs, ConcurrentRunner + Coordinator preset, 3 tests)
 
 **Files:** `crates/forge-process/src/concurrent.rs` (NEW), `crates/forge-agent/src/lib.rs` (add Coordinator preset)
 
