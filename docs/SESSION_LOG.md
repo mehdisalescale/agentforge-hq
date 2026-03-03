@@ -5,6 +5,20 @@
 
 ---
 
+### Session 12 — 2026-03-03 — Bug fixes, harvester assessment, plan merge
+
+- **Branch**: `main`
+- **What was done**:
+  - **Harvester integration assessment**: Deep inspection of `/Users/bm/smart-standalone-harvestor` (Python FastAPI, 11 MCP tools, 4 AI agents, 119 tests) and forge integration surface. Wrote `docs/HARVESTER_INTEGRATION.md` — integration deferred to post-Sprint 2.
+  - **Bug fixes committed (F1-F3)**: Dashboard null-safety (F1), budget warning logic (F2), preset serialization (F3) — implemented by prior session, verified (55 tests pass) and committed.
+  - **Merged two plans into one**: Deleted `docs/ENHANCEMENT_PROPOSAL.md`, merged its best ideas (CLAUDE.md, doc consolidation, forge-git crate) into `MASTER_TASK_LIST.md`. User decided to keep middleware/skills/hooks from original Master Task List — they're valuable patterns from DeerFlow research.
+  - **Final 3-sprint plan**: Sprint 1 (MCP+bugs), Sprint 2 (worktrees+middleware+skills), Sprint 3 (multi-agent+memory+hooks)
+  - **Updated**: NORTH_STAR.md (sprint plan), DOC_INDEX.md (removed Enhancement Proposal), MEMORY.md (merged plan)
+- **What's next**: Sprint 1 — MCP rewrite with rmcp (M1-M5), create CLAUDE.md (D1), doc consolidation (D2), tag v0.2.0
+- **Files touched**: MASTER_TASK_LIST.md, NORTH_STAR.md, docs/DOC_INDEX.md, docs/HARVESTER_INTEGRATION.md, docs/ENHANCEMENT_PROPOSAL.md (deleted), crates/forge-api/src/routes/run.rs, crates/forge-db/src/repos/agents.rs, frontend/src/routes/+page.svelte
+
+---
+
 ### Session 11 — 2026-03-02 — Comprehensive Audit & Doc Overhaul
 - **Branch**: `main`
 - **What was done**:
