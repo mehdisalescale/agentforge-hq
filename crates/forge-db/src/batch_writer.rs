@@ -159,6 +159,10 @@ fn event_type_name(event: &ForgeEvent) -> &'static str {
         ForgeEvent::QualityCheckStarted { .. } => "QualityCheckStarted",
         ForgeEvent::QualityCheckPassed { .. } => "QualityCheckPassed",
         ForgeEvent::QualityCheckFailed { .. } => "QualityCheckFailed",
+        ForgeEvent::PipelineStarted { .. } => "PipelineStarted",
+        ForgeEvent::PipelineStepCompleted { .. } => "PipelineStepCompleted",
+        ForgeEvent::PipelineCompleted { .. } => "PipelineCompleted",
+        ForgeEvent::CompactionCompleted { .. } => "CompactionCompleted",
         ForgeEvent::Error { .. } => "Error",
     }
 }

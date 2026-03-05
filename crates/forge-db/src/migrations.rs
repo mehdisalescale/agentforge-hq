@@ -9,6 +9,8 @@ const MIGRATION_002: &str = include_str!("../../../migrations/0002_add_cost.sql"
 const MIGRATION_003: &str = include_str!("../../../migrations/0003_add_memory.sql");
 const MIGRATION_004: &str = include_str!("../../../migrations/0004_add_hooks.sql");
 const MIGRATION_005: &str = include_str!("../../../migrations/0005_scheduler_analytics.sql");
+const MIGRATION_006: &str = include_str!("../../../migrations/0006_add_compactions.sql");
+const MIGRATION_007: &str = include_str!("../../../migrations/0007_add_workflow_columns.sql");
 
 pub struct Migrator<'a> {
     conn: &'a Connection,
@@ -94,8 +96,28 @@ impl<'a> Migrator<'a> {
             self.conn
                 .execute_batch(MIGRATION_005)
                 .map_err(|e| ForgeError::Database(Box::new(e)))?;
+            current = 5;
             applied += 1;
             info!("migration 0005 applied, now at version 5");
+        }
+
+        if current < 6 {
+            info!("applying migration 0006_add_compactions.sql");
+            self.conn
+                .execute_batch(MIGRATION_006)
+                .map_err(|e| ForgeError::Database(Box::new(e)))?;
+            current = 6;
+            applied += 1;
+            info!("migration 0006 applied, now at version 6");
+        }
+
+        if current < 7 {
+            info!("applying migration 0007_add_workflow_columns.sql");
+            self.conn
+                .execute_batch(MIGRATION_007)
+                .map_err(|e| ForgeError::Database(Box::new(e)))?;
+            applied += 1;
+            info!("migration 0007 applied, now at version 7");
         }
 
         if applied == 0 {

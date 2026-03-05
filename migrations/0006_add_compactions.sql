@@ -7,3 +7,5 @@ CREATE TABLE IF NOT EXISTS compactions (
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_compactions_session ON compactions(session_id);
+
+INSERT OR IGNORE INTO schema_version (version) VALUES (6);

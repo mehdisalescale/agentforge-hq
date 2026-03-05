@@ -4,7 +4,7 @@
 use forge_api::state::SafetyState;
 use forge_api::{serve_until_signal, AppState};
 use forge_core::EventBus;
-use forge_db::{AgentRepo, AnalyticsRepo, BatchWriter, DbPool, EventRepo, HookRepo, MemoryRepo, Migrator, ScheduleRepo, SessionRepo, SkillRepo, WorkflowRepo};
+use forge_db::{AgentRepo, AnalyticsRepo, BatchWriter, CompactionRepo, DbPool, EventRepo, HookRepo, MemoryRepo, Migrator, ScheduleRepo, SessionRepo, SkillRepo, WorkflowRepo};
 
 mod scheduler;
 use forge_safety::{CircuitBreaker, CostTracker, RateLimiter};
@@ -59,6 +59,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let hook_repo = HookRepo::new(Arc::clone(&conn_arc));
     let schedule_repo = ScheduleRepo::new(Arc::clone(&conn_arc));
     let analytics_repo = AnalyticsRepo::new(Arc::clone(&conn_arc));
+    let compaction_repo = CompactionRepo::new(Arc::clone(&conn_arc));
     let event_bus = EventBus::new(256);
 
     // Load seed skills from the skills/ directory.
@@ -122,6 +123,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         Arc::new(hook_repo),
         Arc::clone(&schedule_repo),
         Arc::new(analytics_repo),
+        Arc::new(compaction_repo),
         safety,
     );
 

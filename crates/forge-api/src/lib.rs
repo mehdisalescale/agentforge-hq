@@ -63,6 +63,7 @@ pub fn app(state: AppState) -> Router {
 
     Router::new()
         .nest("/api/v1", routes::router())
+        .merge(openapi::openapi_routes())
         .fallback(serve_embedded_fallback)
         .layer(TraceLayer::new_for_http())
         .layer(cors)
@@ -145,7 +146,7 @@ mod tests {
     use super::*;
     use axum::body::Body;
     use forge_core::EventBus;
-    use forge_db::{AgentRepo, AnalyticsRepo, EventRepo, HookRepo, MemoryRepo, Migrator, DbPool, ScheduleRepo, SessionRepo, SkillRepo, WorkflowRepo};
+    use forge_db::{AgentRepo, AnalyticsRepo, CompactionRepo, EventRepo, HookRepo, MemoryRepo, Migrator, DbPool, ScheduleRepo, SessionRepo, SkillRepo, WorkflowRepo};
     use crate::state::SafetyState;
     use forge_safety::{CircuitBreaker, RateLimiter};
     use std::time::Duration;
@@ -181,6 +182,7 @@ mod tests {
             Arc::new(hook_repo),
             Arc::new(ScheduleRepo::new(Arc::clone(&conn_arc))),
             Arc::new(AnalyticsRepo::new(Arc::clone(&conn_arc))),
+            Arc::new(CompactionRepo::new(Arc::clone(&conn_arc))),
             SafetyState {
                 circuit_breaker: Arc::new(CircuitBreaker::default()),
                 rate_limiter: Arc::new(RateLimiter::new(100, Duration::from_secs(1))),
@@ -228,6 +230,7 @@ mod tests {
             Arc::new(hook_repo),
             Arc::new(ScheduleRepo::new(Arc::clone(&conn_arc))),
             Arc::new(AnalyticsRepo::new(Arc::clone(&conn_arc))),
+            Arc::new(CompactionRepo::new(Arc::clone(&conn_arc))),
             SafetyState {
                 circuit_breaker: Arc::new(CircuitBreaker::default()),
                 rate_limiter: Arc::new(RateLimiter::new(100, Duration::from_secs(1))),
@@ -274,6 +277,7 @@ mod tests {
             Arc::new(hook_repo),
             Arc::new(ScheduleRepo::new(Arc::clone(&conn_arc))),
             Arc::new(AnalyticsRepo::new(Arc::clone(&conn_arc))),
+            Arc::new(CompactionRepo::new(Arc::clone(&conn_arc))),
             SafetyState {
                 circuit_breaker: Arc::new(CircuitBreaker::default()),
                 rate_limiter: Arc::new(RateLimiter::new(100, Duration::from_secs(1))),
@@ -298,7 +302,7 @@ mod tests {
         use axum::body::Body;
         use forge_core::EventBus;
         use forge_agent::model::NewAgent;
-        use forge_db::{AgentRepo, AnalyticsRepo, EventRepo, HookRepo, MemoryRepo, Migrator, DbPool, ScheduleRepo, SessionRepo, SkillRepo, WorkflowRepo};
+        use forge_db::{AgentRepo, AnalyticsRepo, CompactionRepo, EventRepo, HookRepo, MemoryRepo, Migrator, DbPool, ScheduleRepo, SessionRepo, SkillRepo, WorkflowRepo};
         use http::{Request, StatusCode};
         use std::sync::Arc;
         use tower::ServiceExt;
@@ -342,6 +346,7 @@ mod tests {
             Arc::new(hook_repo),
             Arc::new(ScheduleRepo::new(Arc::clone(&conn_arc))),
             Arc::new(AnalyticsRepo::new(Arc::clone(&conn_arc))),
+            Arc::new(CompactionRepo::new(Arc::clone(&conn_arc))),
             SafetyState {
                 circuit_breaker: Arc::new(CircuitBreaker::default()),
                 rate_limiter: Arc::new(RateLimiter::new(100, Duration::from_secs(1))),
@@ -412,7 +417,7 @@ mod tests {
         use axum::body::Body;
         use forge_core::EventBus;
         use forge_agent::model::NewAgent;
-        use forge_db::{AgentRepo, AnalyticsRepo, EventRepo, HookRepo, MemoryRepo, Migrator, DbPool, ScheduleRepo, SessionRepo, SkillRepo, WorkflowRepo};
+        use forge_db::{AgentRepo, AnalyticsRepo, CompactionRepo, EventRepo, HookRepo, MemoryRepo, Migrator, DbPool, ScheduleRepo, SessionRepo, SkillRepo, WorkflowRepo};
         use http::{Request, StatusCode};
         use std::sync::Arc;
         use tower::ServiceExt;
@@ -456,6 +461,7 @@ mod tests {
             Arc::new(hook_repo),
             Arc::new(ScheduleRepo::new(Arc::clone(&conn_arc))),
             Arc::new(AnalyticsRepo::new(Arc::clone(&conn_arc))),
+            Arc::new(CompactionRepo::new(Arc::clone(&conn_arc))),
             SafetyState {
                 circuit_breaker: Arc::new(CircuitBreaker::default()),
                 rate_limiter: Arc::new(RateLimiter::new(100, Duration::from_secs(1))),

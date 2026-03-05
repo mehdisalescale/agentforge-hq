@@ -198,6 +198,34 @@ pub enum ForgeEvent {
         timestamp: DateTime<Utc>,
     },
 
+    // Pipeline lifecycle
+    PipelineStarted {
+        session_id: String,
+        workflow_id: String,
+        step_count: usize,
+        timestamp: DateTime<Utc>,
+    },
+    PipelineStepCompleted {
+        session_id: String,
+        step_index: usize,
+        success: bool,
+        timestamp: DateTime<Utc>,
+    },
+    PipelineCompleted {
+        session_id: String,
+        workflow_id: String,
+        success: bool,
+        timestamp: DateTime<Utc>,
+    },
+
+    // Compaction lifecycle
+    CompactionCompleted {
+        session_id: String,
+        original_tokens: i64,
+        compacted_tokens: i64,
+        timestamp: DateTime<Utc>,
+    },
+
     // Generic error
     Error {
         message: String,
@@ -243,6 +271,10 @@ impl ForgeEvent {
             | ForgeEvent::QualityCheckStarted { timestamp, .. }
             | ForgeEvent::QualityCheckPassed { timestamp, .. }
             | ForgeEvent::QualityCheckFailed { timestamp, .. }
+            | ForgeEvent::PipelineStarted { timestamp, .. }
+            | ForgeEvent::PipelineStepCompleted { timestamp, .. }
+            | ForgeEvent::PipelineCompleted { timestamp, .. }
+            | ForgeEvent::CompactionCompleted { timestamp, .. }
             | ForgeEvent::Error { timestamp, .. } => *timestamp,
         }
     }
