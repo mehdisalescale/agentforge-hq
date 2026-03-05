@@ -1,7 +1,7 @@
 # Documentation Index
 
 > What's current, what's archived, what to read.
-> Updated: 2026-03-05 (v0.5.0 released)
+> Updated: 2026-03-05 (v0.6.0 planned)
 
 ---
 
@@ -25,7 +25,8 @@
 | `docs/MCP_DESIGN.md` | MCP server design notes | 2026-02-27 |
 | `docs/E2E_SMOKE_TEST.md` | E2E test documentation | 2026-02-27 |
 | `docs/RESEARCH_FINDINGS_2026_03_05.md` | Patterns from 67 repos worth adopting | 2026-03-05 |
-| `docs/V050_SPRINT_PLAN.md` | v0.5.0 sprint plan — 10 agents, 3 waves | 2026-03-05 |
+| `docs/V050_SPRINT_PLAN.md` | v0.5.0 sprint plan — 10 agents, 3 waves (partially shipped) | 2026-03-05 |
+| `docs/V060_SPRINT_PLAN.md` | v0.6.0 sprint plan — 7 agents, 3 waves | 2026-03-05 |
 | `docs/DOC_INDEX.md` | This file | 2026-03-05 |
 
 ## Agent Coordination
@@ -37,6 +38,7 @@
 | `docs/agents/WAVE1_PROMPTS.md` | Copy-paste prompts for Wave 1 agent sessions | Done |
 | `docs/agents/WAVE3_PROMPTS.md` | Copy-paste prompts for Wave 3 agent sessions | Done |
 | `docs/agents/WAVE4_PROMPTS.md` | Copy-paste prompts for Wave 4 agent sessions | Done |
+| `docs/agents/V060_WAVE_PROMPTS.md` | Copy-paste prompts for v0.6.0 agents (Waves 5-7) | Ready |
 
 ## Historical Task Records (read-only)
 

@@ -1,8 +1,8 @@
 # Claude Forge — Master Task List
 
-> **Updated:** 2026-03-03 (v0.4.0 — all waves complete, all agents done)
-> **Source:** `docs/FORGE_AUDIT_2026_03_02.md` (audit), `docs/BORROWED_IDEAS.md` (patterns)
-> **Agent task cards:** `docs/agents/HANDOFF_SPRINT_2_3.md`
+> **Updated:** 2026-03-05 (v0.5.0 shipped, v0.6.0 planned)
+> **Source:** `docs/FORGE_AUDIT_2026_03_02.md` (audit), `docs/RESEARCH_FINDINGS_2026_03_05.md` (67 repos)
+> **Agent task cards:** `docs/agents/HANDOFF_SPRINT_2_3.md` (v0.4.0), `docs/agents/V060_WAVE_PROMPTS.md` (v0.6.0)
 
 ---
 
@@ -462,6 +462,45 @@ Week 3:  Wave 3 (3 agents) + Wave 4 (4 agents)         → ship v0.4.0
 
 ---
 
+## v0.5.0 — Scheduler, Analytics, Loop Detection — COMPLETE
+
+> **Status:** ALL DONE. Tagged v0.5.0 (2026-03-05). 150 tests pass.
+> Committed as f9de905 (+2,257 lines), docs as c866ee1.
+
+- [x] Cron scheduler (ScheduleRepo, 468 LOC, 10 tests, background tick, CRUD API + UI)
+- [x] Usage analytics (AnalyticsRepo, 297 LOC, 7 tests, P90, projected monthly, dashboard)
+- [x] Loop detection (LoopDetector, 201 LOC, 10 tests, exit gate config)
+- [x] Quality gate + exit gate middleware variants (3 tests)
+- [x] Session HTML export
+- [x] 9 new ForgeEvent variants (35 total)
+
+---
+
+## v0.6.0 — Best-of-N, Pipelines, Swim Lanes — PLANNED
+
+> **Goal:** Make agents smarter (best-of-N, context pruning, typed memory) and workflows real (pipeline engine, swim-lane dashboard).
+> **Plan:** `docs/V060_SPRINT_PLAN.md`
+> **Agent prompts:** `docs/agents/V060_WAVE_PROMPTS.md`
+> **Mode:** 7 agents across 3 waves (parallel execution)
+
+### Wave 5 — New Components (4 parallel agents)
+
+- [ ] **Agent N:** Best-of-N selection mode — `best_of_n.rs`, `strategy.rs`
+- [ ] **Agent O:** Context pruner + memory compaction — `context_pruner.rs`, `compaction.rs`, migration 0006
+- [ ] **Agent P:** Pipeline engine + WorkflowRepo CRUD — `pipeline.rs`, extend `workflows.rs`, migration 0007
+- [ ] **Agent R:** OpenAPI auto-docs — `openapi.rs` (utoipa + Scalar UI)
+
+### Wave 6 — Integration Wiring (1 agent, sequential)
+
+- [ ] **Agent S:** Wire Wave 5 outputs — migrations, exports, AppState, routes, events
+
+### Wave 7 — Smart Features + UI (2 parallel agents)
+
+- [ ] **Agent U:** Three-type memory + auto-activating skills — extend `memory.rs`, `skills.rs`, migration 0008
+- [ ] **Agent W:** Swim-lane dashboard + pipeline builder UI — extend `+page.svelte`, rewrite `workflows/+page.svelte`
+
+---
+
 ## PARKED (Not in scope)
 
 | Feature | Why Parked |
@@ -471,7 +510,7 @@ Week 3:  Wave 3 (3 agents) + Wave 4 (4 agents)         → ship v0.4.0
 | Consensus protocols | Agents are independent |
 | RL/learning layer | No usage data yet |
 | Plugin marketplace | Need users first |
-| Cron scheduler | Manual for now |
+| ~~Cron scheduler~~ | **Shipped in v0.5.0** |
 | Dev environment | Post-1.0 if ever |
 | Authentication | Add when deploying remotely |
 | Audit log + permissions | Post-1.0 |
@@ -486,6 +525,8 @@ Week 3:  Wave 3 (3 agents) + Wave 4 (4 agents)         → ship v0.4.0
 | v0.2.0 | MCP server passes compliance test, docs consolidated to ~15 |
 | v0.3.0 | Worktree isolation works, middleware chain active, skills loaded |
 | v0.4.0 | 3 sub-agents run in parallel worktrees, memory persists, hooks fire |
+| v0.5.0 | Cron scheduler runs, analytics dashboard shows costs, loop detection works |
+| v0.6.0 | Best-of-N selection, pipeline engine executes, swim-lane dashboard renders, 175+ tests |
 
 ---
 

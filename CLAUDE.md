@@ -72,23 +72,18 @@ cargo check             # should be zero warnings
 |------|------|
 | `NORTH_STAR.md` | Vision, current state, sprint plan |
 | `MASTER_TASK_LIST.md` | Sprint tasks with What/Where/How/Verify |
-| `docs/V050_SPRINT_PLAN.md` | v0.5.0 sprint plan (10 agents, 3 waves) |
+| `docs/V060_SPRINT_PLAN.md` | v0.6.0 sprint plan (7 agents, 3 waves) |
+| `docs/agents/V060_WAVE_PROMPTS.md` | Copy-paste prompts for v0.6.0 parallel agents |
 | `docs/RESEARCH_FINDINGS_2026_03_05.md` | Patterns from 67 repos |
 | `docs/DOC_INDEX.md` | What's current vs archived |
 
 ## Current Phase
 
-**v0.5.0** — 150 tests pass, 12 frontend pages, 35 event types.
+**v0.5.0 shipped** — 150 tests, 12 pages, 35 events. **v0.6.0 planned** — 7 agents, 3 waves.
 
-New in v0.5.0:
-- Cron scheduler (ScheduleRepo, background tick, CRUD API + UI)
-- Usage analytics (AnalyticsRepo, daily costs, agent breakdown, P90, projected monthly, dashboard)
-- Loop detection (sliding-window hash detector, exit gate config)
-- Quality gate + exit gate middleware variants
-- Session HTML export
-- 8 new ForgeEvent variants (schedule lifecycle, exit/quality gates)
+Next sprint (v0.6.0): Best-of-N selection, context pruner, pipeline engine, OpenAPI docs, typed memory, auto-skills, swim-lane dashboard, pipeline builder UI.
 
-Previous: v0.4.0 (Waves 1-4, 13 agents, middleware chain, memory, hooks, sub-agents, 10 pages)
+See `docs/V060_SPRINT_PLAN.md` for plan, `docs/agents/V060_WAVE_PROMPTS.md` for agent prompts.
 
 ## Don't
 

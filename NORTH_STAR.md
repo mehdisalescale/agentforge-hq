@@ -1,7 +1,7 @@
 # Claude Forge — North Star
 
 > **Read this first in every session.** This is the single source of truth.
-> Last updated: 2026-03-05 (v0.5.0 — scheduler, analytics, loop detection, quality gates)
+> Last updated: 2026-03-05 (v0.5.0 released, v0.6.0 planned — 7 agents, 3 waves)
 
 ---
 
@@ -66,17 +66,14 @@ v0.5.0 tagged. All sprints + all 4 waves + v0.5.0 features complete.
 
 ### What's Next — v0.6.0
 
-See `docs/V050_SPRINT_PLAN.md` for remaining planned features. Key items not yet implemented:
+See `docs/V060_SPRINT_PLAN.md` for the execution plan (7 agents, 3 waves).
+Agent prompts: `docs/agents/V060_WAVE_PROMPTS.md` (copy-paste for parallel execution).
 
-| Feature | Priority |
-|---------|----------|
-| Best-of-N selection (quality multiplier) | HIGH |
-| Context pruner + memory compaction | HIGH |
-| Sequential + Fanout pipeline engine | HIGH |
-| Swim-lane observability dashboard | HIGH |
-| Three-type memory + auto-activating skills | MEDIUM |
-| OpenAPI auto-docs (utoipa + Scalar UI) | MEDIUM |
-| Predictive usage budgeting (P90 forecast) | MEDIUM |
+| Wave | Agents | Features |
+|------|--------|----------|
+| Wave 5 (4 parallel) | N, O, P, R | Best-of-N selection, context pruner, pipeline engine, OpenAPI docs |
+| Wave 6 (1 sequential) | S | Integration wiring |
+| Wave 7 (2 parallel) | U, W | Three-type memory + auto-skills, swim-lane dashboard + pipeline UI |
 
 Research: `docs/RESEARCH_FINDINGS_2026_03_05.md` (67 repos analyzed)
 
