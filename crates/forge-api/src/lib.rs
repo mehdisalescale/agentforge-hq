@@ -406,6 +406,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore] // Requires `claude` CLI installed — run with `cargo test -- --ignored`
     async fn run_returns_202_and_session_id() {
         use axum::body::Body;
         use forge_core::EventBus;
