@@ -152,6 +152,13 @@ fn event_type_name(event: &ForgeEvent) -> &'static str {
         ForgeEvent::SubAgentStarted { .. } => "SubAgentStarted",
         ForgeEvent::SubAgentCompleted { .. } => "SubAgentCompleted",
         ForgeEvent::SubAgentFailed { .. } => "SubAgentFailed",
+        ForgeEvent::ScheduleCreated { .. } => "ScheduleCreated",
+        ForgeEvent::ScheduleTriggered { .. } => "ScheduleTriggered",
+        ForgeEvent::ScheduleDeleted { .. } => "ScheduleDeleted",
+        ForgeEvent::ExitGateTriggered { .. } => "ExitGateTriggered",
+        ForgeEvent::QualityCheckStarted { .. } => "QualityCheckStarted",
+        ForgeEvent::QualityCheckPassed { .. } => "QualityCheckPassed",
+        ForgeEvent::QualityCheckFailed { .. } => "QualityCheckFailed",
         ForgeEvent::Error { .. } => "Error",
     }
 }

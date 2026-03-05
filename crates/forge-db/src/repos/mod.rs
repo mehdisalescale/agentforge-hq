@@ -1,7 +1,9 @@
 pub mod agents;
+pub mod analytics;
 pub mod events;
 pub mod hooks;
 pub mod memory;
+pub mod schedules;
 pub mod sessions;
 pub mod skills;
 pub mod workflows;

@@ -371,3 +371,108 @@ export async function deleteHook(id: string): Promise<void> {
   });
   await handleResponse<void>(res);
 }
+
+// --- Schedules (Phase 3) ---
+
+export interface Schedule {
+  id: string;
+  name: string;
+  cron_expr: string;
+  agent_id: string;
+  prompt: string;
+  directory: string;
+  enabled: boolean;
+  last_run_at: string | null;
+  next_run_at: string | null;
+  run_count: number;
+  created_at: string;
+}
+
+export interface NewSchedule {
+  name: string;
+  cron_expr: string;
+  agent_id: string;
+  prompt: string;
+  directory?: string;
+}
+
+export interface UpdateSchedule {
+  name?: string;
+  cron_expr?: string;
+  prompt?: string;
+  directory?: string;
+  enabled?: boolean;
+}
+
+export async function listSchedules(): Promise<Schedule[]> {
+  const res = await fetch(`${API_BASE}/api/v1/schedules`);
+  return handleResponse<Schedule[]>(res);
+}
+
+export async function createSchedule(data: NewSchedule): Promise<Schedule> {
+  const res = await fetch(`${API_BASE}/api/v1/schedules`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<Schedule>(res);
+}
+
+export async function updateSchedule(id: string, data: UpdateSchedule): Promise<Schedule> {
+  const res = await fetch(`${API_BASE}/api/v1/schedules/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<Schedule>(res);
+}
+
+export async function deleteSchedule(id: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/v1/schedules/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+  await handleResponse<void>(res);
+}
+
+// --- Analytics (Phase 3) ---
+
+export interface DailyCost {
+  date: string;
+  cost: number;
+}
+
+export interface AgentCostBreakdown {
+  agent_id: string;
+  total_cost: number;
+  session_count: number;
+}
+
+export interface SessionStats {
+  total: number;
+  completed: number;
+  failed: number;
+  avg_cost: number;
+  p90_cost: number;
+}
+
+export interface UsageReport {
+  total_cost: number;
+  daily_costs: DailyCost[];
+  agent_breakdown: AgentCostBreakdown[];
+  stats: SessionStats;
+  projected_monthly_cost: number;
+}
+
+export async function getUsageAnalytics(start?: string, end?: string): Promise<UsageReport> {
+  const params = new URLSearchParams();
+  if (start) params.set('start', start);
+  if (end) params.set('end', end);
+  const qs = params.toString();
+  const res = await fetch(`${API_BASE}/api/v1/analytics/usage${qs ? '?' + qs : ''}`);
+  return handleResponse<UsageReport>(res);
+}
+
+/** Export session as JSON, Markdown, or HTML; returns URL to open. */
+export function exportSessionHtmlUrl(id: string): string {
+  return `${API_BASE}/api/v1/sessions/${encodeURIComponent(id)}/export?format=html`;
+}

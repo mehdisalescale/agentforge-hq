@@ -6,6 +6,7 @@
     listSessions,
     getSession,
     exportSessionUrl,
+    exportSessionHtmlUrl,
     listAgents,
     type Session,
     type Agent,
@@ -51,6 +52,11 @@
 
   function exportAs(sessionId: string, format: 'json' | 'markdown') {
     const url = exportSessionUrl(sessionId, format);
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+
+  function exportHtml(sessionId: string) {
+    const url = exportSessionHtmlUrl(sessionId);
     window.open(url, '_blank', 'noopener,noreferrer');
   }
 
@@ -138,6 +144,9 @@
             </button>
             <button type="button" class="secondary" onclick={() => detail && exportAs(detail.id, 'markdown')}>
               Export Markdown
+            </button>
+            <button type="button" class="secondary" onclick={() => detail && exportHtml(detail.id)}>
+              Export HTML
             </button>
             {#if isWorktree(detail.directory)}
               <button type="button" class="secondary" disabled title="Coming soon — requires worktree API">

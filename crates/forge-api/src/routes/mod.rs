@@ -1,10 +1,12 @@
 //! API route handlers.
 
 mod agents;
+mod analytics;
 mod health;
 mod hooks;
 mod memory;
 mod run;
+mod schedules;
 mod sessions;
 mod skills;
 mod workflows;
@@ -25,4 +27,6 @@ pub fn router() -> Router<AppState> {
         .merge(ws::routes())
         .nest("/memory", memory::routes())
         .merge(hooks::routes())
+        .merge(schedules::routes())
+        .merge(analytics::routes())
 }

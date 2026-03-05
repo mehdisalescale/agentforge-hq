@@ -16,6 +16,8 @@ pub use repos::memory::{Memory, MemoryRepo, NewMemory, UpdateMemory};
 pub use repos::sessions::{NewSession, Session, SessionRepo};
 pub use repos::skills::{Skill, SkillRepo};
 pub use repos::workflows::{Workflow, WorkflowRepo};
+pub use repos::schedules::{Schedule, ScheduleRepo, NewSchedule, UpdateSchedule};
+pub use repos::analytics::{AnalyticsRepo, UsageReport};
 
 #[cfg(test)]
 mod tests {

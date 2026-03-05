@@ -4,7 +4,9 @@
 use forge_api::state::SafetyState;
 use forge_api::{serve_until_signal, AppState};
 use forge_core::EventBus;
-use forge_db::{AgentRepo, BatchWriter, DbPool, EventRepo, HookRepo, MemoryRepo, Migrator, SessionRepo, SkillRepo, WorkflowRepo};
+use forge_db::{AgentRepo, AnalyticsRepo, BatchWriter, DbPool, EventRepo, HookRepo, MemoryRepo, Migrator, ScheduleRepo, SessionRepo, SkillRepo, WorkflowRepo};
+
+mod scheduler;
 use forge_safety::{CircuitBreaker, CostTracker, RateLimiter};
 use std::env;
 use std::net::SocketAddr;
@@ -55,6 +57,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let workflow_repo = WorkflowRepo::new(Arc::clone(&conn_arc));
     let memory_repo = MemoryRepo::new(Arc::clone(&conn_arc));
     let hook_repo = HookRepo::new(Arc::clone(&conn_arc));
+    let schedule_repo = ScheduleRepo::new(Arc::clone(&conn_arc));
+    let analytics_repo = AnalyticsRepo::new(Arc::clone(&conn_arc));
     let event_bus = EventBus::new(256);
 
     // Load seed skills from the skills/ directory.
@@ -106,6 +110,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         cost_tracker: Arc::new(CostTracker::new(budget_warn, budget_limit)),
     };
 
+    let schedule_repo = Arc::new(schedule_repo);
     let state = AppState::new(
         Arc::new(agent_repo),
         Arc::new(session_repo),
@@ -115,14 +120,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         Arc::new(workflow_repo),
         Arc::new(memory_repo),
         Arc::new(hook_repo),
+        Arc::clone(&schedule_repo),
+        Arc::new(analytics_repo),
         safety,
     );
+
+    // Spawn background scheduler.
+    let cancel = tokio_util::sync::CancellationToken::new();
+    let _scheduler_handle = scheduler::spawn(schedule_repo, cancel.clone());
 
     let host = env::var("FORGE_HOST").unwrap_or_else(|_| "127.0.0.1".into());
     let port = env::var("FORGE_PORT").unwrap_or_else(|_| "4173".into());
     let addr: SocketAddr = format!("{}:{}", host, port).parse()?;
     info!(%addr, "starting forge server");
     serve_until_signal(addr, state, shutdown_signal()).await?;
+
+    // Cancel the scheduler.
+    cancel.cancel();
 
     // Shut down BatchWriter so it flushes remaining events. If another ref exists, drop and let thread exit on channel close.
     match Arc::try_unwrap(batch_writer) {

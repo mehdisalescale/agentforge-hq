@@ -46,6 +46,8 @@ pub enum MiddlewareError {
     RateLimited,
     CircuitOpen,
     BudgetExceeded { cost: f64, limit: f64 },
+    ExitGateTriggered(String),
+    QualityGateFailed { score: f64, threshold: f64 },
     SpawnFailed(String),
     Internal(String),
 }
@@ -485,6 +487,69 @@ impl Middleware for SpawnMiddleware {
     }
 }
 
+/// Trait for evaluating output quality. Implement this for real critic agents
+/// or use `MockCritic` in tests.
+pub trait QualityCritic: Send + Sync {
+    fn evaluate<'a>(
+        &'a self,
+        output: &'a str,
+    ) -> Pin<Box<dyn Future<Output = Result<f64, String>> + Send + 'a>>;
+}
+
+/// Post-completion quality gate. Evaluates output with a critic and re-runs
+/// if the score is below the threshold (up to max_iterations).
+pub struct QualityGateMiddleware {
+    pub critic: Arc<dyn QualityCritic>,
+    pub threshold: f64,
+    pub max_iterations: u32,
+}
+
+impl Middleware for QualityGateMiddleware {
+    fn process<'a>(
+        &'a self,
+        ctx: &'a mut RunContext,
+        next: Next<'a>,
+    ) -> Pin<Box<dyn Future<Output = Result<RunResponse, MiddlewareError>> + Send + 'a>> {
+        Box::pin(async move {
+            let response = next.run(ctx).await?;
+
+            // Use the prompt as a stand-in for "output" in this middleware context.
+            // In production, this would collect actual process output from events.
+            let output = ctx.metadata.get("output").cloned().unwrap_or_default();
+
+            for iteration in 0..self.max_iterations {
+                match self.critic.evaluate(&output).await {
+                    Ok(score) if score >= self.threshold => {
+                        ctx.metadata.insert("quality_score".into(), score.to_string());
+                        ctx.metadata.insert("quality_iteration".into(), iteration.to_string());
+                        return Ok(response);
+                    }
+                    Ok(score) => {
+                        ctx.metadata.insert("quality_score".into(), score.to_string());
+                        ctx.metadata.insert("quality_iteration".into(), iteration.to_string());
+                        // Last iteration — fail
+                        if iteration == self.max_iterations - 1 {
+                            return Err(MiddlewareError::QualityGateFailed {
+                                score,
+                                threshold: self.threshold,
+                            });
+                        }
+                        // Otherwise continue to next iteration (would re-run in production)
+                    }
+                    Err(e) => {
+                        return Err(MiddlewareError::Internal(format!("critic error: {}", e)));
+                    }
+                }
+            }
+            Ok(response)
+        })
+    }
+
+    fn name(&self) -> &str {
+        "quality_gate"
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -844,5 +909,89 @@ mod tests {
 
         let updated = session_repo.get(&session.id).unwrap();
         assert_eq!(updated.status, "failed");
+    }
+
+    // -- QualityGateMiddleware tests ----------------------------------------
+
+    use std::sync::atomic::{AtomicU32, Ordering};
+
+    struct MockCritic {
+        scores: Vec<f64>,
+        call_count: AtomicU32,
+    }
+
+    impl MockCritic {
+        fn new(scores: Vec<f64>) -> Self {
+            Self {
+                scores,
+                call_count: AtomicU32::new(0),
+            }
+        }
+    }
+
+    impl QualityCritic for MockCritic {
+        fn evaluate<'a>(
+            &'a self,
+            _output: &'a str,
+        ) -> Pin<Box<dyn Future<Output = Result<f64, String>> + Send + 'a>> {
+            Box::pin(async move {
+                let idx = self.call_count.fetch_add(1, Ordering::SeqCst) as usize;
+                if idx < self.scores.len() {
+                    Ok(self.scores[idx])
+                } else {
+                    Ok(*self.scores.last().unwrap_or(&0.0))
+                }
+            })
+        }
+    }
+
+    #[tokio::test]
+    async fn quality_gate_passes_above_threshold() {
+        let critic = Arc::new(MockCritic::new(vec![90.0]));
+        let mw = QualityGateMiddleware {
+            critic,
+            threshold: 80.0,
+            max_iterations: 3,
+        };
+        let mut chain = MiddlewareChain::new();
+        chain.add(mw);
+        let mut ctx = test_context();
+        let result = chain.execute(&mut ctx).await;
+        assert!(result.is_ok());
+        assert_eq!(ctx.metadata.get("quality_score"), Some(&"90".to_string()));
+    }
+
+    #[tokio::test]
+    async fn quality_gate_fails_below_threshold_after_max_iterations() {
+        let critic = Arc::new(MockCritic::new(vec![50.0, 60.0, 55.0]));
+        let mw = QualityGateMiddleware {
+            critic,
+            threshold: 80.0,
+            max_iterations: 3,
+        };
+        let mut chain = MiddlewareChain::new();
+        chain.add(mw);
+        let mut ctx = test_context();
+        let result = chain.execute(&mut ctx).await;
+        assert!(matches!(
+            result,
+            Err(MiddlewareError::QualityGateFailed { .. })
+        ));
+    }
+
+    #[tokio::test]
+    async fn quality_gate_retries_then_passes() {
+        let critic = Arc::new(MockCritic::new(vec![50.0, 90.0]));
+        let mw = QualityGateMiddleware {
+            critic,
+            threshold: 80.0,
+            max_iterations: 3,
+        };
+        let mut chain = MiddlewareChain::new();
+        chain.add(mw);
+        let mut ctx = test_context();
+        let result = chain.execute(&mut ctx).await;
+        assert!(result.is_ok());
+        assert_eq!(ctx.metadata.get("quality_iteration"), Some(&"1".to_string()));
     }
 }

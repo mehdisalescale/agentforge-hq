@@ -13,6 +13,8 @@
       <a class="link" href="/skills">Skills</a>
       <a class="link" href="/memory">Memory</a>
       <a class="link" href="/hooks">Hooks</a>
+      <a class="link" href="/schedules">Schedules</a>
+      <a class="link" href="/analytics">Analytics</a>
       <a class="link" href="/settings">Settings</a>
     </nav>
   </aside>
@@ -20,7 +22,7 @@
     <slot />
   </main>
   <footer class="statusbar">
-    <span>v0.4.0-dev</span>
+    <span>v0.5.0-dev</span>
     <span class="statusbar-note">Multi-agent orchestrator</span>
   </footer>
 </div>

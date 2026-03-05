@@ -103,3 +103,23 @@ impl Default for SkillId {
         Self::new()
     }
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct ScheduleId(pub Uuid);
+
+impl fmt::Display for ScheduleId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl ScheduleId {
+    pub fn new() -> Self {
+        Self(Uuid::new_v4())
+    }
+}
+impl Default for ScheduleId {
+    fn default() -> Self {
+        Self::new()
+    }
+}

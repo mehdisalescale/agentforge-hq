@@ -156,6 +156,48 @@ pub enum ForgeEvent {
         timestamp: DateTime<Utc>,
     },
 
+    // Schedule lifecycle
+    ScheduleCreated {
+        schedule_id: String,
+        name: String,
+        timestamp: DateTime<Utc>,
+    },
+    ScheduleTriggered {
+        schedule_id: String,
+        name: String,
+        session_id: SessionId,
+        timestamp: DateTime<Utc>,
+    },
+    ScheduleDeleted {
+        schedule_id: String,
+        timestamp: DateTime<Utc>,
+    },
+
+    // Exit gate
+    ExitGateTriggered {
+        session_id: SessionId,
+        reason: String,
+        timestamp: DateTime<Utc>,
+    },
+
+    // Quality checks
+    QualityCheckStarted {
+        session_id: SessionId,
+        iteration: u32,
+        timestamp: DateTime<Utc>,
+    },
+    QualityCheckPassed {
+        session_id: SessionId,
+        score: f64,
+        timestamp: DateTime<Utc>,
+    },
+    QualityCheckFailed {
+        session_id: SessionId,
+        score: f64,
+        reason: String,
+        timestamp: DateTime<Utc>,
+    },
+
     // Generic error
     Error {
         message: String,
@@ -194,6 +236,13 @@ impl ForgeEvent {
             | ForgeEvent::SubAgentStarted { timestamp, .. }
             | ForgeEvent::SubAgentCompleted { timestamp, .. }
             | ForgeEvent::SubAgentFailed { timestamp, .. }
+            | ForgeEvent::ScheduleCreated { timestamp, .. }
+            | ForgeEvent::ScheduleTriggered { timestamp, .. }
+            | ForgeEvent::ScheduleDeleted { timestamp, .. }
+            | ForgeEvent::ExitGateTriggered { timestamp, .. }
+            | ForgeEvent::QualityCheckStarted { timestamp, .. }
+            | ForgeEvent::QualityCheckPassed { timestamp, .. }
+            | ForgeEvent::QualityCheckFailed { timestamp, .. }
             | ForgeEvent::Error { timestamp, .. } => *timestamp,
         }
     }

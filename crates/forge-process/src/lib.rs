@@ -2,12 +2,14 @@
 //! Agent B: runner emits process output as ForgeEvent to EventBus.
 
 pub mod concurrent;
+pub mod loop_detect;
 pub mod parse;
 pub mod runner;
 pub mod spawn;
 pub mod stream_event;
 
 pub use concurrent::{ConcurrentRunner, SubTask, SubTaskResult, aggregate_results};
+pub use loop_detect::{ExitGateConfig, LoopDetector, check_completion_patterns, validate_exit};
 pub use parse::{parse_line, ParseError};
 pub use runner::{ProcessRunner, StreamJsonEvent as RunnerStubEvent, StreamJsonKind};
 pub use spawn::{ProcessHandle, SpawnConfig, SpawnError, spawn};

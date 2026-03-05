@@ -90,6 +90,12 @@ async fn export_session(
     let events = state.event_repo.query_by_session(&session_id).map_err(api_error)?;
 
     let format = query.format.to_lowercase();
+    if format == "html" {
+        let html = session_to_html(&session, &events);
+        return Ok(
+            ([("content-type", "text/html; charset=utf-8")], html).into_response(),
+        );
+    }
     if format == "markdown" {
         let md = session_to_markdown(&session, &events);
         return Ok(
@@ -127,6 +133,50 @@ async fn export_session(
         events: events_export,
     };
     Ok(Json(body).into_response())
+}
+
+fn html_escape(s: &str) -> String {
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+}
+
+fn session_to_html(session: &Session, events: &[forge_db::StoredEvent]) -> String {
+    let mut html = String::new();
+    html.push_str("<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
+    html.push_str(&format!("<title>Session {}</title>\n", html_escape(&session.id.to_string())));
+    html.push_str("<style>\n");
+    html.push_str("body{font-family:system-ui,-apple-system,sans-serif;background:#1a1a2e;color:#e0e0e0;margin:0;padding:2rem;max-width:900px;margin:0 auto}\n");
+    html.push_str("h1{color:#7c3aed}h2{color:#a78bfa;border-bottom:1px solid #333;padding-bottom:.5rem}\n");
+    html.push_str(".meta{background:#16213e;padding:1rem;border-radius:8px;margin-bottom:2rem}\n");
+    html.push_str(".meta dt{font-weight:bold;color:#a78bfa}.meta dd{margin:0 0 .5rem 0}\n");
+    html.push_str(".event{background:#0f3460;padding:1rem;border-radius:8px;margin-bottom:1rem;border-left:4px solid #7c3aed}\n");
+    html.push_str(".event-type{display:inline-block;background:#7c3aed;color:white;padding:2px 8px;border-radius:4px;font-size:.85rem;font-weight:bold}\n");
+    html.push_str(".timestamp{color:#888;font-size:.85rem;margin-left:.5rem}\n");
+    html.push_str("pre{background:#1a1a2e;padding:1rem;border-radius:4px;overflow-x:auto;font-size:.85rem}\n");
+    html.push_str("code{color:#e2e8f0}\n");
+    html.push_str("</style>\n</head>\n<body>\n");
+    html.push_str(&format!("<h1>Session {}</h1>\n", html_escape(&session.id.to_string())));
+    html.push_str("<div class=\"meta\"><dl>\n");
+    html.push_str(&format!("<dt>Agent ID</dt><dd>{}</dd>\n", html_escape(&session.agent_id.to_string())));
+    html.push_str(&format!("<dt>Directory</dt><dd>{}</dd>\n", html_escape(&session.directory)));
+    html.push_str(&format!("<dt>Status</dt><dd>{}</dd>\n", html_escape(&session.status)));
+    html.push_str(&format!("<dt>Created</dt><dd>{}</dd>\n", session.created_at.to_rfc3339()));
+    if let Some(ref c) = session.claude_session_id {
+        html.push_str(&format!("<dt>Claude Session</dt><dd>{}</dd>\n", html_escape(c)));
+    }
+    html.push_str("</dl></div>\n");
+    html.push_str("<h2>Events</h2>\n");
+    for ev in events {
+        html.push_str("<div class=\"event\">\n");
+        html.push_str(&format!("<span class=\"event-type\">{}</span>", html_escape(&ev.event_type)));
+        html.push_str(&format!("<span class=\"timestamp\">{}</span>\n", html_escape(&ev.timestamp)));
+        html.push_str(&format!("<pre><code>{}</code></pre>\n", html_escape(&ev.data_json)));
+        html.push_str("</div>\n");
+    }
+    html.push_str("</body>\n</html>");
+    html
 }
 
 fn session_to_markdown(session: &Session, events: &[forge_db::StoredEvent]) -> String {

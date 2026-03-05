@@ -1,7 +1,7 @@
 //! Application state shared across handlers.
 
 use forge_core::EventBus;
-use forge_db::{AgentRepo, EventRepo, HookRepo, MemoryRepo, SessionRepo, SkillRepo, WorkflowRepo};
+use forge_db::{AgentRepo, AnalyticsRepo, EventRepo, HookRepo, MemoryRepo, ScheduleRepo, SessionRepo, SkillRepo, WorkflowRepo};
 use forge_safety::{CircuitBreaker, CostTracker, RateLimiter};
 use std::sync::Arc;
 
@@ -24,6 +24,8 @@ pub struct AppState {
     pub workflow_repo: Arc<WorkflowRepo>,
     pub memory_repo: Arc<MemoryRepo>,
     pub hook_repo: Arc<HookRepo>,
+    pub schedule_repo: Arc<ScheduleRepo>,
+    pub analytics_repo: Arc<AnalyticsRepo>,
     pub safety: SafetyState,
 }
 
@@ -38,6 +40,8 @@ impl AppState {
         workflow_repo: Arc<WorkflowRepo>,
         memory_repo: Arc<MemoryRepo>,
         hook_repo: Arc<HookRepo>,
+        schedule_repo: Arc<ScheduleRepo>,
+        analytics_repo: Arc<AnalyticsRepo>,
         safety: SafetyState,
     ) -> Self {
         Self {
@@ -49,6 +53,8 @@ impl AppState {
             workflow_repo,
             memory_repo,
             hook_repo,
+            schedule_repo,
+            analytics_repo,
             safety,
         }
     }

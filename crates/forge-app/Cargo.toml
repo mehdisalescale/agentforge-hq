@@ -14,5 +14,10 @@ forge-db = { path = "../forge-db" }
 forge-agent = { path = "../forge-agent" }
 forge-safety = { path = "../forge-safety" }
 tokio = { version = "1", features = ["full"] }
+chrono = { workspace = true }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tokio-util = { workspace = true }
+
+[dev-dependencies]
+rusqlite = { workspace = true }

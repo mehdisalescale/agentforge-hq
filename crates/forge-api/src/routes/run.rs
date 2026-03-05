@@ -116,6 +116,15 @@ async fn run_handler(
                 cost, limit
             )),
         ),
+        MiddlewareError::ExitGateTriggered(reason) => api_error(
+            forge_core::error::ForgeError::Internal(format!("exit gate: {}", reason)),
+        ),
+        MiddlewareError::QualityGateFailed { score, threshold } => api_error(
+            forge_core::error::ForgeError::Internal(format!(
+                "quality gate failed: score {:.1} < threshold {:.1}",
+                score, threshold
+            )),
+        ),
         MiddlewareError::SpawnFailed(msg) => {
             api_error(forge_core::error::ForgeError::Internal(msg))
         }

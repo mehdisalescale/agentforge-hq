@@ -8,6 +8,7 @@ const MIGRATION_001: &str = include_str!("../../../migrations/0001_init.sql");
 const MIGRATION_002: &str = include_str!("../../../migrations/0002_add_cost.sql");
 const MIGRATION_003: &str = include_str!("../../../migrations/0003_add_memory.sql");
 const MIGRATION_004: &str = include_str!("../../../migrations/0004_add_hooks.sql");
+const MIGRATION_005: &str = include_str!("../../../migrations/0005_scheduler_analytics.sql");
 
 pub struct Migrator<'a> {
     conn: &'a Connection,
@@ -83,8 +84,18 @@ impl<'a> Migrator<'a> {
             self.conn
                 .execute_batch(MIGRATION_004)
                 .map_err(|e| ForgeError::Database(Box::new(e)))?;
+            current = 4;
             applied += 1;
             info!("migration 0004 applied, now at version 4");
+        }
+
+        if current < 5 {
+            info!("applying migration 0005_scheduler_analytics.sql");
+            self.conn
+                .execute_batch(MIGRATION_005)
+                .map_err(|e| ForgeError::Database(Box::new(e)))?;
+            applied += 1;
+            info!("migration 0005 applied, now at version 5");
         }
 
         if applied == 0 {
