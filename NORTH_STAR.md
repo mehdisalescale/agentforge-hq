@@ -1,7 +1,7 @@
 # Claude Forge — North Star
 
 > **Read this first in every session.** This is the single source of truth.
-> Last updated: 2026-03-03 (v0.4.0 — all 4 waves complete, 13 agents delivered)
+> Last updated: 2026-03-05 (v0.5.0 — scheduler, analytics, loop detection, quality gates)
 
 ---
 
@@ -14,38 +14,40 @@ The only Rust-native tool in the space — everyone else is TypeScript/Electron 
 
 ---
 
-## Current State (Verified 2026-03-03)
+## Current State (Verified 2026-03-05)
 
-All sprints complete. All 4 waves complete. Tagged v0.4.0.
+v0.5.0 tagged. All sprints + all 4 waves + v0.5.0 features complete.
 
 ### Build Status
 - `cargo check` — clean, zero warnings, all 9 crates compile
-- `cargo test` — 118 tests, all pass
+- `cargo test` — 150 tests, all pass
 - `cargo clippy` — clean, zero warnings
 - Frontend — built and embedded (SvelteKit 5 + adapter-static)
 
 ### What Works (verified in code)
 
 **Backend (9 workspace crates):**
-- forge-core (A): ForgeEvent (27 variants), EventBus broadcast, ForgeError, typed IDs
-- forge-agent (A-): 10 presets (incl. Coordinator), Agent/NewAgent/UpdateAgent, name validation
-- forge-db (A): SQLite WAL, 4 migrations, BatchWriter (50/2s), AgentRepo, SessionRepo, EventRepo, SkillRepo, MemoryRepo, HookRepo
-- forge-process (B+): Claude CLI spawn with stream-json, content block parsing, ConcurrentRunner (semaphore-limited parallel spawning)
-- forge-safety (B+): CircuitBreaker (3-state FSM), RateLimiter (token bucket), CostTracker (budget warn/limit)
-- forge-api (A-): Full HTTP API + WebSocket, CORS, TraceLayer, rust-embed SPA, 6-middleware chain (RateLimit, CircuitBreaker, CostCheck, SkillInjection, Persist, Spawn)
-- forge-app (A): Binary wiring, graceful shutdown, env config, skill loading at startup
-- forge-git (B+): Worktree create/remove/list for multi-agent isolation (7 tests)
-- forge-mcp-bin (B): MCP stdio server (rmcp, 10 tools)
+- forge-core: ForgeEvent (35 variants), EventBus broadcast, ForgeError, typed IDs (AgentId, SessionId, ScheduleId)
+- forge-agent: 10 presets (incl. Coordinator), Agent/NewAgent/UpdateAgent, name validation
+- forge-db: SQLite WAL, 5 migrations, BatchWriter (50/2s), 8 repos (Agent, Session, Event, Skill, Memory, Hook, Schedule, Analytics)
+- forge-process: Claude CLI spawn with stream-json, ConcurrentRunner, LoopDetector (sliding-window hash, exit gate)
+- forge-safety: CircuitBreaker (3-state FSM), RateLimiter (token bucket), CostTracker (budget warn/limit)
+- forge-api: Full HTTP API + WebSocket, CORS, TraceLayer, rust-embed SPA, 8-middleware chain (RateLimit, CircuitBreaker, CostCheck, SkillInjection, Persist, Spawn, ExitGate, QualityGate)
+- forge-app: Binary wiring, graceful shutdown, env config, skill loading, cron scheduler background task
+- forge-git: Worktree create/remove/list for multi-agent isolation (7 tests)
+- forge-mcp-bin: MCP stdio server (rmcp, 10 tools)
 
-**Frontend (10 pages, all $state runes):**
+**Frontend (12 pages, all $state runes):**
 - Dashboard — agent selector, prompt, WebSocket streaming, markdown rendering, sub-agent progress panel
 - Agents — full CRUD, 10 presets, domain badges (code/quality/ops/orchestration)
-- Sessions — two-pane layout, worktree badges, merge/cleanup buttons, export
+- Sessions — two-pane layout, worktree badges, merge/cleanup buttons, export (JSON/Markdown/HTML), cost display
 - Memory — full CRUD, search, confidence bars, category badges
 - Hooks — full CRUD, event type select, timing badges, enable/disable toggle
 - Skills — tag pills, category filter, expandable content, usage count
 - Workflows — visual placeholder diagram, card layout
 - Settings — config dashboard, health endpoint, env var table
+- **Schedules** — cron CRUD, preset dropdown, enable/disable toggle, run count, last/next run
+- **Analytics** — summary cards, CSS bar chart (daily costs), agent breakdown table, P90, projected monthly
 
 **Infrastructure:**
 - GitHub Actions CI (test + clippy + build)
@@ -53,21 +55,28 @@ All sprints complete. All 4 waves complete. Tagged v0.4.0.
 - E2E smoke test script
 - Configurable: FORGE_HOST, FORGE_PORT, FORGE_DB_PATH, FORGE_CORS_ORIGIN, FORGE_CLI_COMMAND, FORGE_RATE_LIMIT_*, FORGE_BUDGET_*
 
-### What's Next — v0.5.0
+### What's New in v0.5.0
 
-See `docs/V050_SPRINT_PLAN.md` for full plan (10 agents, 3 waves). Key additions:
+- **Cron scheduler**: ScheduleRepo CRUD (468 LOC, 10 tests), background tick loop (60s interval), CancellationToken shutdown, frontend page
+- **Usage analytics**: AnalyticsRepo (297 LOC, 7 tests), daily costs, agent breakdown, session stats, P90, projected monthly, frontend dashboard
+- **Loop detection**: LoopDetector (201 LOC, 10 tests), sliding-window hash dedup, exit gate config, completion pattern matching
+- **Quality/exit gates**: MiddlewareError variants for exit gate + quality gate, 3 quality gate middleware tests
+- **Session HTML export**: dark-themed HTML report, `/api/v1/sessions/:id/export?format=html`
+- **9 new events**: ScheduleCreated/Triggered/Deleted, ExitGateTriggered, QualityCheckStarted/Passed/Failed, Error
 
-| Feature | Agent | Wave |
-|---------|-------|------|
-| Best-of-N selection (quality multiplier) | N | 5 |
-| Context pruner + memory compaction | O | 5 |
-| Sequential + Fanout pipeline engine | P | 5 |
-| Cron scheduler | Q | 5 |
-| OpenAPI auto-docs | R | 5 |
-| Quality gates (critic-fixer loops) | T | 7 |
-| Three-type memory + auto-activating skills | U | 7 |
-| Predictive usage budgeting | V | 7 |
-| Swim-lane dashboard + pipeline UI | W | 7 |
+### What's Next — v0.6.0
+
+See `docs/V050_SPRINT_PLAN.md` for remaining planned features. Key items not yet implemented:
+
+| Feature | Priority |
+|---------|----------|
+| Best-of-N selection (quality multiplier) | HIGH |
+| Context pruner + memory compaction | HIGH |
+| Sequential + Fanout pipeline engine | HIGH |
+| Swim-lane observability dashboard | HIGH |
+| Three-type memory + auto-activating skills | MEDIUM |
+| OpenAPI auto-docs (utoipa + Scalar UI) | MEDIUM |
+| Predictive usage budgeting (P90 forecast) | MEDIUM |
 
 Research: `docs/RESEARCH_FINDINGS_2026_03_05.md` (67 repos analyzed)
 
@@ -116,7 +125,7 @@ These are NOT in scope until users demand them:
 | 305-feature roadmap | Focus on ~20 features that matter |
 | Notification system (20 features) | Webhooks (1 feature) covers 90% |
 | Plugin marketplace | Need users first |
-| Cron scheduler | Manual for now |
+| ~~Cron scheduler~~ | ~~Manual for now~~ → **Implemented in v0.5.0** |
 | Dev environment (code viewer, terminal) | Post-1.0 if ever |
 
 ---
@@ -163,17 +172,17 @@ These are NOT in scope until users demand them:
 ```
 forge-project/                    <-- Everything lives here
   crates/                         <-- 9 workspace crates
-    forge-core/                   ForgeEvent (27 variants), EventBus, errors, IDs
+    forge-core/                   ForgeEvent (35 variants), EventBus, errors, IDs
     forge-agent/                  Agent model, 10 presets, validation
-    forge-db/                     SQLite WAL, 4 migrations, 6 repos, BatchWriter
-    forge-process/                Claude CLI spawn, stream-json, ConcurrentRunner
+    forge-db/                     SQLite WAL, 5 migrations, 8 repos, BatchWriter
+    forge-process/                Claude CLI spawn, stream-json, ConcurrentRunner, LoopDetector
     forge-safety/                 CircuitBreaker, RateLimiter, CostTracker
     forge-api/                    Axum HTTP + WebSocket + middleware + embedded frontend
     forge-app/                    Binary entry point, wiring, shutdown
     forge-git/                    Git worktree create/remove/list
     forge-mcp-bin/                MCP stdio server (rmcp)
   frontend/                       SvelteKit 5 + TailwindCSS 4
-  migrations/                     0001_init, 0002_add_cost, 0003_add_memory, 0004_add_hooks
+  migrations/                     0001_init, 0002_add_cost, 0003_add_memory, 0004_add_hooks, 0005_scheduler_analytics
   skills/                         10 seed Markdown skill files
   scripts/                        e2e-smoke.sh
   .github/workflows/              ci.yml, release.yml

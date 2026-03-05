@@ -1,7 +1,7 @@
 # Documentation Index
 
 > What's current, what's archived, what to read.
-> Updated: 2026-03-05 (v0.5.0 planning)
+> Updated: 2026-03-05 (v0.5.0 released)
 
 ---
 

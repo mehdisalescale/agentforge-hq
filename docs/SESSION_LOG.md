@@ -15,8 +15,12 @@
   - **Wrote findings**: `docs/RESEARCH_FINDINGS_2026_03_05.md` — structured analysis with 3 tiers, 28 patterns, source files, implementation sketches
   - **Wrote sprint plan**: `docs/V050_SPRINT_PLAN.md` — 10 agents (N-W), 3 waves, file ownership matrices, verification gates
   - **Updated docs**: DOC_INDEX.md, NORTH_STAR.md, SESSION_LOG.md
-- **Key deliverables**: 2 new docs (~800 lines total), v0.5.0 plan ready for execution
-- **What's next**: Execute Wave 5 (5 parallel agents: best-of-N, context pruner, pipelines, cron, OpenAPI)
+- **Committed code changes** (from prior work): scheduler, analytics, loop detection, quality gates, session HTML export — 30 files, +2,257 LOC, 150 tests pass
+- **Updated all docs** for v0.5.0: CLAUDE.md, NORTH_STAR.md, README.md, DOC_INDEX.md, SESSION_LOG.md
+- **Tagged v0.5.0**
+- **Key deliverables**: 2 research docs + v0.5.0 code + tag
+- **Stats**: 9 crates, 150 tests, 12 frontend pages, 35 event types, 8 repos, 8 middlewares, 5 migrations
+- **What's next**: v0.6.0 — best-of-N selection, context pruner, pipelines, swim-lane dashboard, OpenAPI
 
 ---
 
