@@ -5,6 +5,21 @@
 
 ---
 
+### Session 16 — 2026-03-05 — Research + v0.5.0 sprint plan
+
+- **Branch**: `main`
+- **What was done**:
+  - **Release verification**: Fixed gh CLI auth (was on wrong account), confirmed v0.4.0 release successful — 3 binaries (macos-arm64, macos-x64, linux-x64) published
+  - **Research — reference-map**: Analyzed 61 repos across 13 categories from `claude-parent/reference-map/`. Identified 28 adoptable patterns.
+  - **Research — 4-march repos**: Analyzed 6 recent repos (codebuff, ReMe, agentscope, agency-agents, airi, LMCache). codebuff and ReMe are most relevant — best-of-N selection, context pruning, 3-type memory, hybrid search.
+  - **Wrote findings**: `docs/RESEARCH_FINDINGS_2026_03_05.md` — structured analysis with 3 tiers, 28 patterns, source files, implementation sketches
+  - **Wrote sprint plan**: `docs/V050_SPRINT_PLAN.md` — 10 agents (N-W), 3 waves, file ownership matrices, verification gates
+  - **Updated docs**: DOC_INDEX.md, NORTH_STAR.md, SESSION_LOG.md
+- **Key deliverables**: 2 new docs (~800 lines total), v0.5.0 plan ready for execution
+- **What's next**: Execute Wave 5 (5 parallel agents: best-of-N, context pruner, pipelines, cron, OpenAPI)
+
+---
+
 ### Session 15 — 2026-03-03 — Wave 4 complete, v0.4.0 tagged
 
 - **Branch**: `main`

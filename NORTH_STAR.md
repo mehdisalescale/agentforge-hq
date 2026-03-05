@@ -53,12 +53,29 @@ All sprints complete. All 4 waves complete. Tagged v0.4.0.
 - E2E smoke test script
 - Configurable: FORGE_HOST, FORGE_PORT, FORGE_DB_PATH, FORGE_CORS_ORIGIN, FORGE_CLI_COMMAND, FORGE_RATE_LIMIT_*, FORGE_BUDGET_*
 
-### What's Missing
+### What's Next — v0.5.0
+
+See `docs/V050_SPRINT_PLAN.md` for full plan (10 agents, 3 waves). Key additions:
+
+| Feature | Agent | Wave |
+|---------|-------|------|
+| Best-of-N selection (quality multiplier) | N | 5 |
+| Context pruner + memory compaction | O | 5 |
+| Sequential + Fanout pipeline engine | P | 5 |
+| Cron scheduler | Q | 5 |
+| OpenAPI auto-docs | R | 5 |
+| Quality gates (critic-fixer loops) | T | 7 |
+| Three-type memory + auto-activating skills | U | 7 |
+| Predictive usage budgeting | V | 7 |
+| Swim-lane dashboard + pipeline UI | W | 7 |
+
+Research: `docs/RESEARCH_FINDINGS_2026_03_05.md` (67 repos analyzed)
+
+### Remaining Gaps
 
 | Gap | Severity | When |
 |-----|----------|------|
 | Authentication (none anywhere) | Medium | Post-v1.0 |
-| Worktree HTTP API (git operations via REST) | Low | v0.5.0 |
 | E2E automated test suite | Low | v0.5.0 |
 
 ---

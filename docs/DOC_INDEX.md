@@ -1,7 +1,7 @@
 # Documentation Index
 
 > What's current, what's archived, what to read.
-> Updated: 2026-03-03 (v0.4.0 — all waves complete)
+> Updated: 2026-03-05 (v0.5.0 planning)
 
 ---
 
@@ -24,7 +24,9 @@
 | `docs/HARVESTER_INTEGRATION.md` | Harvester integration assessment and roadmap | 2026-03-02 |
 | `docs/MCP_DESIGN.md` | MCP server design notes | 2026-02-27 |
 | `docs/E2E_SMOKE_TEST.md` | E2E test documentation | 2026-02-27 |
-| `docs/DOC_INDEX.md` | This file | 2026-03-03 |
+| `docs/RESEARCH_FINDINGS_2026_03_05.md` | Patterns from 67 repos worth adopting | 2026-03-05 |
+| `docs/V050_SPRINT_PLAN.md` | v0.5.0 sprint plan — 10 agents, 3 waves | 2026-03-05 |
+| `docs/DOC_INDEX.md` | This file | 2026-03-05 |
 
 ## Agent Coordination
 
