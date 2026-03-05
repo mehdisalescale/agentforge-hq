@@ -17,6 +17,7 @@ pub struct SubTask {
 }
 
 /// Result from a completed sub-task.
+#[derive(Debug)]
 pub struct SubTaskResult {
     pub agent_id: AgentId,
     pub session_id: SessionId,

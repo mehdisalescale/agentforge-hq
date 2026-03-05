@@ -14,3 +14,5 @@ tower-http = { version = "0.5", features = ["cors", "trace"] }
 rust-embed = { version = "8", features = ["mime-guess"] }
 cron = "0.13"
 tokio-util = { version = "0.7", features = ["rt"] }
+utoipa = { version = "5", features = ["axum_extras"] }
+utoipa-scalar = { version = "0.2", features = ["axum"] }

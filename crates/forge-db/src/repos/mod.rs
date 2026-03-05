@@ -1,5 +1,6 @@
 pub mod agents;
 pub mod analytics;
+pub mod compaction;
 pub mod events;
 pub mod hooks;
 pub mod memory;
