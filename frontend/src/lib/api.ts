@@ -252,6 +252,64 @@ export async function listWorkflows(): Promise<Workflow[]> {
   return handleResponse<Workflow[]>(res);
 }
 
+export interface NewWorkflow {
+  name: string;
+  description?: string | null;
+  definition_json: string;
+}
+
+export interface UpdateWorkflowData {
+  name?: string;
+  description?: string | null;
+  definition_json?: string;
+}
+
+export async function createWorkflow(data: NewWorkflow): Promise<Workflow> {
+  const res = await fetch(`${API_BASE}/api/v1/workflows`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<Workflow>(res);
+}
+
+export async function updateWorkflow(id: string, data: UpdateWorkflowData): Promise<Workflow> {
+  const res = await fetch(`${API_BASE}/api/v1/workflows/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<Workflow>(res);
+}
+
+export async function deleteWorkflow(id: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/v1/workflows/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+  await handleResponse<void>(res);
+}
+
+export interface RunWorkflowRequest {
+  prompt: string;
+  working_dir?: string;
+}
+
+export interface RunWorkflowResponse {
+  session_id: string;
+  message?: string;
+}
+
+export async function runWorkflow(id: string, prompt: string, working_dir?: string): Promise<RunWorkflowResponse> {
+  const body: RunWorkflowRequest = { prompt };
+  if (working_dir) body.working_dir = working_dir;
+  const res = await fetch(`${API_BASE}/api/v1/workflows/${encodeURIComponent(id)}/run`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  return handleResponse<RunWorkflowResponse>(res);
+}
+
 // --- Memory (Phase 2) ---
 
 export interface Memory {

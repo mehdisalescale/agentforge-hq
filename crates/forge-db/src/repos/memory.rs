@@ -15,6 +15,7 @@ pub struct Memory {
     pub content: String,
     pub confidence: f64,
     pub source_session_id: Option<String>,
+    pub memory_type: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -50,6 +51,26 @@ const STOPWORDS: &[&str] = &[
     "this", "that", "with",
 ];
 
+/// Classify an extracted fact into a memory type based on content keywords.
+/// Returns one of: "personal", "tool", or "task".
+pub fn classify_fact(fact: &ExtractedFact) -> &'static str {
+    let content_lower = fact.content.to_lowercase();
+    if content_lower.contains("prefers")
+        || content_lower.contains("always")
+        || content_lower.contains("style")
+    {
+        "personal"
+    } else if content_lower.contains("tool")
+        || content_lower.contains("command")
+        || content_lower.contains("cli")
+        || content_lower.contains("api")
+    {
+        "tool"
+    } else {
+        "task"
+    }
+}
+
 pub struct MemoryRepo {
     conn: Arc<Mutex<Connection>>,
 }
@@ -60,6 +81,11 @@ impl MemoryRepo {
     }
 
     pub fn create(&self, input: &NewMemory) -> ForgeResult<Memory> {
+        self.create_with_type(input, "personal")
+    }
+
+    /// Create a new memory with an explicit memory_type.
+    pub fn create_with_type(&self, input: &NewMemory, memory_type: &str) -> ForgeResult<Memory> {
         if input.content.trim().is_empty() {
             return Err(ForgeError::Validation("content cannot be empty".into()));
         }
@@ -69,20 +95,43 @@ impl MemoryRepo {
         let category = input.category.as_deref().unwrap_or("general");
         let confidence = input.confidence.unwrap_or(0.5);
 
-        conn.execute(
-            "INSERT INTO memory (id, category, content, confidence, source_session_id, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        // Try inserting with memory_type column; fall back to without if column doesn't exist yet
+        let result = conn.execute(
+            "INSERT INTO memory (id, category, content, confidence, source_session_id, memory_type, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
             rusqlite::params![
                 id,
                 category,
                 input.content,
                 confidence,
                 input.source_session_id,
+                memory_type,
                 now.to_rfc3339(),
                 now.to_rfc3339(),
             ],
-        )
-        .map_err(|e| ForgeError::Database(Box::new(e)))?;
+        );
+
+        match result {
+            Ok(_) => {}
+            Err(ref e) if e.to_string().contains("memory_type") => {
+                // Column doesn't exist yet — insert without it
+                conn.execute(
+                    "INSERT INTO memory (id, category, content, confidence, source_session_id, created_at, updated_at)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                    rusqlite::params![
+                        id,
+                        category,
+                        input.content,
+                        confidence,
+                        input.source_session_id,
+                        now.to_rfc3339(),
+                        now.to_rfc3339(),
+                    ],
+                )
+                .map_err(|e| ForgeError::Database(Box::new(e)))?;
+            }
+            Err(e) => return Err(ForgeError::Database(Box::new(e))),
+        }
 
         drop(conn);
         self.get(&id)
@@ -90,11 +139,18 @@ impl MemoryRepo {
 
     pub fn get(&self, id: &str) -> ForgeResult<Memory> {
         let conn = self.conn.lock().expect("db mutex poisoned");
+
+        // Try with memory_type column first; fall back without it
+        let sql = if has_memory_type_column(&conn) {
+            "SELECT id, category, content, confidence, source_session_id, created_at, updated_at, memory_type
+             FROM memory WHERE id = ?1"
+        } else {
+            "SELECT id, category, content, confidence, source_session_id, created_at, updated_at
+             FROM memory WHERE id = ?1"
+        };
+
         let mut stmt = conn
-            .prepare(
-                "SELECT id, category, content, confidence, source_session_id, created_at, updated_at
-                 FROM memory WHERE id = ?1",
-            )
+            .prepare(sql)
             .map_err(|e| ForgeError::Database(Box::new(e)))?;
 
         stmt.query_row(rusqlite::params![id], |row| {
@@ -112,11 +168,17 @@ impl MemoryRepo {
 
     pub fn list(&self, limit: i64, offset: i64) -> ForgeResult<Vec<Memory>> {
         let conn = self.conn.lock().expect("db mutex poisoned");
+
+        let sql = if has_memory_type_column(&conn) {
+            "SELECT id, category, content, confidence, source_session_id, created_at, updated_at, memory_type
+             FROM memory ORDER BY updated_at DESC LIMIT ?1 OFFSET ?2"
+        } else {
+            "SELECT id, category, content, confidence, source_session_id, created_at, updated_at
+             FROM memory ORDER BY updated_at DESC LIMIT ?1 OFFSET ?2"
+        };
+
         let mut stmt = conn
-            .prepare(
-                "SELECT id, category, content, confidence, source_session_id, created_at, updated_at
-                 FROM memory ORDER BY updated_at DESC LIMIT ?1 OFFSET ?2",
-            )
+            .prepare(sql)
             .map_err(|e| ForgeError::Database(Box::new(e)))?;
 
         let memories: Vec<Memory> = stmt
@@ -221,11 +283,13 @@ impl MemoryRepo {
 
     /// Store extracted facts from a completed session.
     /// Deduplicates against existing memories by content similarity (LIKE match).
+    /// Classifies each fact into a memory_type via `classify_fact()`.
     /// Returns the number of new/updated memories.
     pub fn store_extracted(&self, facts: &[ExtractedFact], session_id: &str) -> ForgeResult<usize> {
         let mut stored = 0;
 
         for fact in facts {
+            let mem_type = classify_fact(fact);
             let existing = self.search(&fact.content)?;
 
             let similar = existing.iter().find(|m| {
@@ -250,13 +314,16 @@ impl MemoryRepo {
                     stored += 1;
                 }
                 None => {
-                    // No similar — create new
-                    self.create(&NewMemory {
-                        category: Some(fact.category.clone()),
-                        content: fact.content.clone(),
-                        confidence: Some(fact.confidence),
-                        source_session_id: Some(session_id.to_string()),
-                    })?;
+                    // No similar — create new with classified type
+                    self.create_with_type(
+                        &NewMemory {
+                            category: Some(fact.category.clone()),
+                            content: fact.content.clone(),
+                            confidence: Some(fact.confidence),
+                            source_session_id: Some(session_id.to_string()),
+                        },
+                        mem_type,
+                    )?;
                     stored += 1;
                 }
             }
@@ -268,6 +335,13 @@ impl MemoryRepo {
     /// Find memories relevant to a prompt via keyword overlap.
     /// Returns a formatted context block for prepending to a system prompt,
     /// or None if no relevant memories are found.
+    ///
+    /// Priority weighting by memory_type:
+    /// - task memories: weight 3x (retrieve up to 3x as many)
+    /// - tool memories: weight 2x
+    /// - personal memories: weight 1x
+    ///
+    /// Total still limited by max_memories param.
     pub fn inject_context(&self, prompt: &str, max_memories: usize) -> ForgeResult<Option<String>> {
         let keywords: Vec<String> = prompt
             .split_whitespace()
@@ -294,8 +368,21 @@ impl MemoryRepo {
             return Ok(None);
         }
 
-        // Sort by confidence descending
-        matched.sort_by(|a, b| b.confidence.partial_cmp(&a.confidence).unwrap_or(std::cmp::Ordering::Equal));
+        // Sort by weighted score: type weight * confidence, descending.
+        // task=3x, tool=2x, personal=1x
+        matched.sort_by(|a, b| {
+            let weight = |m: &Memory| -> f64 {
+                let w = match m.memory_type.as_str() {
+                    "task" => 3.0,
+                    "tool" => 2.0,
+                    _ => 1.0,
+                };
+                w * m.confidence
+            };
+            weight(b)
+                .partial_cmp(&weight(a))
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         matched.truncate(max_memories);
 
         let mut block = String::from("## Relevant Context (from previous sessions)\n\n");
@@ -310,13 +397,21 @@ impl MemoryRepo {
     pub fn search(&self, query: &str) -> ForgeResult<Vec<Memory>> {
         let conn = self.conn.lock().expect("db mutex poisoned");
         let pattern = format!("%{}%", query);
+
+        let sql = if has_memory_type_column(&conn) {
+            "SELECT id, category, content, confidence, source_session_id, created_at, updated_at, memory_type
+             FROM memory
+             WHERE content LIKE ?1 OR category LIKE ?1
+             ORDER BY confidence DESC, updated_at DESC"
+        } else {
+            "SELECT id, category, content, confidence, source_session_id, created_at, updated_at
+             FROM memory
+             WHERE content LIKE ?1 OR category LIKE ?1
+             ORDER BY confidence DESC, updated_at DESC"
+        };
+
         let mut stmt = conn
-            .prepare(
-                "SELECT id, category, content, confidence, source_session_id, created_at, updated_at
-                 FROM memory
-                 WHERE content LIKE ?1 OR category LIKE ?1
-                 ORDER BY confidence DESC, updated_at DESC",
-            )
+            .prepare(sql)
             .map_err(|e| ForgeError::Database(Box::new(e)))?;
 
         let memories: Vec<Memory> = stmt
@@ -333,6 +428,41 @@ impl MemoryRepo {
 
         Ok(memories)
     }
+
+    /// Search memories filtered by type.
+    pub fn search_by_type(&self, memory_type: &str, query: &str) -> ForgeResult<Vec<Memory>> {
+        let conn = self.conn.lock().expect("db mutex poisoned");
+        let pattern = format!("%{}%", query);
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, category, content, confidence, source_session_id, created_at, updated_at, memory_type
+                 FROM memory
+                 WHERE memory_type = ?1 AND content LIKE ?2
+                 ORDER BY confidence DESC
+                 LIMIT 20",
+            )
+            .map_err(|e| ForgeError::Database(Box::new(e)))?;
+
+        let memories: Vec<Memory> = stmt
+            .query_map(rusqlite::params![memory_type, pattern], |row| {
+                row_to_memory(row)
+                    .map_err(|e| rusqlite::Error::InvalidParameterName(e.to_string()))
+            })
+            .map_err(|e| ForgeError::Database(Box::new(e)))?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| match e {
+                rusqlite::Error::InvalidParameterName(s) => ForgeError::Validation(s),
+                other => ForgeError::Database(Box::new(other)),
+            })?;
+
+        Ok(memories)
+    }
+}
+
+/// Check if the memory table has the memory_type column.
+fn has_memory_type_column(conn: &Connection) -> bool {
+    conn.prepare("SELECT memory_type FROM memory LIMIT 0")
+        .is_ok()
 }
 
 fn row_to_memory(row: &rusqlite::Row<'_>) -> Result<Memory, ForgeError> {
@@ -343,6 +473,10 @@ fn row_to_memory(row: &rusqlite::Row<'_>) -> Result<Memory, ForgeError> {
     let source_session_id: Option<String> = row.get(4).map_err(|e| ForgeError::Database(Box::new(e)))?;
     let created_at: String = row.get(5).map_err(|e| ForgeError::Database(Box::new(e)))?;
     let updated_at: String = row.get(6).map_err(|e| ForgeError::Database(Box::new(e)))?;
+
+    // Column 7 is memory_type if present; default to "personal"
+    let memory_type: String = row.get(7).unwrap_or_else(|_| "personal".to_string());
+
     let created_at = DateTime::parse_from_rfc3339(&created_at)
         .map_err(|_| ForgeError::Validation(format!("invalid timestamp: {}", created_at)))?
         .with_timezone(&Utc);
@@ -356,6 +490,7 @@ fn row_to_memory(row: &rusqlite::Row<'_>) -> Result<Memory, ForgeError> {
         content,
         confidence,
         source_session_id,
+        memory_type,
         created_at,
         updated_at,
     })
@@ -652,6 +787,119 @@ mod tests {
         // Count bullet lines
         let bullet_count = block.lines().filter(|l| l.starts_with("- ")).count();
         assert_eq!(bullet_count, 2);
+    }
+
+    // --- Typed memory tests ---
+
+    /// Setup a DB with the memory_type column for typed-memory tests.
+    fn setup_db_with_memory_type() -> Arc<Mutex<Connection>> {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS memory (
+                id TEXT PRIMARY KEY,
+                category TEXT NOT NULL DEFAULT 'general',
+                content TEXT NOT NULL,
+                confidence REAL NOT NULL DEFAULT 0.5,
+                source_session_id TEXT,
+                created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+                memory_type TEXT NOT NULL DEFAULT 'personal'
+            );
+            CREATE INDEX IF NOT EXISTS idx_memory_category ON memory(category);",
+        )
+        .unwrap();
+        Arc::new(Mutex::new(conn))
+    }
+
+    #[test]
+    fn classify_fact_detects_personal() {
+        let fact = ExtractedFact {
+            category: "patterns".into(),
+            content: "user prefers dark mode".into(),
+            confidence: 0.8,
+        };
+        assert_eq!(classify_fact(&fact), "personal");
+    }
+
+    #[test]
+    fn classify_fact_detects_tool() {
+        let fact = ExtractedFact {
+            category: "solutions".into(),
+            content: "use cargo test command".into(),
+            confidence: 0.9,
+        };
+        assert_eq!(classify_fact(&fact), "tool");
+    }
+
+    #[test]
+    fn classify_fact_detects_task() {
+        let fact = ExtractedFact {
+            category: "decisions".into(),
+            content: "implement the login page".into(),
+            confidence: 0.7,
+        };
+        assert_eq!(classify_fact(&fact), "task");
+    }
+
+    #[test]
+    fn memory_type_filtering() {
+        let conn = setup_db_with_memory_type();
+        let repo = MemoryRepo::new(conn);
+
+        // Store a personal memory
+        repo.create_with_type(
+            &NewMemory {
+                category: Some("patterns".into()),
+                content: "user prefers dark mode theme".into(),
+                confidence: Some(0.8),
+                source_session_id: None,
+            },
+            "personal",
+        )
+        .unwrap();
+
+        // Store a tool memory
+        repo.create_with_type(
+            &NewMemory {
+                category: Some("solutions".into()),
+                content: "use cargo test for testing theme issues".into(),
+                confidence: Some(0.9),
+                source_session_id: None,
+            },
+            "tool",
+        )
+        .unwrap();
+
+        // Store a task memory
+        repo.create_with_type(
+            &NewMemory {
+                category: Some("decisions".into()),
+                content: "implement the theme switcher".into(),
+                confidence: Some(0.7),
+                source_session_id: None,
+            },
+            "task",
+        )
+        .unwrap();
+
+        // search_by_type for "personal" with "theme" query
+        let personal = repo.search_by_type("personal", "theme").unwrap();
+        assert_eq!(personal.len(), 1);
+        assert!(personal[0].content.contains("dark mode"));
+
+        // search_by_type for "tool" with "theme" query
+        let tool = repo.search_by_type("tool", "theme").unwrap();
+        assert_eq!(tool.len(), 1);
+        assert!(tool[0].content.contains("cargo test"));
+
+        // search_by_type for "task" with "theme" query
+        let task = repo.search_by_type("task", "theme").unwrap();
+        assert_eq!(task.len(), 1);
+        assert!(task[0].content.contains("theme switcher"));
+
+        // search_by_type with non-matching type returns empty
+        let empty = repo.search_by_type("personal", "nonexistent").unwrap();
+        assert!(empty.is_empty());
     }
 
     #[test]

@@ -42,6 +42,36 @@
     timestamp: string;
   }
 
+  /** Per-agent output block with icon metadata for swim lanes */
+  interface SwimLaneEvent {
+    kind: OutputBlock['kind'];
+    content: string;
+    timestamp: string;
+  }
+
+  /** Swim-lane column tracking for each sub-agent */
+  interface SwimLaneColumn {
+    agentId: string;
+    status: 'running' | 'completed' | 'failed' | 'pending';
+    sessionId?: string;
+    events: SwimLaneEvent[];
+  }
+
+  const KIND_ICONS: Record<OutputBlock['kind'], string> = {
+    assistant: '\u{1F4AC}',
+    tool_use: '\u{1F527}',
+    tool_result: '\u{1F4CB}',
+    thinking: '\u{1F9E0}',
+    result: '\u2705',
+  };
+
+  const STATUS_COLORS: Record<string, string> = {
+    running: '#3b82f6',
+    completed: '#22c55e',
+    failed: '#ef4444',
+    pending: '#6b7280',
+  };
+
   setContext('pageTitle', 'Dashboard');
 
   // --- Svelte 5 rune state ---
@@ -60,6 +90,9 @@
   let wsReconnectTimer = $state<ReturnType<typeof setTimeout> | null>(null);
   let wsReconnectDelay = $state(1000);
   let subAgents = $state<SubAgentStatus[]>([]);
+  let swimLaneColumns = $state<Record<string, SwimLaneColumn>>({});
+  let swimLaneMode = $derived(Object.keys(swimLaneColumns).length > 0);
+  let swimLanePinned = $state(true);
   const WS_MAX_RECONNECT_DELAY = 30000;
 
   /** Session ID from ?resume= (Sessions page "Resume"). Only in browser (prerender-safe). */
@@ -115,31 +148,50 @@
           if (ev.type === 'SubAgentRequested' && ev.data) {
             const parentSid = ev.data.parent_session_id as string | undefined;
             if (parentSid === currentSessionId) {
+              const subId = (ev.data.sub_agent_id as string) ?? 'unknown';
               subAgents = [...subAgents, {
-                agentId: (ev.data.sub_agent_id as string) ?? 'unknown',
+                agentId: subId,
                 status: 'requested',
                 prompt: (ev.data.prompt as string) ?? undefined,
                 timestamp: (ev.data.timestamp as string) ?? new Date().toISOString(),
               }];
+              // Initialize swim-lane column
+              if (!swimLaneColumns[subId]) {
+                swimLaneColumns[subId] = {
+                  agentId: subId,
+                  status: 'pending',
+                  events: [],
+                };
+                swimLaneColumns = swimLaneColumns;
+              }
             }
           }
           if (ev.type === 'SubAgentStarted' && ev.data) {
             const parentSid = ev.data.parent_session_id as string | undefined;
             if (parentSid === currentSessionId) {
               const subId = ev.data.sub_agent_id as string;
+              const subSessionId = (ev.data.session_id as string) ?? undefined;
               const idx = subAgents.findIndex(sa => sa.agentId === subId && sa.status === 'requested');
               if (idx >= 0) {
                 subAgents[idx].status = 'running';
-                subAgents[idx].sessionId = (ev.data.session_id as string) ?? undefined;
+                subAgents[idx].sessionId = subSessionId;
                 subAgents = subAgents;
               } else {
                 subAgents = [...subAgents, {
                   agentId: subId ?? 'unknown',
                   status: 'running',
-                  sessionId: (ev.data.session_id as string) ?? undefined,
+                  sessionId: subSessionId,
                   timestamp: (ev.data.timestamp as string) ?? new Date().toISOString(),
                 }];
               }
+              // Update swim-lane column
+              if (!swimLaneColumns[subId]) {
+                swimLaneColumns[subId] = { agentId: subId, status: 'running', sessionId: subSessionId, events: [] };
+              } else {
+                swimLaneColumns[subId].status = 'running';
+                swimLaneColumns[subId].sessionId = subSessionId;
+              }
+              swimLaneColumns = swimLaneColumns;
             }
           }
           if (ev.type === 'SubAgentCompleted' && ev.data) {
@@ -150,6 +202,10 @@
               if (idx >= 0) {
                 subAgents[idx].status = 'completed';
                 subAgents = subAgents;
+              }
+              if (swimLaneColumns[subId]) {
+                swimLaneColumns[subId].status = 'completed';
+                swimLaneColumns = swimLaneColumns;
               }
             }
           }
@@ -162,6 +218,30 @@
                 subAgents[idx].status = 'failed';
                 subAgents[idx].error = (ev.data.error as string) ?? undefined;
                 subAgents = subAgents;
+              }
+              if (swimLaneColumns[subId]) {
+                swimLaneColumns[subId].status = 'failed';
+                swimLaneColumns = swimLaneColumns;
+              }
+            }
+          }
+
+          // --- Route ProcessOutput to swim-lane columns ---
+          if (ev.type === 'ProcessOutput' && ev.data?.session_id && ev.data?.content !== undefined) {
+            const evSessionId = ev.data.session_id as string;
+            // Check if this output belongs to a sub-agent session
+            for (const col of Object.values(swimLaneColumns)) {
+              if (col.sessionId === evSessionId) {
+                const kind = normalizeBlockKind(ev.data.kind ?? 'assistant');
+                const content = typeof ev.data.content === 'string' ? ev.data.content : String(ev.data.content);
+                const lastEvt = col.events.length > 0 ? col.events[col.events.length - 1] : null;
+                if (lastEvt && lastEvt.kind === kind) {
+                  lastEvt.content += content;
+                } else {
+                  col.events.push({ kind, content, timestamp: new Date().toISOString() });
+                }
+                swimLaneColumns = swimLaneColumns;
+                break;
               }
             }
           }
@@ -230,10 +310,30 @@
   function clearStream() {
     outputBlocks = [];
     subAgents = [];
+    swimLaneColumns = {};
+    swimLanePinned = true;
     streamStatus = 'idle';
     streamStatusDetail = '';
     currentSessionId = null;
   }
+
+  let sortedSwimLaneColumns = $derived(Object.values(swimLaneColumns).sort((a, b) => a.agentId.localeCompare(b.agentId)));
+
+  let swimLaneContainer: HTMLElement | undefined = $state(undefined);
+
+  $effect(() => {
+    // Auto-scroll swim-lane columns when pinned
+    if (swimLanePinned && swimLaneContainer) {
+      // Access swimLaneColumns to create dependency
+      const _cols = swimLaneColumns;
+      void _cols;
+      // Scroll each column body to bottom
+      const bodies = swimLaneContainer.querySelectorAll('.swim-col-body');
+      for (const body of bodies) {
+        body.scrollTop = body.scrollHeight;
+      }
+    }
+  });
 
   onMount(() => {
     loadAgents();
@@ -303,35 +403,97 @@
         {streamStatusDetail}
       </p>
     {/if}
-    <div class="stream-output" class:empty={outputBlocks.length === 0}>
-      {#if outputBlocks.length > 0}
-        {#each outputBlocks as block}
-          {#if block.kind === 'assistant' || block.kind === 'result'}
-            <div class="block-assistant stream-rendered">{@html renderStreamMarkdown(block.content)}</div>
-          {:else if block.kind === 'tool_use'}
-            <details class="block-tool">
-              <summary>Tool Call</summary>
-              <pre><code>{block.content}</code></pre>
-            </details>
-          {:else if block.kind === 'tool_result'}
-            <details class="block-tool result">
-              <summary>Tool Result</summary>
-              <pre><code>{block.content}</code></pre>
-            </details>
-          {:else if block.kind === 'thinking'}
-            <details class="block-thinking">
-              <summary>Thinking...</summary>
-              <pre class="dimmed">{block.content}</pre>
-            </details>
-          {/if}
+
+    {#if swimLaneMode}
+      <!-- Swim-lane view: one column per sub-agent -->
+      <div class="swim-lane-controls">
+        <span class="swim-lane-label">Swim Lanes ({sortedSwimLaneColumns.length} agents)</span>
+        <label class="pin-toggle">
+          <input type="checkbox" bind:checked={swimLanePinned} />
+          <span>Pin to bottom</span>
+        </label>
+      </div>
+      <div class="swim-lane-container" bind:this={swimLaneContainer}>
+        {#each sortedSwimLaneColumns as col (col.agentId)}
+          <div class="swim-col" style="--lane-color: {STATUS_COLORS[col.status] ?? '#6b7280'}">
+            <div class="swim-col-header">
+              <span class="swim-col-name" title={col.agentId}>{col.agentId.slice(0, 12)}{col.agentId.length > 12 ? '...' : ''}</span>
+              <span class="swim-col-badge" style="background: {STATUS_COLORS[col.status] ?? '#6b7280'}; color: #fff;">{col.status}</span>
+            </div>
+            <div class="swim-col-body">
+              {#if col.events.length === 0}
+                <span class="muted swim-col-empty">Waiting for output...</span>
+              {:else}
+                {#each col.events as evt}
+                  <div class="swim-evt" class:swim-evt-tool={evt.kind === 'tool_use' || evt.kind === 'tool_result'} class:swim-evt-thinking={evt.kind === 'thinking'}>
+                    <span class="swim-evt-icon">{KIND_ICONS[evt.kind]}</span>
+                    <span class="swim-evt-content">{evt.content.slice(0, 200)}{evt.content.length > 200 ? '...' : ''}</span>
+                  </div>
+                {/each}
+              {/if}
+            </div>
+          </div>
         {/each}
-      {:else}
-        <span class="muted">Run an agent to see streaming output here.</span>
+      </div>
+
+      <!-- Also show orchestrator output below the swim lanes -->
+      {#if outputBlocks.length > 0}
+        <div class="stream-output" style="margin-top: 1rem;">
+          <h3 style="margin: 0 0 0.5rem 0; font-size: 0.9rem; color: var(--muted);">Orchestrator Output</h3>
+          {#each outputBlocks as block}
+            {#if block.kind === 'assistant' || block.kind === 'result'}
+              <div class="block-assistant stream-rendered">{@html renderStreamMarkdown(block.content)}</div>
+            {:else if block.kind === 'tool_use'}
+              <details class="block-tool">
+                <summary>Tool Call</summary>
+                <pre><code>{block.content}</code></pre>
+              </details>
+            {:else if block.kind === 'tool_result'}
+              <details class="block-tool result">
+                <summary>Tool Result</summary>
+                <pre><code>{block.content}</code></pre>
+              </details>
+            {:else if block.kind === 'thinking'}
+              <details class="block-thinking">
+                <summary>Thinking...</summary>
+                <pre class="dimmed">{block.content}</pre>
+              </details>
+            {/if}
+          {/each}
+        </div>
       {/if}
-    </div>
+    {:else}
+      <!-- Flat output log (no sub-agents) -->
+      <div class="stream-output" class:empty={outputBlocks.length === 0}>
+        {#if outputBlocks.length > 0}
+          {#each outputBlocks as block}
+            {#if block.kind === 'assistant' || block.kind === 'result'}
+              <div class="block-assistant stream-rendered">{@html renderStreamMarkdown(block.content)}</div>
+            {:else if block.kind === 'tool_use'}
+              <details class="block-tool">
+                <summary>Tool Call</summary>
+                <pre><code>{block.content}</code></pre>
+              </details>
+            {:else if block.kind === 'tool_result'}
+              <details class="block-tool result">
+                <summary>Tool Result</summary>
+                <pre><code>{block.content}</code></pre>
+              </details>
+            {:else if block.kind === 'thinking'}
+              <details class="block-thinking">
+                <summary>Thinking...</summary>
+                <pre class="dimmed">{block.content}</pre>
+              </details>
+            {/if}
+          {/each}
+        {:else}
+          <span class="muted">Run an agent to see streaming output here.</span>
+        {/if}
+      </div>
+    {/if}
   </section>
 
-  {#if subAgents.length > 0}
+  {#if subAgents.length > 0 && !swimLaneMode}
     <section class="subagents-section">
       <h2>Sub-agents</h2>
       <div class="subagent-grid">
@@ -587,5 +749,115 @@
     font-size: 0.8rem;
     color: #f87171;
     line-height: 1.3;
+  }
+
+  /* --- Swim-lane view --- */
+  .swim-lane-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+  }
+  .swim-lane-label {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--muted);
+  }
+  .pin-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.8rem;
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .pin-toggle input {
+    cursor: pointer;
+  }
+  .swim-lane-container {
+    display: flex;
+    gap: 0.75rem;
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+  }
+  .swim-col {
+    flex: 0 0 16rem;
+    min-width: 16rem;
+    max-width: 20rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top: 3px solid var(--lane-color, var(--border));
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+  }
+  .swim-col-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .swim-col-name {
+    font-size: 0.8rem;
+    font-family: ui-monospace, monospace;
+    font-weight: 600;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .swim-col-badge {
+    font-size: 0.65rem;
+    padding: 0.1rem 0.4rem;
+    border-radius: 3px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    flex-shrink: 0;
+  }
+  .swim-col-body {
+    flex: 1;
+    max-height: 24rem;
+    overflow-y: auto;
+    padding: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+  .swim-col-empty {
+    font-size: 0.8rem;
+    text-align: center;
+    padding: 1rem 0;
+  }
+  .swim-evt {
+    display: flex;
+    gap: 0.35rem;
+    align-items: flex-start;
+    padding: 0.35rem 0.5rem;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+  }
+  .swim-evt-tool {
+    border-left: 2px solid var(--accent);
+    background: rgba(167, 139, 250, 0.04);
+  }
+  .swim-evt-thinking {
+    border-left: 2px solid var(--border);
+    opacity: 0.7;
+  }
+  .swim-evt-icon {
+    flex-shrink: 0;
+    font-size: 0.8rem;
+    line-height: 1.3;
+  }
+  .swim-evt-content {
+    font-size: 0.78rem;
+    color: var(--text);
+    line-height: 1.35;
+    word-break: break-word;
+    overflow: hidden;
   }
 </style>

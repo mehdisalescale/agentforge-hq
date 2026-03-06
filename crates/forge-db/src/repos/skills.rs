@@ -4,9 +4,11 @@ use chrono::{DateTime, Utc};
 use forge_core::error::{ForgeError, ForgeResult};
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use tracing;
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Skill {
@@ -21,6 +23,18 @@ pub struct Skill {
     pub examples_json: Option<String>,
     pub usage_count: i32,
     pub created_at: DateTime<Utc>,
+}
+
+/// A rule that triggers automatic activation of a skill.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SkillRule {
+    pub id: String,
+    pub skill_id: String,
+    /// "file_pattern" or "keyword"
+    pub trigger_type: String,
+    pub trigger_pattern: String,
+    pub enabled: bool,
+    pub created_at: String,
 }
 
 pub struct SkillRepo {
@@ -121,6 +135,117 @@ impl SkillRepo {
         }
         Ok(count)
     }
+
+    // --- Skill rule methods ---
+
+    /// Create a new activation rule for a skill.
+    pub fn create_rule(
+        &self,
+        skill_id: &str,
+        trigger_type: &str,
+        trigger_pattern: &str,
+    ) -> ForgeResult<SkillRule> {
+        let conn = self.conn.lock().expect("db mutex poisoned");
+        let id = Uuid::new_v4().to_string();
+        conn.execute(
+            "INSERT INTO skill_rules (id, skill_id, trigger_type, trigger_pattern, enabled)
+             VALUES (?1, ?2, ?3, ?4, 1)",
+            rusqlite::params![id, skill_id, trigger_type, trigger_pattern],
+        )
+        .map_err(|e| ForgeError::Database(Box::new(e)))?;
+
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, skill_id, trigger_type, trigger_pattern, enabled, created_at
+                 FROM skill_rules WHERE id = ?1",
+            )
+            .map_err(|e| ForgeError::Database(Box::new(e)))?;
+
+        stmt.query_row(rusqlite::params![id], row_to_skill_rule)
+            .map_err(|e| ForgeError::Database(Box::new(e)))
+    }
+
+    /// List all rules for a given skill.
+    pub fn list_rules(&self, skill_id: &str) -> ForgeResult<Vec<SkillRule>> {
+        let conn = self.conn.lock().expect("db mutex poisoned");
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, skill_id, trigger_type, trigger_pattern, enabled, created_at
+                 FROM skill_rules WHERE skill_id = ?1 ORDER BY created_at DESC",
+            )
+            .map_err(|e| ForgeError::Database(Box::new(e)))?;
+
+        let rules: Vec<SkillRule> = stmt
+            .query_map(rusqlite::params![skill_id], row_to_skill_rule)
+            .map_err(|e| ForgeError::Database(Box::new(e)))?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| ForgeError::Database(Box::new(e)))?;
+
+        Ok(rules)
+    }
+
+    /// Delete a skill rule by id.
+    pub fn delete_rule(&self, id: &str) -> ForgeResult<()> {
+        let conn = self.conn.lock().expect("db mutex poisoned");
+        let rows = conn
+            .execute("DELETE FROM skill_rules WHERE id = ?1", rusqlite::params![id])
+            .map_err(|e| ForgeError::Database(Box::new(e)))?;
+
+        if rows == 0 {
+            return Err(ForgeError::Internal(format!("skill rule not found: {}", id)));
+        }
+
+        Ok(())
+    }
+
+    /// Find skills whose rules match the given working directory and/or prompt.
+    ///
+    /// - `file_pattern` rules: check if `Path::new(working_dir).join(pattern).exists()`
+    /// - `keyword` rules: check if `prompt.to_lowercase()` contains the pattern (case-insensitive)
+    ///
+    /// Returns a de-duplicated list of matched skills.
+    pub fn find_matching_rules(&self, working_dir: &str, prompt: &str) -> ForgeResult<Vec<Skill>> {
+        let conn = self.conn.lock().expect("db mutex poisoned");
+        let mut stmt = conn
+            .prepare(
+                "SELECT sr.id, sr.skill_id, sr.trigger_type, sr.trigger_pattern, sr.enabled, sr.created_at,
+                        s.id, s.name, s.description, s.category, s.subcategory, s.content, s.source_repo, s.parameters_json, s.examples_json, s.usage_count, s.created_at
+                 FROM skill_rules sr
+                 JOIN skills s ON sr.skill_id = s.id
+                 WHERE sr.enabled = 1",
+            )
+            .map_err(|e| ForgeError::Database(Box::new(e)))?;
+
+        let prompt_lower = prompt.to_lowercase();
+        let mut seen_skill_ids = HashSet::new();
+        let mut matched_skills = Vec::new();
+
+        let rows = stmt
+            .query_map([], |row| {
+                let trigger_type: String = row.get(2)?;
+                let trigger_pattern: String = row.get(3)?;
+                let skill = row_to_skill_from_offset(row, 6)?;
+                Ok((trigger_type, trigger_pattern, skill))
+            })
+            .map_err(|e| ForgeError::Database(Box::new(e)))?;
+
+        for row_result in rows {
+            let (trigger_type, trigger_pattern, skill) =
+                row_result.map_err(|e| ForgeError::Database(Box::new(e)))?;
+
+            let matches = match trigger_type.as_str() {
+                "file_pattern" => Path::new(working_dir).join(&trigger_pattern).exists(),
+                "keyword" => prompt_lower.contains(&trigger_pattern.to_lowercase()),
+                _ => false,
+            };
+
+            if matches && seen_skill_ids.insert(skill.id.clone()) {
+                matched_skills.push(skill);
+            }
+        }
+
+        Ok(matched_skills)
+    }
 }
 
 /// Input for upserting a skill.
@@ -201,17 +326,25 @@ fn parse_bracket_list(s: &str) -> Vec<String> {
 }
 
 fn row_to_skill(row: &rusqlite::Row<'_>) -> Result<Skill, rusqlite::Error> {
-    let id: String = row.get(0)?;
-    let name: String = row.get(1)?;
-    let description: Option<String> = row.get(2)?;
-    let category: Option<String> = row.get(3)?;
-    let subcategory: Option<String> = row.get(4)?;
-    let content: String = row.get(5)?;
-    let source_repo: Option<String> = row.get(6)?;
-    let parameters_json: Option<String> = row.get(7)?;
-    let examples_json: Option<String> = row.get(8)?;
-    let usage_count: i32 = row.get(9)?;
-    let created_at: String = row.get(10)?;
+    row_to_skill_from_offset(row, 0)
+}
+
+/// Parse a Skill from a row starting at the given column offset.
+fn row_to_skill_from_offset(
+    row: &rusqlite::Row<'_>,
+    offset: usize,
+) -> Result<Skill, rusqlite::Error> {
+    let id: String = row.get(offset)?;
+    let name: String = row.get(offset + 1)?;
+    let description: Option<String> = row.get(offset + 2)?;
+    let category: Option<String> = row.get(offset + 3)?;
+    let subcategory: Option<String> = row.get(offset + 4)?;
+    let content: String = row.get(offset + 5)?;
+    let source_repo: Option<String> = row.get(offset + 6)?;
+    let parameters_json: Option<String> = row.get(offset + 7)?;
+    let examples_json: Option<String> = row.get(offset + 8)?;
+    let usage_count: i32 = row.get(offset + 9)?;
+    let created_at: String = row.get(offset + 10)?;
     let created_at = parse_sqlite_datetime(&created_at)?;
     Ok(Skill {
         id,
@@ -225,6 +358,17 @@ fn row_to_skill(row: &rusqlite::Row<'_>) -> Result<Skill, rusqlite::Error> {
         examples_json,
         usage_count,
         created_at,
+    })
+}
+
+fn row_to_skill_rule(row: &rusqlite::Row<'_>) -> Result<SkillRule, rusqlite::Error> {
+    Ok(SkillRule {
+        id: row.get(0)?,
+        skill_id: row.get(1)?,
+        trigger_type: row.get(2)?,
+        trigger_pattern: row.get(3)?,
+        enabled: row.get::<_, i32>(4)? != 0,
+        created_at: row.get(5)?,
     })
 }
 
@@ -462,5 +606,96 @@ Body content here.
         assert_eq!(count, 1);
 
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    // --- Skill rule tests ---
+
+    /// Setup DB with skill_rules table for rule tests.
+    fn setup_test_db_with_rules() -> Arc<Mutex<Connection>> {
+        let db = DbPool::in_memory().unwrap();
+        let conn = db.connection();
+        let migrator = Migrator::new(&conn);
+        migrator.apply_pending().unwrap();
+        // Create the skill_rules table (migration 0008 may not be wired yet)
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS skill_rules (
+                id TEXT PRIMARY KEY,
+                skill_id TEXT NOT NULL,
+                trigger_type TEXT NOT NULL,
+                trigger_pattern TEXT NOT NULL,
+                enabled INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                FOREIGN KEY (skill_id) REFERENCES skills(id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_skill_rules_skill ON skill_rules(skill_id);",
+        )
+        .unwrap();
+        drop(conn);
+        db.conn_arc()
+    }
+
+    fn insert_test_skill(conn: &Arc<Mutex<Connection>>, id: &str, name: &str) {
+        let repo = SkillRepo::new(Arc::clone(conn));
+        repo.upsert(&UpsertSkill {
+            id: id.into(),
+            name: name.into(),
+            description: Some("test skill".into()),
+            category: Some("testing".into()),
+            subcategory: None,
+            content: "# Test\nBody".into(),
+            source_repo: Some("builtin".into()),
+            parameters_json: None,
+            examples_json: None,
+        })
+        .unwrap();
+    }
+
+    #[test]
+    fn skill_rule_crud() {
+        let conn = setup_test_db_with_rules();
+        insert_test_skill(&conn, "sk-1", "test-skill");
+        let repo = SkillRepo::new(Arc::clone(&conn));
+
+        // Create rule
+        let rule = repo.create_rule("sk-1", "keyword", "rust").unwrap();
+        assert_eq!(rule.skill_id, "sk-1");
+        assert_eq!(rule.trigger_type, "keyword");
+        assert_eq!(rule.trigger_pattern, "rust");
+        assert!(rule.enabled);
+
+        // List rules
+        let rules = repo.list_rules("sk-1").unwrap();
+        assert_eq!(rules.len(), 1);
+        assert_eq!(rules[0].id, rule.id);
+
+        // Delete rule
+        repo.delete_rule(&rule.id).unwrap();
+        let rules = repo.list_rules("sk-1").unwrap();
+        assert!(rules.is_empty());
+    }
+
+    #[test]
+    fn skill_rule_matching_keyword() {
+        let conn = setup_test_db_with_rules();
+        insert_test_skill(&conn, "sk-rust", "rust-skill");
+        let repo = SkillRepo::new(Arc::clone(&conn));
+
+        repo.create_rule("sk-rust", "keyword", "rust").unwrap();
+
+        let matched = repo.find_matching_rules("/tmp", "write rust code").unwrap();
+        assert_eq!(matched.len(), 1);
+        assert_eq!(matched[0].id, "sk-rust");
+    }
+
+    #[test]
+    fn auto_activation_no_match_returns_empty() {
+        let conn = setup_test_db_with_rules();
+        insert_test_skill(&conn, "sk-python", "python-skill");
+        let repo = SkillRepo::new(Arc::clone(&conn));
+
+        repo.create_rule("sk-python", "keyword", "python").unwrap();
+
+        let matched = repo.find_matching_rules("/tmp", "write rust code").unwrap();
+        assert!(matched.is_empty());
     }
 }

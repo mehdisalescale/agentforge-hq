@@ -20,6 +20,25 @@
   let detail: Session | null = $state(null);
   let detailError: string = $state('');
   let agents: Agent[] = $state([]);
+  let viewMode: 'list' | 'kanban' = $state('list');
+
+  // Kanban columns derived from sessions
+  const KANBAN_STATUSES = ['created', 'running', 'completed', 'failed'] as const;
+  const KANBAN_LABELS: Record<string, string> = { created: 'Pending', running: 'Running', completed: 'Completed', failed: 'Failed' };
+  const KANBAN_COLORS: Record<string, string> = { created: '#71717a', running: '#3b82f6', completed: '#22c55e', failed: '#ef4444' };
+  let kanbanColumns = $derived(
+    KANBAN_STATUSES.map(status => ({
+      status,
+      label: KANBAN_LABELS[status],
+      color: KANBAN_COLORS[status],
+      sessions: sessions.filter(s => s.status === status),
+    }))
+  );
+
+  function agentName(agentId: string): string {
+    const a = agents.find(ag => ag.id === agentId);
+    return a?.name ?? agentId.slice(0, 8) + '...';
+  }
 
   function isWorktree(dir: string | null | undefined): boolean {
     return !!dir && dir.includes('.claude/worktrees/');
@@ -71,10 +90,70 @@
 </svelte:head>
 
 <div class="page sessions-page">
-  <h1>Sessions</h1>
+  <div class="page-header">
+    <h1>Sessions</h1>
+    <div class="view-toggle">
+      <button type="button" class="toggle-btn" class:active={viewMode === 'list'} onclick={() => viewMode = 'list'}>List</button>
+      <button type="button" class="toggle-btn" class:active={viewMode === 'kanban'} onclick={() => viewMode = 'kanban'}>Kanban</button>
+    </div>
+  </div>
   {#if sessionsError}
     <p class="error">{sessionsError}</p>
     <p class="muted">Session API may not be available yet (Agent C). You can still use Run on the Dashboard.</p>
+  {:else if viewMode === 'kanban'}
+    <div class="kanban-board">
+      {#each kanbanColumns as col (col.status)}
+        <div class="kanban-col" style="--col-color: {col.color}">
+          <div class="kanban-col-header">
+            <span class="kanban-col-title">{col.label}</span>
+            <span class="kanban-col-count">{col.sessions.length}</span>
+          </div>
+          <div class="kanban-col-body">
+            {#if col.sessions.length === 0}
+              <span class="muted kanban-empty">No sessions</span>
+            {:else}
+              {#each col.sessions as s (s.id)}
+                <button
+                  type="button"
+                  class="kanban-card"
+                  class:selected={selectedId === s.id}
+                  onclick={() => loadDetail(s.id)}
+                >
+                  <span class="kanban-card-agent">{agentName(s.agent_id)}</span>
+                  <span class="kanban-card-id">{s.id.slice(0, 8)}...</span>
+                  <span class="kanban-card-meta">
+                    {#if s.cost_usd != null && s.cost_usd !== undefined}
+                      <span class="kanban-card-cost">${s.cost_usd.toFixed(4)}</span>
+                    {/if}
+                    {#if isWorktree(s.directory)}
+                      <span class="worktree-badge">WT</span>
+                    {/if}
+                  </span>
+                </button>
+              {/each}
+            {/if}
+          </div>
+        </div>
+      {/each}
+    </div>
+    {#if selectedId && detail}
+      <section class="kanban-detail">
+        <h2>Session {detail.id.slice(0, 8)}...</h2>
+        <dl class="detail-dl">
+          <dt>ID</dt><dd><code>{detail.id}</code></dd>
+          <dt>Agent</dt><dd>{agentName(detail.agent_id)}</dd>
+          <dt>Directory</dt><dd><code>{detail.directory || '\u2014'}</code></dd>
+          <dt>Status</dt><dd><span class="status-badge" class:running={detail.status === 'running'} class:completed={detail.status === 'completed'} class:failed={detail.status === 'failed'}>{detail.status}</span></dd>
+          {#if detail.cost_usd != null}<dt>Cost</dt><dd>${detail.cost_usd.toFixed(4)}</dd>{/if}
+          <dt>Created</dt><dd>{detail.created_at}</dd>
+        </dl>
+        <div class="detail-actions">
+          <button type="button" class="primary" onclick={() => detail && resume(detail)}>Resume</button>
+          <button type="button" class="secondary" onclick={() => detail && exportAs(detail.id, 'json')}>Export JSON</button>
+          <button type="button" class="secondary" onclick={() => detail && exportHtml(detail.id)}>Export HTML</button>
+        </div>
+      </section>
+    {/if}
   {:else}
     <div class="sessions-layout">
       <section class="session-list">
@@ -321,5 +400,138 @@
     color: var(--muted);
     font-size: 0.9rem;
     margin: 0;
+  }
+  /* --- Page header with view toggle --- */
+  .page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+  }
+  .page-header h1 {
+    margin: 0;
+    font-size: 1.5rem;
+  }
+  .view-toggle {
+    display: flex;
+    gap: 0;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .toggle-btn {
+    padding: 0.35rem 0.75rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    background: var(--surface);
+    color: var(--muted);
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .toggle-btn.active {
+    background: var(--accent);
+    color: var(--bg);
+  }
+  /* --- Kanban board --- */
+  .kanban-board {
+    display: flex;
+    gap: 0.75rem;
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+  }
+  .kanban-col {
+    flex: 1;
+    min-width: 14rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top: 3px solid var(--col-color, var(--border));
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+  }
+  .kanban-col-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .kanban-col-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .kanban-col-count {
+    font-size: 0.75rem;
+    padding: 0.1rem 0.4rem;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--muted);
+  }
+  .kanban-col-body {
+    padding: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    max-height: 28rem;
+    overflow-y: auto;
+  }
+  .kanban-empty {
+    text-align: center;
+    padding: 1rem 0;
+    font-size: 0.8rem;
+  }
+  .kanban-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    padding: 0.5rem 0.65rem;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    text-align: left;
+    font-family: inherit;
+    color: var(--text);
+  }
+  .kanban-card:hover {
+    border-color: var(--accent);
+    background: rgba(167, 139, 250, 0.05);
+  }
+  .kanban-card.selected {
+    border-color: var(--accent);
+    background: rgba(167, 139, 250, 0.1);
+  }
+  .kanban-card-agent {
+    font-size: 0.85rem;
+    font-weight: 500;
+  }
+  .kanban-card-id {
+    font-size: 0.75rem;
+    font-family: ui-monospace, monospace;
+    color: var(--muted);
+  }
+  .kanban-card-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 0.1rem;
+  }
+  .kanban-card-cost {
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+  .kanban-detail {
+    margin-top: 1rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem;
+  }
+  .kanban-detail h2 {
+    margin: 0 0 0.75rem 0;
+    font-size: 1rem;
+    font-weight: 600;
   }
 </style>
