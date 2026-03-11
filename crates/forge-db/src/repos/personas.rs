@@ -3,7 +3,7 @@ use forge_core::error::{ForgeError, ForgeResult};
 use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
 
-use forge_persona::model::{Persona, PersonaDivision, PersonaDivisionId, PersonaId};
+use forge_persona::model::{Persona, PersonaDivision, PersonaId};
 
 pub struct PersonaRepo {
     conn: Arc<Mutex<Connection>>,
@@ -128,10 +128,7 @@ impl PersonaRepo {
             .map_err(|e| ForgeError::Database(Box::new(e)))?;
 
         let mapped = stmt
-            .query_map(
-                rusqlite::params_from_iter(params.iter()),
-                |row| row_to_persona(row),
-            )
+            .query_map(rusqlite::params_from_iter(params.iter()), row_to_persona)
             .map_err(|e| ForgeError::Database(Box::new(e)))?;
 
         let mut personas = Vec::new();
@@ -152,7 +149,7 @@ impl PersonaRepo {
             )
             .map_err(|e| ForgeError::Database(Box::new(e)))?;
 
-        stmt.query_row(rusqlite::params![id.0.to_string()], |row| row_to_persona(row))
+        stmt.query_row(rusqlite::params![id.0.to_string()], row_to_persona)
             .map_err(|e| match e {
                 rusqlite::Error::QueryReturnedNoRows => {
                     ForgeError::Validation(format!("persona not found: {}", id.0))
@@ -212,6 +209,7 @@ mod tests {
     use super::*;
     use chrono::Utc;
     use uuid::Uuid;
+    use forge_persona::model::PersonaDivisionId;
 
     fn setup_conn() -> Arc<Mutex<Connection>> {
         let conn = Connection::open_in_memory().unwrap();
@@ -261,8 +259,8 @@ mod tests {
         repo.upsert_divisions(&[div]).unwrap();
 
         let p1 = sample_persona("marketing", "Marketing Growth Hacker", "marketing/growth.md");
-        repo.upsert_personas(&[p1.clone()]).unwrap();
-        repo.upsert_personas(&[p1]).unwrap();
+        repo.upsert_personas(std::slice::from_ref(&p1)).unwrap();
+        repo.upsert_personas(std::slice::from_ref(&p1)).unwrap();
 
         let list = repo.list(None, None).unwrap();
         assert_eq!(list.len(), 1);

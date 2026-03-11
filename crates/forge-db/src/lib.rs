@@ -97,7 +97,7 @@ mod tests {
         assert_eq!(fetched.name, "TestAgent");
 
         let agents = repo.list().unwrap();
-        assert!(agents.len() >= 1);
+        assert!(!agents.is_empty());
 
         repo.delete(&created.id).unwrap();
         assert!(repo.get(&created.id).is_err());
@@ -140,7 +140,7 @@ mod tests {
         assert_eq!(fetched.id.0, created.id.0);
 
         let sessions = session_repo.list().unwrap();
-        assert!(sessions.len() >= 1);
+        assert!(!sessions.is_empty());
 
         session_repo.delete(&created.id).unwrap();
         assert!(session_repo.get(&created.id).is_err());
