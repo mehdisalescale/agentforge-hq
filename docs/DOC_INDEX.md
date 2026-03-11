@@ -27,7 +27,10 @@
 | `docs/RESEARCH_FINDINGS_2026_03_05.md` | Patterns from 67 repos worth adopting | 2026-03-05 |
 | `docs/V050_SPRINT_PLAN.md` | v0.5.0 sprint plan — 10 agents, 3 waves (partially shipped) | 2026-03-05 |
 | `docs/V060_SPRINT_PLAN.md` | v0.6.0 sprint plan — 7 agents, 3 waves | 2026-03-05 |
-| `docs/DOC_INDEX.md` | This file | 2026-03-05 |
+| `docs/EXPANSION_PLAN.md` | 8-wave plan to absorb 8 repos into Forge (Waves 1-8) | 2026-03-11 |
+| `docs/CONSOLIDATION_STATUS.md` | Progress tracking, gap analysis, inconsistencies across all 8 repos | 2026-03-11 |
+| `docs/CURRENT_VS_AGENTFORGE.md` | Gap analysis: current v0.5/v0.6 vs AgentForge v1.0 planning doc | 2026-03-11 |
+| `docs/DOC_INDEX.md` | This file | 2026-03-11 |
 
 ## Agent Coordination
 
