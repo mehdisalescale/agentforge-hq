@@ -5,6 +5,7 @@ mod analytics;
 mod health;
 mod hooks;
 mod memory;
+mod org;
 mod run;
 mod schedules;
 mod sessions;
@@ -29,4 +30,5 @@ pub fn router() -> Router<AppState> {
         .merge(hooks::routes())
         .merge(schedules::routes())
         .merge(analytics::routes())
+        .merge(org::routes())
 }

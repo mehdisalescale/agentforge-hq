@@ -9,6 +9,7 @@ forge-agent = { path = "../forge-agent" }
 forge-db = { path = "../forge-db" }
 forge-process = { path = "../forge-process" }
 forge-safety = { path = "../forge-safety" }
+forge-org = { path = "../forge-org" }
 axum = { workspace = true }
 tower-http = { workspace = true }
 tokio = { workspace = true }

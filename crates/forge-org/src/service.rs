@@ -8,7 +8,7 @@ pub fn build_org_chart(
     departments: Vec<Department>,
     positions: Vec<OrgPosition>,
 ) -> CompanyOrgChart {
-    let mut nodes: HashMap<String, OrgChartNode> = positions
+    let nodes: HashMap<String, OrgChartNode> = positions
         .into_iter()
         .map(|p| {
             let id = p.id.clone();
@@ -24,32 +24,34 @@ pub fn build_org_chart(
 
     let mut roots = Vec::new();
 
-    // Attach children to their parents.
-    let ids: Vec<String> = nodes.keys().cloned().collect();
-    for id in ids {
-        // Clippy prefers if let over match for simple Some branches.
-        if let Some(parent_id) = nodes
-            .get(&id)
-            .and_then(|n| n.position.reports_to.clone())
-        {
-            if let (Some(child), Some(parent)) = {
-                // Borrow checker: fetch indices first, then split the map borrow.
-                let child_opt = nodes.remove(&id);
-                let parent_opt = nodes.get_mut(&parent_id);
-                (child_opt, parent_opt)
-            } {
-                parent.children.push(child);
-            } else if let Some(child) = nodes.remove(&id) {
-                // Parent id not found; treat as root to keep the tree total.
-                roots.push(child);
+    // Attach children to their parents while preserving all nodes.
+    let mut by_id: HashMap<String, OrgChartNode> = HashMap::new();
+    let mut parent_map: HashMap<String, Option<String>> = HashMap::new();
+
+    for (id, node) in nodes.into_iter() {
+        parent_map.insert(id.clone(), node.position.reports_to.clone());
+        by_id.insert(id, node);
+    }
+
+    // Build child edges.
+    let ids: Vec<String> = by_id.keys().cloned().collect();
+    for id in &ids {
+        if let Some(Some(parent_id)) = parent_map.get(id) {
+            if let Some(child) = by_id.get(id).cloned() {
+                if let Some(parent) = by_id.get_mut(parent_id) {
+                    parent.children.push(child);
+                }
             }
         }
     }
 
-    // Any nodes that were never attached (no reports_to) are roots.
-    for (_id, node) in nodes {
-        if node.position.reports_to.is_none() {
-            roots.push(node);
+    // Roots are nodes without a valid parent.
+    for id in ids {
+        let parent_id = parent_map.get(&id).and_then(|p| p.clone());
+        if parent_id.is_none() || !by_id.contains_key(parent_id.as_ref().unwrap()) {
+            if let Some(node) = by_id.get(&id) {
+                roots.push(node.clone());
+            }
         }
     }
 

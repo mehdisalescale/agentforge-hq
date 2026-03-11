@@ -534,3 +534,96 @@ export async function getUsageAnalytics(start?: string, end?: string): Promise<U
 export function exportSessionHtmlUrl(id: string): string {
   return `${API_BASE}/api/v1/sessions/${encodeURIComponent(id)}/export?format=html`;
 }
+
+// --- Org & Governance (Wave 3) ---
+
+export interface Company {
+  id: string;
+  name: string;
+  mission?: string | null;
+  budget_limit?: number | null;
+  budget_used: number;
+}
+
+export interface Department {
+  id: string;
+  company_id: string;
+  name: string;
+  description?: string | null;
+}
+
+export interface OrgPosition {
+  id: string;
+  company_id: string;
+  department_id?: string | null;
+  agent_id?: string | null;
+  reports_to?: string | null;
+  role: string;
+  title?: string | null;
+}
+
+export interface OrgChartNode {
+  position: OrgPosition;
+  children: OrgChartNode[];
+}
+
+export interface CompanyOrgChart {
+  company: Company;
+  departments: Department[];
+  roots: OrgChartNode[];
+}
+
+export async function listCompanies(): Promise<Company[]> {
+  const res = await fetch(`${API_BASE}/api/v1/companies`);
+  return handleResponse<Company[]>(res);
+}
+
+export async function createCompany(data: {
+  name: string;
+  mission?: string;
+  budget_limit?: number;
+}): Promise<Company> {
+  const res = await fetch(`${API_BASE}/api/v1/companies`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<Company>(res);
+}
+
+export async function createDepartment(data: {
+  company_id: string;
+  name: string;
+  description?: string;
+}): Promise<Department> {
+  const res = await fetch(`${API_BASE}/api/v1/departments`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<Department>(res);
+}
+
+export async function createOrgPosition(data: {
+  company_id: string;
+  department_id?: string;
+  agent_id?: string;
+  reports_to?: string;
+  role: string;
+  title?: string;
+}): Promise<OrgPosition> {
+  const res = await fetch(`${API_BASE}/api/v1/org-positions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<OrgPosition>(res);
+}
+
+export async function getOrgChart(company_id?: string): Promise<CompanyOrgChart> {
+  const params = new URLSearchParams();
+  if (company_id) params.set('company_id', company_id);
+  const qs = params.toString();
+  const res = await fetch(`${API_BASE}/api/v1/org-chart${qs ? '?' + qs : ''}`);
+  return handleResponse<CompanyOrgChart>(res);
+}

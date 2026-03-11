@@ -146,7 +146,11 @@ mod tests {
     use super::*;
     use axum::body::Body;
     use forge_core::EventBus;
-    use forge_db::{AgentRepo, AnalyticsRepo, CompactionRepo, EventRepo, HookRepo, MemoryRepo, Migrator, DbPool, ScheduleRepo, SessionRepo, SkillRepo, WorkflowRepo};
+    use forge_db::{
+        AgentRepo, AnalyticsRepo, ApprovalRepo, CompanyRepo, CompactionRepo, DbPool, DepartmentRepo,
+        EventRepo, GoalRepo, HookRepo, MemoryRepo, Migrator, OrgPositionRepo, ScheduleRepo,
+        SessionRepo, SkillRepo, WorkflowRepo,
+    };
     use crate::state::SafetyState;
     use forge_safety::{CircuitBreaker, RateLimiter};
     use std::time::Duration;
@@ -183,6 +187,11 @@ mod tests {
             Arc::new(ScheduleRepo::new(Arc::clone(&conn_arc))),
             Arc::new(AnalyticsRepo::new(Arc::clone(&conn_arc))),
             Arc::new(CompactionRepo::new(Arc::clone(&conn_arc))),
+            Arc::new(CompanyRepo::new(Arc::clone(&conn_arc))),
+            Arc::new(DepartmentRepo::new(Arc::clone(&conn_arc))),
+            Arc::new(OrgPositionRepo::new(Arc::clone(&conn_arc))),
+            Arc::new(GoalRepo::new(Arc::clone(&conn_arc))),
+            Arc::new(ApprovalRepo::new(Arc::clone(&conn_arc))),
             SafetyState {
                 circuit_breaker: Arc::new(CircuitBreaker::default()),
                 rate_limiter: Arc::new(RateLimiter::new(100, Duration::from_secs(1))),
@@ -231,6 +240,11 @@ mod tests {
             Arc::new(ScheduleRepo::new(Arc::clone(&conn_arc))),
             Arc::new(AnalyticsRepo::new(Arc::clone(&conn_arc))),
             Arc::new(CompactionRepo::new(Arc::clone(&conn_arc))),
+            Arc::new(CompanyRepo::new(Arc::clone(&conn_arc))),
+            Arc::new(DepartmentRepo::new(Arc::clone(&conn_arc))),
+            Arc::new(OrgPositionRepo::new(Arc::clone(&conn_arc))),
+            Arc::new(GoalRepo::new(Arc::clone(&conn_arc))),
+            Arc::new(ApprovalRepo::new(Arc::clone(&conn_arc))),
             SafetyState {
                 circuit_breaker: Arc::new(CircuitBreaker::default()),
                 rate_limiter: Arc::new(RateLimiter::new(100, Duration::from_secs(1))),
@@ -278,6 +292,11 @@ mod tests {
             Arc::new(ScheduleRepo::new(Arc::clone(&conn_arc))),
             Arc::new(AnalyticsRepo::new(Arc::clone(&conn_arc))),
             Arc::new(CompactionRepo::new(Arc::clone(&conn_arc))),
+            Arc::new(CompanyRepo::new(Arc::clone(&conn_arc))),
+            Arc::new(DepartmentRepo::new(Arc::clone(&conn_arc))),
+            Arc::new(OrgPositionRepo::new(Arc::clone(&conn_arc))),
+            Arc::new(GoalRepo::new(Arc::clone(&conn_arc))),
+            Arc::new(ApprovalRepo::new(Arc::clone(&conn_arc))),
             SafetyState {
                 circuit_breaker: Arc::new(CircuitBreaker::default()),
                 rate_limiter: Arc::new(RateLimiter::new(100, Duration::from_secs(1))),
@@ -302,7 +321,11 @@ mod tests {
         use axum::body::Body;
         use forge_core::EventBus;
         use forge_agent::model::NewAgent;
-        use forge_db::{AgentRepo, AnalyticsRepo, CompactionRepo, EventRepo, HookRepo, MemoryRepo, Migrator, DbPool, ScheduleRepo, SessionRepo, SkillRepo, WorkflowRepo};
+        use forge_db::{
+            AgentRepo, AnalyticsRepo, ApprovalRepo, CompanyRepo, CompactionRepo, DbPool,
+            DepartmentRepo, EventRepo, GoalRepo, HookRepo, MemoryRepo, Migrator, OrgPositionRepo,
+            ScheduleRepo, SessionRepo, SkillRepo, WorkflowRepo,
+        };
         use http::{Request, StatusCode};
         use std::sync::Arc;
         use tower::ServiceExt;
@@ -347,6 +370,11 @@ mod tests {
             Arc::new(ScheduleRepo::new(Arc::clone(&conn_arc))),
             Arc::new(AnalyticsRepo::new(Arc::clone(&conn_arc))),
             Arc::new(CompactionRepo::new(Arc::clone(&conn_arc))),
+            Arc::new(CompanyRepo::new(Arc::clone(&conn_arc))),
+            Arc::new(DepartmentRepo::new(Arc::clone(&conn_arc))),
+            Arc::new(OrgPositionRepo::new(Arc::clone(&conn_arc))),
+            Arc::new(GoalRepo::new(Arc::clone(&conn_arc))),
+            Arc::new(ApprovalRepo::new(Arc::clone(&conn_arc))),
             SafetyState {
                 circuit_breaker: Arc::new(CircuitBreaker::default()),
                 rate_limiter: Arc::new(RateLimiter::new(100, Duration::from_secs(1))),
@@ -462,6 +490,11 @@ mod tests {
             Arc::new(ScheduleRepo::new(Arc::clone(&conn_arc))),
             Arc::new(AnalyticsRepo::new(Arc::clone(&conn_arc))),
             Arc::new(CompactionRepo::new(Arc::clone(&conn_arc))),
+            Arc::new(CompanyRepo::new(Arc::clone(&conn_arc))),
+            Arc::new(DepartmentRepo::new(Arc::clone(&conn_arc))),
+            Arc::new(OrgPositionRepo::new(Arc::clone(&conn_arc))),
+            Arc::new(GoalRepo::new(Arc::clone(&conn_arc))),
+            Arc::new(ApprovalRepo::new(Arc::clone(&conn_arc))),
             SafetyState {
                 circuit_breaker: Arc::new(CircuitBreaker::default()),
                 rate_limiter: Arc::new(RateLimiter::new(100, Duration::from_secs(1))),

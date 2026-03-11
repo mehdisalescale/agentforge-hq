@@ -372,6 +372,7 @@ dependencies = [
  "forge-agent",
  "forge-core",
  "forge-db",
+ "forge-org",
  "forge-process",
  "forge-safety",
  "futures-util",
@@ -450,6 +451,7 @@ name = "forge-governance"
 version = "0.1.0"
 dependencies = [
  "serde",
+ "serde_json",
 ]
 
 [[package]]

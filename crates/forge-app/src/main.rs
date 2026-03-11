@@ -4,7 +4,11 @@
 use forge_api::state::SafetyState;
 use forge_api::{serve_until_signal, AppState};
 use forge_core::EventBus;
-use forge_db::{AgentRepo, AnalyticsRepo, BatchWriter, CompactionRepo, DbPool, EventRepo, HookRepo, MemoryRepo, Migrator, ScheduleRepo, SessionRepo, SkillRepo, WorkflowRepo};
+use forge_db::{
+    AgentRepo, AnalyticsRepo, ApprovalRepo, BatchWriter, CompanyRepo, CompactionRepo, DbPool,
+    DepartmentRepo, EventRepo, GoalRepo, HookRepo, MemoryRepo, Migrator, OrgPositionRepo,
+    ScheduleRepo, SessionRepo, SkillRepo, WorkflowRepo,
+};
 
 mod scheduler;
 use forge_safety::{CircuitBreaker, CostTracker, RateLimiter};
@@ -60,6 +64,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let schedule_repo = ScheduleRepo::new(Arc::clone(&conn_arc));
     let analytics_repo = AnalyticsRepo::new(Arc::clone(&conn_arc));
     let compaction_repo = CompactionRepo::new(Arc::clone(&conn_arc));
+    let company_repo = CompanyRepo::new(Arc::clone(&conn_arc));
+    let department_repo = DepartmentRepo::new(Arc::clone(&conn_arc));
+    let org_position_repo = OrgPositionRepo::new(Arc::clone(&conn_arc));
+    let goal_repo = GoalRepo::new(Arc::clone(&conn_arc));
+    let approval_repo = ApprovalRepo::new(Arc::clone(&conn_arc));
     let event_bus = EventBus::new(256);
 
     // Load seed skills from the skills/ directory.
@@ -124,6 +133,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         Arc::clone(&schedule_repo),
         Arc::new(analytics_repo),
         Arc::new(compaction_repo),
+        Arc::new(company_repo),
+        Arc::new(department_repo),
+        Arc::new(org_position_repo),
+        Arc::new(goal_repo),
+        Arc::new(approval_repo),
         safety,
     );
 
