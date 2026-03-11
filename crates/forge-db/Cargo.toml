@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 forge-core = { path = "../forge-core" }
 forge-agent = { path = "../forge-agent" }
+forge-persona = { path = "../forge-persona" }
 rusqlite = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

@@ -11,6 +11,9 @@ const MIGRATION_004: &str = include_str!("../../../migrations/0004_add_hooks.sql
 const MIGRATION_005: &str = include_str!("../../../migrations/0005_scheduler_analytics.sql");
 const MIGRATION_006: &str = include_str!("../../../migrations/0006_add_compactions.sql");
 const MIGRATION_007: &str = include_str!("../../../migrations/0007_add_workflow_columns.sql");
+const MIGRATION_008: &str = include_str!("../../../migrations/0008_memory_types_and_skill_rules.sql");
+const MIGRATION_009: &str = include_str!("../../../migrations/0009_personas.sql");
+const MIGRATION_011: &str = include_str!("../../../migrations/0011_org_charts.sql");
 
 pub struct Migrator<'a> {
     conn: &'a Connection,
@@ -116,8 +119,38 @@ impl<'a> Migrator<'a> {
             self.conn
                 .execute_batch(MIGRATION_007)
                 .map_err(|e| ForgeError::Database(Box::new(e)))?;
+            current = 7;
             applied += 1;
             info!("migration 0007 applied, now at version 7");
+        }
+
+        if current < 8 {
+            info!("applying migration 0008_memory_types_and_skill_rules.sql");
+            self.conn
+                .execute_batch(MIGRATION_008)
+                .map_err(|e| ForgeError::Database(Box::new(e)))?;
+            current = 8;
+            applied += 1;
+            info!("migration 0008 applied, now at version 8");
+        }
+
+        if current < 9 {
+            info!("applying migration 0009_personas.sql");
+            self.conn
+                .execute_batch(MIGRATION_009)
+                .map_err(|e| ForgeError::Database(Box::new(e)))?;
+            current = 9;
+            applied += 1;
+            info!("migration 0009 applied, now at version 9");
+        }
+
+        if current < 11 {
+            info!("applying migration 0011_org_charts.sql");
+            self.conn
+                .execute_batch(MIGRATION_011)
+                .map_err(|e| ForgeError::Database(Box::new(e)))?;
+            applied += 1;
+            info!("migration 0011 applied, now at version 11");
         }
 
         if applied == 0 {

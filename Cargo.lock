@@ -428,6 +428,7 @@ dependencies = [
  "crossbeam-channel",
  "forge-agent",
  "forge-core",
+ "forge-persona",
  "rusqlite",
  "serde",
  "serde_json",
@@ -445,6 +446,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "forge-governance"
+version = "0.1.0"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "forge-mcp-bin"
 version = "0.1.0"
 dependencies = [
@@ -458,6 +466,24 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
+name = "forge-org"
+version = "0.1.0"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "forge-persona"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "forge-agent",
+ "serde",
+ "serde_json",
  "uuid",
 ]
 
