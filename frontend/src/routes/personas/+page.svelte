@@ -1,7 +1,17 @@
 <script lang="ts">
   import { setContext } from 'svelte';
   import { onMount } from 'svelte';
-  import { listPersonas, type Persona } from '$lib/api';
+  import {
+    listPersonas,
+    listCompanies,
+    listDepartmentsByCompany,
+    listOrgPositionsByCompany,
+    hirePersona,
+    type Persona,
+    type Company,
+    type Department,
+    type OrgPosition,
+  } from '$lib/api';
 
   setContext('pageTitle', 'Personas');
 
@@ -11,6 +21,20 @@
 
   let divisionFilter = $state<string>('');
   let query = $state<string>('');
+
+  // Hire modal state
+  let hireOpen = $state(false);
+  let hireTarget: Persona | null = $state(null);
+  let companies = $state<Company[]>([]);
+  let departments = $state<Department[]>([]);
+  let positions = $state<OrgPosition[]>([]);
+  let hireCompanyId = $state<string>('');
+  let hireDepartmentId = $state<string>('');
+  let hireReportsTo = $state<string>('');
+  let hireTitle = $state<string>('');
+  let hireSubmitting = $state(false);
+  let hireError = $state<string | null>(null);
+  let hireSuccess = $state<string | null>(null);
 
   async function load() {
     loading = true;
@@ -31,6 +55,69 @@
     divisionFilter = '';
     query = '';
     load();
+  }
+
+  async function ensureOrgData() {
+    if (companies.length === 0) {
+      companies = await listCompanies();
+    }
+    if (hireCompanyId && hireCompanyId.trim()) {
+      departments = await listDepartmentsByCompany(hireCompanyId);
+      positions = await listOrgPositionsByCompany(hireCompanyId);
+    } else {
+      departments = [];
+      positions = [];
+    }
+  }
+
+  async function openHireModal(p: Persona) {
+    hireTarget = p;
+    hireCompanyId = '';
+    hireDepartmentId = '';
+    hireReportsTo = '';
+    hireTitle = p.name;
+    hireError = null;
+    hireSuccess = null;
+    await ensureOrgData();
+    hireOpen = true;
+  }
+
+  function closeHireModal() {
+    hireOpen = false;
+    hireTarget = null;
+    hireError = null;
+    hireSuccess = null;
+  }
+
+  async function onCompanyChange(id: string) {
+    hireCompanyId = id;
+    hireDepartmentId = '';
+    hireReportsTo = '';
+    await ensureOrgData();
+  }
+
+  async function submitHire() {
+    if (!hireTarget) return;
+    if (!hireCompanyId.trim()) {
+      hireError = 'Company is required to hire a persona.';
+      return;
+    }
+    hireSubmitting = true;
+    hireError = null;
+    hireSuccess = null;
+    try {
+      await hirePersona(hireTarget.id, {
+        company_id: hireCompanyId,
+        department_id: hireDepartmentId || undefined,
+        reports_to: hireReportsTo || undefined,
+        title_override: hireTitle.trim() || undefined,
+      });
+      hireSuccess = 'Persona hired into the org chart. Check the Org Chart view to see the new position.';
+    } catch (e) {
+      hireError = e instanceof Error ? e.message : String(e);
+    } finally {
+      hireSubmitting = false;
+    }
   }
 
   onMount(() => {
@@ -89,8 +176,11 @@
       {#each personas as p (p.id)}
         <article class="card">
           <header class="card-header">
-            <h2 class="card-title">{p.name}</h2>
-            <p class="card-division">{p.division_slug}</p>
+            <div>
+              <h2 class="card-title">{p.name}</h2>
+              <p class="card-division">{p.division_slug}</p>
+            </div>
+            <button class="btn btn-small" type="button" onclick={() => openHireModal(p)}>Hire…</button>
           </header>
           <p class="card-summary">{p.short_description}</p>
           {#if p.tags?.length}
@@ -106,6 +196,75 @@
         </article>
       {/each}
     </section>
+  {/if}
+
+  {#if hireOpen && hireTarget}
+    <div class="modal-backdrop" role="dialog" aria-modal="true">
+      <div class="modal">
+        <header class="modal-header">
+          <h2>Hire persona</h2>
+          <button class="btn btn-ghost btn-small" type="button" onclick={closeHireModal}>Close</button>
+        </header>
+        <p class="muted small">Create an agent and org position for <strong>{hireTarget.name}</strong>.</p>
+
+        {#if hireError}
+          <div class="message error">{hireError}</div>
+        {/if}
+        {#if hireSuccess}
+          <div class="message success">{hireSuccess}</div>
+        {/if}
+
+        <form
+          class="hire-form"
+          onsubmit={(e) => {
+            e.preventDefault();
+            submitHire();
+          }}
+        >
+          <label>
+            <span>Company</span>
+            <select bind:value={hireCompanyId} onchange={(e) => onCompanyChange((e.target as HTMLSelectElement).value)}>
+              <option value="">Select company…</option>
+              {#each companies as c}
+                <option value={c.id}>{c.name}</option>
+              {/each}
+            </select>
+          </label>
+
+          <label>
+            <span>Department (optional)</span>
+            <select bind:value={hireDepartmentId} disabled={!hireCompanyId}>
+              <option value="">No specific department</option>
+              {#each departments as d}
+                <option value={d.id}>{d.name}</option>
+              {/each}
+            </select>
+          </label>
+
+          <label>
+            <span>Reports to (optional)</span>
+            <select bind:value={hireReportsTo} disabled={!hireCompanyId}>
+              <option value="">Top-level (no manager)</option>
+              {#each positions as pos}
+                <option value={pos.id}>{pos.title ?? pos.role}</option>
+              {/each}
+            </select>
+          </label>
+
+          <label>
+            <span>Title</span>
+            <input type="text" bind:value={hireTitle} />
+          </label>
+
+          <div class="form-actions">
+            <button class="btn btn-ghost" type="button" onclick={closeHireModal}>Cancel</button>
+            <button class="btn" type="submit" disabled={hireSubmitting}>
+              {hireSubmitting ? 'Hiring…' : 'Hire persona'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   {/if}
 </div>
 
@@ -168,6 +327,11 @@
   .btn-ghost {
     background: transparent;
     border-color: transparent;
+  }
+
+  .btn-small {
+    padding: 0.3rem 0.65rem;
+    font-size: 0.8rem;
   }
 
   .muted {
@@ -250,6 +414,83 @@
     background: rgba(239, 68, 68, 0.15);
     color: #fca5a5;
     border: 1px solid rgba(239, 68, 68, 0.3);
+  }
+
+  .message.success {
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    margin-bottom: 1rem;
+    background: rgba(34, 197, 94, 0.15);
+    color: #bbf7d0;
+    border: 1px solid rgba(34, 197, 94, 0.4);
+  }
+
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: 1rem;
+  }
+
+  .modal {
+    background: var(--surface);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    padding: 1.25rem;
+    width: 100%;
+    max-width: 30rem;
+    max-height: 90vh;
+    overflow: auto;
+  }
+
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+  }
+
+  .hire-form {
+    margin-top: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .hire-form label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .hire-form span {
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+
+  .hire-form select,
+  .hire-form input {
+    padding: 0.4rem 0.6rem;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 0.9rem;
+  }
+
+  .form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+  }
+
+  .small {
+    font-size: 0.85rem;
   }
 </style>
 

@@ -15,8 +15,14 @@ use forge_org::{model as org_model, service as org_service};
 pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/companies", get(list_companies).post(create_company))
-        .route("/departments", post(create_department))
-        .route("/org-positions", post(create_org_position))
+        .route(
+            "/departments",
+            get(list_departments_by_company).post(create_department),
+        )
+        .route(
+            "/org-positions",
+            get(list_org_positions_by_company).post(create_org_position),
+        )
         .route("/org-chart", get(get_org_chart))
 }
 
@@ -68,6 +74,22 @@ async fn create_department(
 }
 
 #[derive(Debug, Deserialize)]
+struct ListDepartmentsQuery {
+    company_id: String,
+}
+
+async fn list_departments_by_company(
+    State(state): State<AppState>,
+    Query(query): Query<ListDepartmentsQuery>,
+) -> Result<Json<Vec<Department>>, axum::response::Response> {
+    let depts = state
+        .department_repo
+        .list_by_company(&query.company_id)
+        .map_err(api_error)?;
+    Ok(Json(depts))
+}
+
+#[derive(Debug, Deserialize)]
 struct CreateOrgPositionBody {
     company_id: String,
     department_id: Option<String>,
@@ -94,6 +116,22 @@ async fn create_org_position(
         .create(&input)
         .map_err(api_error)?;
     Ok(Json(pos))
+}
+
+#[derive(Debug, Deserialize)]
+struct ListOrgPositionsQuery {
+    company_id: String,
+}
+
+async fn list_org_positions_by_company(
+    State(state): State<AppState>,
+    Query(query): Query<ListOrgPositionsQuery>,
+) -> Result<Json<Vec<OrgPosition>>, axum::response::Response> {
+    let positions = state
+        .org_position_repo
+        .list_by_company(&query.company_id)
+        .map_err(api_error)?;
+    Ok(Json(positions))
 }
 
 #[derive(Debug, Deserialize)]

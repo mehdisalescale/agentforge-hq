@@ -14,6 +14,7 @@ const MIGRATION_007: &str = include_str!("../../../migrations/0007_add_workflow_
 const MIGRATION_008: &str = include_str!("../../../migrations/0008_memory_types_and_skill_rules.sql");
 const MIGRATION_009: &str = include_str!("../../../migrations/0009_personas.sql");
 const MIGRATION_011: &str = include_str!("../../../migrations/0011_org_charts.sql");
+const MIGRATION_012: &str = include_str!("../../../migrations/0012_agents_persona_id.sql");
 
 pub struct Migrator<'a> {
     conn: &'a Connection,
@@ -149,8 +150,19 @@ impl<'a> Migrator<'a> {
             self.conn
                 .execute_batch(MIGRATION_011)
                 .map_err(|e| ForgeError::Database(Box::new(e)))?;
+            current = 11;
             applied += 1;
             info!("migration 0011 applied, now at version 11");
+        }
+
+        if current < 12 {
+            info!("applying migration 0012_agents_persona_id.sql");
+            self.conn
+                .execute_batch(MIGRATION_012)
+                .map_err(|e| ForgeError::Database(Box::new(e)))?;
+            current = 12;
+            applied += 1;
+            info!("migration 0012 applied, now at version 12");
         }
 
         if applied == 0 {

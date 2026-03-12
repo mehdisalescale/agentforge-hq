@@ -658,3 +658,33 @@ export async function listPersonas(opts?: {
   return handleResponse<Persona[]>(res);
 }
 
+export async function hirePersona(
+  personaId: string,
+  data: {
+    company_id: string;
+    department_id?: string;
+    reports_to?: string;
+    title_override?: string;
+  }
+): Promise<{ agent_id: string; position_id: string }> {
+  const res = await fetch(`${API_BASE}/api/v1/personas/${encodeURIComponent(personaId)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<{ agent_id: string; position_id: string }>(res);
+}
+
+export async function listDepartmentsByCompany(company_id: string): Promise<Department[]> {
+  const params = new URLSearchParams({ company_id });
+  const res = await fetch(`${API_BASE}/api/v1/departments?${params.toString()}`);
+  return handleResponse<Department[]>(res);
+}
+
+export async function listOrgPositionsByCompany(company_id: string): Promise<OrgPosition[]> {
+  const params = new URLSearchParams({ company_id });
+  const res = await fetch(`${API_BASE}/api/v1/org-positions?${params.toString()}`);
+  return handleResponse<OrgPosition[]>(res);
+}
+
+
