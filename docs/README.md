@@ -22,6 +22,30 @@
 | `forge-git` | Git worktree create/remove/list for multi-agent isolation |
 | `forge-mcp-bin` | MCP stdio server (rmcp, 10 tools, 5 resources) |
 
+## Epic 1 — Implemented Surfaces (Org + Personas + Governance)
+
+These are the concrete slices implemented in this codebase for Epic 1:
+
+- **Org & Company**
+  - DB: `forge-db::companies`, `departments`, `org_positions`, `goals`, `approvals`
+  - Domain: `forge-org` (`model`, `service::build_org_chart`)
+  - API: `forge-api::routes::org` (`/companies`, `/departments`, `/org-positions`, `/org-chart`)
+  - Frontend: `frontend/src/routes/companies/+page.svelte`, `frontend/src/routes/org-chart/+page.svelte`
+
+- **Persona Catalog**
+  - DB: `forge-db::repos::personas` + migration `0009_personas.sql`
+  - Domain: `forge-persona` (`model`, `parser`, `catalog`)
+  - API: `forge-api::routes::personas` (`GET /personas`, `GET /personas/:id`, `POST /personas/:id` for hire)
+  - Frontend: `frontend/src/routes/personas/+page.svelte`
+
+- **Governance (Goals & Approvals)**
+  - DB: `goals`, `approvals` tables (migration `0011_org_charts.sql`)
+  - Repos: `forge-db::repos::goals`, `forge-db::repos::approvals`
+  - API: `forge-api::routes::governance` (`/goals`, `/approvals`)
+  - Frontend: `frontend/src/routes/goals/+page.svelte`, `frontend/src/routes/approvals/+page.svelte`
+
+For higher-level intent and story breakdown for Epic 1, see `/docs/engineering/EPIC1_FOUNDATION_TASKS.md` in the workspace root; this section exists only to show how that plan maps onto concrete code and endpoints here.
+
 ## Where to Find High-Level Plans
 
 The **authoritative source** for AgentForge strategy and planning lives one level up:

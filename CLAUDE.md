@@ -70,12 +70,62 @@ cargo check             # should be zero warnings
 
 | File | What |
 |------|------|
-| `NORTH_STAR.md` | Vision, current state, sprint plan |
-| `MASTER_TASK_LIST.md` | Sprint tasks with What/Where/How/Verify |
+| `NORTH_STAR.md` | Vision, current state, sprint plan (for forge-project) |
+| `MASTER_TASK_LIST.md` | Sprint tasks with What/Where/How/Verify (for v0.5/v0.6) |
 | `docs/V060_SPRINT_PLAN.md` | v0.6.0 sprint plan (7 agents, 3 waves) |
 | `docs/agents/V060_WAVE_PROMPTS.md` | Copy-paste prompts for v0.6.0 parallel agents |
-| `docs/RESEARCH_FINDINGS_2026_03_05.md` | Patterns from 67 repos |
-| `docs/DOC_INDEX.md` | What's current vs archived |
+| `docs/RESEARCH_FINDINGS_2026_03_05.md` | Patterns from 67 repos (historical) |
+| `docs/DOC_INDEX.md` | What's current vs archived for forge-project v0.5/v0.6 |
+
+## Documentation Map (AgentForge)
+
+> AgentForge planning now lives one level up, in the workspace `/docs` folder.  
+> Use this table as the single jumping-off point for new sessions.
+
+| Topic | Primary doc | Notes |
+|-------|-------------|-------|
+| Product vision & strategy | `/docs/strategy/EXECUTIVE_SUMMARY.md` | What/why/how in ~2 pages |
+| Full proposal & architecture | `/docs/strategy/PROPOSAL.md` | End-to-end AgentForge proposal |
+| Build phases & releases | `/docs/strategy/BUILD_PLAN.md` | Phase-by-phase plan and releases |
+| Epics & product requirements | `/docs/product/EPIC_INDEX.md` | E1–E9 with scope and status |
+| Expansion plan (8 repos → AgentForge) | `/docs/engineering/EXPANSION_PLAN.md` | Master expansion plan |
+| Multi-agent development process | `/docs/engineering/MULTI_AGENT_DEVELOPMENT_SYSTEM.md` | How to run many agents safely |
+| Current sprint plan | `/docs/sprints/SPRINT_PLAN.md` | Points to the active sprint (e.g. S1) |
+| Forge implementation tasks (Epic 1) | `/docs/engineering/EPIC1_FOUNDATION_TASKS.md` | Story-level tasks for org + personas |
+
+When in doubt:
+
+1. Start at `/docs/INDEX.md` to understand the **global AgentForge plan**.  
+2. Then use this `CLAUDE.md` and `forge-project/docs/README.md` to see how that plan maps into the Rust + Svelte codebase.
+
+## Epic 1 Baseline (Org + Personas + Governance)
+
+The following slices are now implemented and safe for agents/humans to rely on:
+
+- **Backend APIs**
+  - `GET /api/v1/companies`, `POST /api/v1/companies`
+  - `POST /api/v1/departments`, `GET /api/v1/departments?company_id=...`
+  - `POST /api/v1/org-positions`, `GET /api/v1/org-positions?company_id=...`
+  - `GET /api/v1/org-chart?company_id=...`
+  - `GET /api/v1/personas`, `GET /api/v1/personas/:id`
+  - `POST /api/v1/personas/:id` — hire persona → creates `agent` + `org_position`, links back via `agents.persona_id`
+  - `GET /api/v1/goals?company_id=...`, `POST /api/v1/goals`, `PATCH /api/v1/goals/:id/status`
+  - `GET /api/v1/approvals?company_id=...&status=...`, `POST /api/v1/approvals`, `PATCH /api/v1/approvals/:id`
+
+- **Frontend pages**
+  - `/companies` — manage companies (name, mission, budget)
+  - `/org-chart` — visualize org hierarchy per company
+  - `/personas` — browse persona catalog and hire into a company/org
+  - `/goals` — define and update per-company goals
+  - `/approvals` — review and resolve approval requests
+
+A typical Epic 1 flow is:
+
+1. Create a **company** in `/companies`.  
+2. Use `/personas` to **hire personas** into that company (creates agents + org positions).  
+3. Inspect hierarchy in `/org-chart`.  
+4. Capture intent in `/goals` and keep status updated.  
+5. Use `/approvals` as the thin governance layer for decisions that need an explicit yes/no.
 
 ## Current Phase
 
