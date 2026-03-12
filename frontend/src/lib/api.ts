@@ -687,4 +687,115 @@ export async function listOrgPositionsByCompany(company_id: string): Promise<Org
   return handleResponse<OrgPosition[]>(res);
 }
 
+// --- Governance: Goals & Approvals ---
+
+export type GoalStatus = 'planned' | 'in_progress' | 'completed' | 'cancelled';
+
+export interface Goal {
+  id: string;
+  company_id: string;
+  parent_id?: string | null;
+  title: string;
+  description?: string | null;
+  status: GoalStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NewGoal {
+  company_id: string;
+  parent_id?: string;
+  title: string;
+  description?: string;
+}
+
+export interface UpdateGoalStatus {
+  status: GoalStatus;
+}
+
+export async function listGoals(company_id: string): Promise<Goal[]> {
+  const params = new URLSearchParams({ company_id });
+  const res = await fetch(`${API_BASE}/api/v1/goals?${params.toString()}`);
+  return handleResponse<Goal[]>(res);
+}
+
+export async function createGoal(data: NewGoal): Promise<Goal> {
+  const res = await fetch(`${API_BASE}/api/v1/goals`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<Goal>(res);
+}
+
+export async function updateGoalStatus(id: string, data: UpdateGoalStatus): Promise<Goal> {
+  const res = await fetch(`${API_BASE}/api/v1/goals/${encodeURIComponent(id)}/status`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<Goal>(res);
+}
+
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
+
+export interface Approval {
+  id: string;
+  company_id: string;
+  approval_type: string;
+  status: ApprovalStatus;
+  requester: string;
+  approver?: string | null;
+  data_json: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NewApproval {
+  company_id: string;
+  approval_type: string;
+  requester: string;
+  data_json: unknown;
+}
+
+export interface UpdateApprovalStatus {
+  status: ApprovalStatus;
+  approver?: string;
+}
+
+export async function listApprovals(
+  company_id: string,
+  status?: ApprovalStatus
+): Promise<Approval[]> {
+  const params = new URLSearchParams({ company_id });
+  if (status) params.set('status', status);
+  const res = await fetch(`${API_BASE}/api/v1/approvals?${params.toString()}`);
+  return handleResponse<Approval[]>(res);
+}
+
+export async function createApproval(data: NewApproval): Promise<Approval> {
+  const res = await fetch(`${API_BASE}/api/v1/approvals`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      ...data,
+      data_json: data.data_json ?? {},
+    }),
+  });
+  return handleResponse<Approval>(res);
+}
+
+export async function updateApprovalStatus(
+  id: string,
+  data: UpdateApprovalStatus
+): Promise<Approval> {
+  const res = await fetch(`${API_BASE}/api/v1/approvals/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<Approval>(res);
+}
+
+
 
