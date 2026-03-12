@@ -627,3 +627,34 @@ export async function getOrgChart(company_id?: string): Promise<CompanyOrgChart>
   const res = await fetch(`${API_BASE}/api/v1/org-chart${qs ? '?' + qs : ''}`);
   return handleResponse<CompanyOrgChart>(res);
 }
+
+// --- Personas (Wave 3) ---
+
+export interface Persona {
+  id: string;
+  division_slug: string;
+  slug: string;
+  name: string;
+  short_description: string;
+  personality?: string | null;
+  deliverables?: string | null;
+  success_metrics?: string | null;
+  workflow?: string | null;
+  tags: string[];
+  source_file: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function listPersonas(opts?: {
+  division_slug?: string;
+  q?: string;
+}): Promise<Persona[]> {
+  const params = new URLSearchParams();
+  if (opts?.division_slug) params.set('division_slug', opts.division_slug);
+  if (opts?.q) params.set('q', opts.q);
+  const qs = params.toString();
+  const res = await fetch(`${API_BASE}/api/v1/personas${qs ? '?' + qs : ''}`);
+  return handleResponse<Persona[]>(res);
+}
+

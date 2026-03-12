@@ -7,7 +7,7 @@ use forge_core::EventBus;
 use forge_db::{
     AgentRepo, AnalyticsRepo, ApprovalRepo, BatchWriter, CompanyRepo, CompactionRepo, DbPool,
     DepartmentRepo, EventRepo, GoalRepo, HookRepo, MemoryRepo, Migrator, OrgPositionRepo,
-    ScheduleRepo, SessionRepo, SkillRepo, WorkflowRepo,
+    PersonaRepo, ScheduleRepo, SessionRepo, SkillRepo, WorkflowRepo,
 };
 
 mod scheduler;
@@ -69,6 +69,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let org_position_repo = OrgPositionRepo::new(Arc::clone(&conn_arc));
     let goal_repo = GoalRepo::new(Arc::clone(&conn_arc));
     let approval_repo = ApprovalRepo::new(Arc::clone(&conn_arc));
+    let persona_repo = PersonaRepo::new(Arc::clone(&conn_arc));
     let event_bus = EventBus::new(256);
 
     // Load seed skills from the skills/ directory.
@@ -138,6 +139,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         Arc::new(org_position_repo),
         Arc::new(goal_repo),
         Arc::new(approval_repo),
+        Arc::new(persona_repo),
         safety,
     );
 

@@ -3,8 +3,8 @@
 use forge_core::EventBus;
 use forge_db::{
     AgentRepo, AnalyticsRepo, ApprovalRepo, CompanyRepo, CompactionRepo, DepartmentRepo, EventRepo,
-    GoalRepo, HookRepo, MemoryRepo, OrgPositionRepo, ScheduleRepo, SessionRepo, SkillRepo,
-    WorkflowRepo,
+    GoalRepo, HookRepo, MemoryRepo, OrgPositionRepo, PersonaRepo, ScheduleRepo, SessionRepo,
+    SkillRepo, WorkflowRepo,
 };
 use forge_safety::{CircuitBreaker, CostTracker, RateLimiter};
 use std::sync::Arc;
@@ -36,6 +36,7 @@ pub struct AppState {
     pub org_position_repo: Arc<OrgPositionRepo>,
     pub goal_repo: Arc<GoalRepo>,
     pub approval_repo: Arc<ApprovalRepo>,
+    pub persona_repo: Arc<PersonaRepo>,
     pub safety: SafetyState,
 }
 
@@ -58,6 +59,7 @@ impl AppState {
         org_position_repo: Arc<OrgPositionRepo>,
         goal_repo: Arc<GoalRepo>,
         approval_repo: Arc<ApprovalRepo>,
+        persona_repo: Arc<PersonaRepo>,
         safety: SafetyState,
     ) -> Self {
         Self {
@@ -77,6 +79,7 @@ impl AppState {
             org_position_repo,
             goal_repo,
             approval_repo,
+            persona_repo,
             safety,
         }
     }
