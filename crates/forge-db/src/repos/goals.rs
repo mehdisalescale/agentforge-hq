@@ -75,6 +75,22 @@ impl GoalRepo {
             })
     }
 
+    pub fn update_status(&self, id: &str, status: &str) -> ForgeResult<Goal> {
+        let conn = self.conn.lock().expect("db mutex poisoned");
+        let now = Utc::now().to_rfc3339();
+        let rows = conn
+            .execute(
+                "UPDATE goals SET status = ?1, updated_at = ?2 WHERE id = ?3",
+                rusqlite::params![status, now, id],
+            )
+            .map_err(|e| ForgeError::Database(Box::new(e)))?;
+        if rows == 0 {
+            return Err(ForgeError::Validation(format!("goal not found: {id}")));
+        }
+        drop(conn);
+        self.get(id)
+    }
+
     pub fn list_by_company(&self, company_id: &str) -> ForgeResult<Vec<Goal>> {
         let conn = self.conn.lock().expect("db mutex poisoned");
         let mut stmt = conn

@@ -1,10 +1,14 @@
-# Claude Forge — Project Context
+# AgentForge HQ — Project Context
 
 > For AI agents and humans starting a new session.
+>
+> **Repo:** [mehdisalescale/agentforge-hq](https://github.com/mehdisalescale/agentforge-hq)
 
 ## What This Is
 
-Multi-agent Claude Code orchestrator. Rust/Axum backend + Svelte 5 frontend, shipped as a single binary. The only Rust-native tool in this space.
+Self-improving AI workforce platform. Rust/Axum backend + Svelte 5 frontend, shipped as a single binary. Unifies 8 open-source repos into one product. The only Rust-native tool in this space.
+
+Users browse 100+ pre-built agent personas, hire them into org charts with budgets, and let them execute real work with governance controls.
 
 ## Tech Stack
 
@@ -13,17 +17,21 @@ Multi-agent Claude Code orchestrator. Rust/Axum backend + Svelte 5 frontend, shi
 - **MCP Server:** rmcp v0.17 (official Rust MCP SDK), stdio transport
 - **Safety:** Circuit breaker (3-state FSM), rate limiter (token bucket), CostTracker (budget warn/limit)
 
-## Workspace Crates (9)
+## Workspace Crates (13)
 
 ```
 forge-app          binary: DB setup, API server, embedded frontend, graceful shutdown, cron scheduler
 ├── forge-api      Axum HTTP + WebSocket, routes, CORS, TraceLayer, rust-embed SPA
 ├── forge-process  spawn Claude CLI, stream-json parsing, ConcurrentRunner, LoopDetector
 ├── forge-agent    agent model, 10 presets (incl. Coordinator), validation
-├── forge-db       SQLite WAL, 5 migrations, AgentRepo, SessionRepo, EventRepo, SkillRepo, MemoryRepo, HookRepo, ScheduleRepo, AnalyticsRepo, BatchWriter
+├── forge-db       SQLite WAL, 12 migrations, 16 repos, BatchWriter
 ├── forge-core     ForgeEvent (35 variants), EventBus broadcast, shared types
 ├── forge-safety   CircuitBreaker, RateLimiter, CostTracker
 ├── forge-git      git worktree create/remove/list for multi-agent isolation
+├── forge-org      Company, Department, OrgPosition models + org chart builder
+├── forge-persona  100+ persona catalog, division taxonomy, parser, hire flow
+├── forge-governance  Goal and Approval models
+├── forge-mcp      MCP protocol stubs
 └── forge-mcp-bin  MCP stdio server (rmcp, 10 tools)
 ```
 
@@ -35,7 +43,7 @@ cd frontend && pnpm install && pnpm build && cd ..
 
 # Backend
 cargo build --release
-cargo test              # 150 tests, all should pass
+cargo test
 cargo check             # should be zero warnings
 
 # Run
@@ -46,7 +54,7 @@ cargo check             # should be zero warnings
 
 | Var | Default | Purpose |
 |-----|---------|---------|
-| `FORGE_DB_PATH` | `~/.claude-forge/forge.db` | SQLite database path |
+| `FORGE_DB_PATH` | `~/.agentforge/forge.db` | SQLite database path |
 | `FORGE_PORT` | `4173` | Server port |
 | `FORGE_HOST` | `127.0.0.1` | Bind address |
 | `FORGE_CLI_COMMAND` | `claude` | CLI executable to spawn |
@@ -66,21 +74,9 @@ cargo check             # should be zero warnings
 - **Events:** All state changes emit `ForgeEvent` variants (35 types) through `EventBus` (broadcast channel)
 - **Persistence:** `BatchWriter` batches events (50 or 2s flush) in transactions
 
-## Active Docs (read these)
+## Documentation Map
 
-| File | What |
-|------|------|
-| `NORTH_STAR.md` | Vision, current state, sprint plan (for forge-project) |
-| `MASTER_TASK_LIST.md` | Sprint tasks with What/Where/How/Verify (for v0.5/v0.6) |
-| `docs/V060_SPRINT_PLAN.md` | v0.6.0 sprint plan (7 agents, 3 waves) |
-| `docs/agents/V060_WAVE_PROMPTS.md` | Copy-paste prompts for v0.6.0 parallel agents |
-| `docs/RESEARCH_FINDINGS_2026_03_05.md` | Patterns from 67 repos (historical) |
-| `docs/DOC_INDEX.md` | What's current vs archived for forge-project v0.5/v0.6 |
-
-## Documentation Map (AgentForge)
-
-> AgentForge planning now lives one level up, in the workspace `/docs` folder.  
-> Use this table as the single jumping-off point for new sessions.
+> AgentForge planning lives one level up, in the workspace `/docs` folder.
 
 | Topic | Primary doc | Notes |
 |-------|-------------|-------|
@@ -90,13 +86,13 @@ cargo check             # should be zero warnings
 | Epics & product requirements | `/docs/product/EPIC_INDEX.md` | E1–E9 with scope and status |
 | Expansion plan (8 repos → AgentForge) | `/docs/engineering/EXPANSION_PLAN.md` | Master expansion plan |
 | Multi-agent development process | `/docs/engineering/MULTI_AGENT_DEVELOPMENT_SYSTEM.md` | How to run many agents safely |
-| Current sprint plan | `/docs/sprints/SPRINT_PLAN.md` | Points to the active sprint (e.g. S1) |
-| Forge implementation tasks (Epic 1) | `/docs/engineering/EPIC1_FOUNDATION_TASKS.md` | Story-level tasks for org + personas |
+| Current sprint plan | `/docs/sprints/SPRINT_PLAN.md` | Points to the active sprint |
+| Implementation tasks (Epic 1) | `/docs/engineering/EPIC1_FOUNDATION_TASKS.md` | Story-level tasks for org + personas |
 
 When in doubt:
 
-1. Start at `/docs/INDEX.md` to understand the **global AgentForge plan**.  
-2. Then use this `CLAUDE.md` and `forge-project/docs/README.md` to see how that plan maps into the Rust + Svelte codebase.
+1. Start at `/docs/INDEX.md` to understand the **global AgentForge plan**.
+2. Then use this `CLAUDE.md` and `agentforge-hq/docs/README.md` to see how that plan maps into the Rust + Svelte codebase.
 
 ## Epic 1 Baseline (Org + Personas + Governance)
 
@@ -121,23 +117,15 @@ The following slices are now implemented and safe for agents/humans to rely on:
 
 A typical Epic 1 flow is:
 
-1. Create a **company** in `/companies`.  
-2. Use `/personas` to **hire personas** into that company (creates agents + org positions).  
-3. Inspect hierarchy in `/org-chart`.  
-4. Capture intent in `/goals` and keep status updated.  
+1. Create a **company** in `/companies`.
+2. Use `/personas` to **hire personas** into that company (creates agents + org positions).
+3. Inspect hierarchy in `/org-chart`.
+4. Capture intent in `/goals` and keep status updated.
 5. Use `/approvals` as the thin governance layer for decisions that need an explicit yes/no.
-
-## Current Phase
-
-**v0.5.0 shipped** — 150 tests, 12 pages, 35 events. **v0.6.0 planned** — 7 agents, 3 waves.
-
-Next sprint (v0.6.0): Best-of-N selection, context pruner, pipeline engine, OpenAPI docs, typed memory, auto-skills, swim-lane dashboard, pipeline builder UI.
-
-See `docs/V060_SPRINT_PLAN.md` for plan, `docs/agents/V060_WAVE_PROMPTS.md` for agent prompts.
 
 ## Don't
 
-- Don't update files in `00-08/` directories (frozen reference from Feb 2026)
-- Don't update files in `docs/planning/` (archived)
-- Don't treat the old 305-feature roadmap as current — use MASTER_TASK_LIST.md
+- Don't update files in archive directories (frozen reference)
+- Don't treat the old 305-feature roadmap as current
 - Don't add features beyond what's in the current sprint
+- Don't reference the old `mbaneshi/forge-project` remote — canonical remote is `hq` → `mehdisalescale/agentforge-hq`

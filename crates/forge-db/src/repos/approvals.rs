@@ -77,6 +77,27 @@ impl ApprovalRepo {
             })
     }
 
+    pub fn update_status(
+        &self,
+        id: &str,
+        status: &str,
+        approver: Option<&str>,
+    ) -> ForgeResult<Approval> {
+        let conn = self.conn.lock().expect("db mutex poisoned");
+        let now = Utc::now().to_rfc3339();
+        let rows = conn
+            .execute(
+                "UPDATE approvals SET status = ?1, approver = ?2, updated_at = ?3 WHERE id = ?4",
+                rusqlite::params![status, approver, now, id],
+            )
+            .map_err(|e| ForgeError::Database(Box::new(e)))?;
+        if rows == 0 {
+            return Err(ForgeError::Validation(format!("approval not found: {id}")));
+        }
+        drop(conn);
+        self.get(id)
+    }
+
     pub fn list_by_company(&self, company_id: &str) -> ForgeResult<Vec<Approval>> {
         let conn = self.conn.lock().expect("db mutex poisoned");
         let mut stmt = conn

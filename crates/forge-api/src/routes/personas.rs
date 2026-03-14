@@ -9,10 +9,8 @@ use axum::{
     routing::get,
     Json, Router,
 };
-use forge_db::{AgentRepo, OrgPositionRepo, PersonaRepo};
 use forge_persona::model::{Persona, PersonaId};
 use serde::Deserialize;
-use uuid::Uuid;
 
 use crate::error::api_error;
 use crate::state::AppState;
@@ -113,18 +111,10 @@ async fn hire_persona(
     let agent = state.agent_repo.create(&new_agent).map_err(api_error)?;
 
     // Backfill persona_id on the agent row for traceability.
-    {
-        let conn = state
-            .agent_repo
-            .conn
-            .lock()
-            .expect("agent repo db mutex poisoned");
-        conn.execute(
-            "UPDATE agents SET persona_id = ?1 WHERE id = ?2",
-            rusqlite::params![persona_id.0.to_string(), agent.id.0.to_string()],
-        )
-        .map_err(|e| api_error(forge_core::error::ForgeError::Database(Box::new(e))))?;
-    }
+    state
+        .agent_repo
+        .set_persona_id(&agent.id, &persona_id.0.to_string())
+        .map_err(api_error)?;
 
     // Create an org position in the chosen company hierarchy.
     let pos_input = forge_db::NewOrgPosition {

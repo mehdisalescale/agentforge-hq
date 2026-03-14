@@ -1,129 +1,86 @@
-# Claude Forge — North Star
+# AgentForge HQ — North Star
 
-> **Read this first in every session.** This is the single source of truth.
-> Last updated: 2026-03-05 (v0.5.0 released, v0.6.0 planned — 7 agents, 3 waves)
+> **Read this first in every session.** This is the single source of truth for the core app.
+> Last updated: 2026-03-14
+>
+> **Repo:** [mehdisalescale/agentforge-hq](https://github.com/mehdisalescale/agentforge-hq)
 
 ---
 
 ## What We're Building
 
-A multi-agent Claude Code orchestrator: Rust/Axum + Svelte 5, single binary.
-The only Rust-native tool in the space — everyone else is TypeScript/Electron or Python.
+A self-improving AI workforce platform: Rust/Axum + Svelte 5, single binary.
+Unifies 8 open-source repos into one product. The only Rust-native tool in the space.
 
-**One-liner**: Spawn Claude Code agents, see their output in a real-time UI, keep them safe. One binary, zero deps.
+**One-liner**: Browse 100+ AI personas, hire them into org charts, let them execute real work with budgets and governance. One binary, zero deps.
 
 ---
 
-## Current State (Verified 2026-03-05)
+## Current State (2026-03-14)
 
-v0.5.0 tagged. All sprints + all 4 waves + v0.5.0 features complete.
+### What's Implemented
 
-### Build Status
-- `cargo check` — clean, zero warnings, all 9 crates compile
-- `cargo test` — 150 tests, all pass
-- `cargo clippy` — clean, zero warnings
-- Frontend — built and embedded (SvelteKit 5 + adapter-static)
+**13 workspace crates:**
 
-### What Works (verified in code)
+| Crate | What |
+|-------|------|
+| forge-core | ForgeEvent (35 variants), EventBus broadcast, ForgeError, typed IDs |
+| forge-agent | 10 presets (incl. Coordinator), Agent/NewAgent/UpdateAgent, validation |
+| forge-db | SQLite WAL, 12 migrations, 16 repos, BatchWriter (50/2s) |
+| forge-process | Claude CLI spawn, stream-json, ConcurrentRunner, LoopDetector |
+| forge-safety | CircuitBreaker (3-state FSM), RateLimiter (token bucket), CostTracker |
+| forge-api | Full HTTP API + WebSocket, CORS, TraceLayer, rust-embed SPA, 8-middleware chain |
+| forge-app | Binary wiring, graceful shutdown, env config, skill loading, cron scheduler |
+| forge-git | Worktree create/remove/list for multi-agent isolation |
+| forge-mcp | MCP protocol stubs |
+| forge-mcp-bin | MCP stdio server (rmcp, 10 tools) |
+| **forge-org** | Company, Department, OrgPosition models + org chart builder |
+| **forge-persona** | Persona catalog (100+ personas, 11 divisions), parser, hire flow |
+| **forge-governance** | Goal and Approval models |
 
-**Backend (9 workspace crates):**
-- forge-core: ForgeEvent (35 variants), EventBus broadcast, ForgeError, typed IDs (AgentId, SessionId, ScheduleId)
-- forge-agent: 10 presets (incl. Coordinator), Agent/NewAgent/UpdateAgent, name validation
-- forge-db: SQLite WAL, 5 migrations, BatchWriter (50/2s), 8 repos (Agent, Session, Event, Skill, Memory, Hook, Schedule, Analytics)
-- forge-process: Claude CLI spawn with stream-json, ConcurrentRunner, LoopDetector (sliding-window hash, exit gate)
-- forge-safety: CircuitBreaker (3-state FSM), RateLimiter (token bucket), CostTracker (budget warn/limit)
-- forge-api: Full HTTP API + WebSocket, CORS, TraceLayer, rust-embed SPA, 8-middleware chain (RateLimit, CircuitBreaker, CostCheck, SkillInjection, Persist, Spawn, ExitGate, QualityGate)
-- forge-app: Binary wiring, graceful shutdown, env config, skill loading, cron scheduler background task
-- forge-git: Worktree create/remove/list for multi-agent isolation (7 tests)
-- forge-mcp-bin: MCP stdio server (rmcp, 10 tools)
+**Frontend (16+ pages, all Svelte 5 $state runes):**
+- Dashboard, Agents, Sessions, Memory, Hooks, Skills, Workflows, Settings, Schedules, Analytics
+- **Companies** — manage companies (name, mission, budget)
+- **Org Chart** — visualize org hierarchy per company
+- **Personas** — browse catalog, hire into company/org
+- **Goals** — define and update per-company goals
+- **Approvals** — governance review and resolve
 
-**Frontend (12 pages, all $state runes):**
-- Dashboard — agent selector, prompt, WebSocket streaming, markdown rendering, sub-agent progress panel
-- Agents — full CRUD, 10 presets, domain badges (code/quality/ops/orchestration)
-- Sessions — two-pane layout, worktree badges, merge/cleanup buttons, export (JSON/Markdown/HTML), cost display
-- Memory — full CRUD, search, confidence bars, category badges
-- Hooks — full CRUD, event type select, timing badges, enable/disable toggle
-- Skills — tag pills, category filter, expandable content, usage count
-- Workflows — visual placeholder diagram, card layout
-- Settings — config dashboard, health endpoint, env var table
-- **Schedules** — cron CRUD, preset dropdown, enable/disable toggle, run count, last/next run
-- **Analytics** — summary cards, CSS bar chart (daily costs), agent breakdown table, P90, projected monthly
+**Epic 1 Baseline (Org + Personas + Governance):**
+- Backend APIs: companies, departments, org-positions, org-chart, personas (with hire), goals, approvals
+- DB: migrations 0009 (personas), 0011 (org charts), 0012 (agents.persona_id)
+- Full frontend pages for the complete flow
 
 **Infrastructure:**
 - GitHub Actions CI (test + clippy + build)
 - GitHub Release workflow (tag → binaries)
 - E2E smoke test script
-- Configurable: FORGE_HOST, FORGE_PORT, FORGE_DB_PATH, FORGE_CORS_ORIGIN, FORGE_CLI_COMMAND, FORGE_RATE_LIMIT_*, FORGE_BUDGET_*
 
-### What's New in v0.5.0
+### Version History
 
-- **Cron scheduler**: ScheduleRepo CRUD (468 LOC, 10 tests), background tick loop (60s interval), CancellationToken shutdown, frontend page
-- **Usage analytics**: AnalyticsRepo (297 LOC, 7 tests), daily costs, agent breakdown, session stats, P90, projected monthly, frontend dashboard
-- **Loop detection**: LoopDetector (201 LOC, 10 tests), sliding-window hash dedup, exit gate config, completion pattern matching
-- **Quality/exit gates**: MiddlewareError variants for exit gate + quality gate, 3 quality gate middleware tests
-- **Session HTML export**: dark-themed HTML report, `/api/v1/sessions/:id/export?format=html`
-- **9 new events**: ScheduleCreated/Triggered/Deleted, ExitGateTriggered, QualityCheckStarted/Passed/Failed, Error
-
-### What's Next — v0.6.0
-
-See `docs/V060_SPRINT_PLAN.md` for the execution plan (7 agents, 3 waves).
-Agent prompts: `docs/agents/V060_WAVE_PROMPTS.md` (copy-paste for parallel execution).
-
-| Wave | Agents | Features |
-|------|--------|----------|
-| Wave 5 (4 parallel) | N, O, P, R | Best-of-N selection, context pruner, pipeline engine, OpenAPI docs |
-| Wave 6 (1 sequential) | S | Integration wiring |
-| Wave 7 (2 parallel) | U, W | Three-type memory + auto-skills, swim-lane dashboard + pipeline UI |
-
-Research: `docs/RESEARCH_FINDINGS_2026_03_05.md` (67 repos analyzed)
-
-### Remaining Gaps
-
-| Gap | Severity | When |
-|-----|----------|------|
-| Authentication (none anywhere) | Medium | Post-v1.0 |
-| E2E automated test suite | Low | v0.5.0 |
+- **v0.1.0**: Agent CRUD, process spawn, sessions, streaming, embedded UI
+- **v0.2.0**: MCP server rewrite with rmcp, bug fixes
+- **v0.4.0**: 6-middleware chain, skill system, memory, git worktree isolation, sub-agent parallelism, 118 tests
+- **v0.5.0**: Cron scheduler, usage analytics, loop detection, quality/exit gates, 150 tests
+- **Epic 1**: Org structure, persona catalog, governance layer, 4 new crates, 5 new frontend pages
 
 ---
 
-## Sprint Plan
+## Roadmap (9 Epics → v1.0.0)
 
-Single source of truth: `MASTER_TASK_LIST.md`. Agent task cards: `docs/agents/HANDOFF_SPRINT_2_3.md`.
+Full details: `../docs/product/EPIC_INDEX.md`
 
-### Sprint 1 → v0.2.0 — MCP + Ship — DONE
-
-- [x] F1-F3: Bug fixes, M1-M5: MCP rewrite, D1-D2: Docs
-
-### Sprints 2-3 → v0.4.0 — Parallel Wave Execution — DONE
-
-13 agents across 4 waves, all complete:
-
-```
-Wave 1 (5 parallel) ✓ forge-git, middleware, skills, memory, hooks
-Wave 2 (1 sequential) ✓ integration wiring
-Wave 3 (3 parallel) ✓ middleware extraction, memory logic, sub-agent runner
-Wave 4 (4 parallel) ✓ frontend: memory/hook UI, sub-agent dashboard, polish
-```
-
-~1 day parallel execution. See `MASTER_TASK_LIST.md` for details.
-
----
-
-## What's Cut
-
-These are NOT in scope until users demand them:
-
-| Feature | Why Cut |
-|---------|---------|
-| WASM plugin runtime | MCP servers are the extension mechanism |
-| Multi-LLM routing | Forge is Claude-first; no current user demand |
-| Consensus protocols | Agents are independent; don't need agreement |
-| RL/learning layer | No usage data to train on yet |
-| 305-feature roadmap | Focus on ~20 features that matter |
-| Notification system (20 features) | Webhooks (1 feature) covers 90% |
-| Plugin marketplace | Need users first |
-| ~~Cron scheduler~~ | ~~Manual for now~~ → **Implemented in v0.5.0** |
-| Dev environment (code viewer, terminal) | Post-1.0 if ever |
+| Epic | What | Status |
+|------|------|--------|
+| E1 | Persona Workforce Catalog | **Baseline implemented** |
+| E2 | Dev Methodology Engine | Planning |
+| E3 | Hexagonal Backend Architecture | Planning |
+| E4 | Org Structure & Governance | Planning |
+| E5 | Multi-Backend Execution (Hermes/OpenClaw) | Not started |
+| E6 | Knowledge Base | Not started |
+| E7 | Multi-Platform Messaging (16+) | Not started |
+| E8 | Native Desktop Client | Not started |
+| E9 | Production Hardening → v1.0.0 | Not started |
 
 ---
 
@@ -133,15 +90,10 @@ These are NOT in scope until users demand them:
 |----------|-----------|------|
 | Rust + Svelte 5 single binary | Performance, no runtime deps, unique in space | Pre-project |
 | SQLite WAL mode | Single-file, concurrent reads, no server | Pre-project |
-| Ship existing prototype (don't rewrite) | 3K lines of working code > 44K lines of planning | 2026-02-26 |
-| 4 sprints (not 7 phases) | Ship in weeks, not months | 2026-03-02 |
-| Use rmcp for MCP | Official Rust SDK, `#[tool]` macro, maintained by protocol team | 2026-03-02 |
-| Middleware chain pattern | Borrowed from DeerFlow (verified: 8 real middlewares, 1,089 LOC) | 2026-03-02 |
-| Markdown-based skills | Borrowed from DeerFlow (verified: 15 real SKILL.md files, 208-line loader) | 2026-03-02 |
-| Git worktree isolation | Industry standard for multi-Claude-Code (official support Feb 2026) | 2026-03-02 |
-| Sub-agent parallelism | Borrowed from DeerFlow (verified: 414-line executor with real threadpool) | 2026-03-02 |
-| Cut WASM plugins | No competitor uses them; MCP is the extension mechanism | 2026-02-26 |
-| Freeze 00-08 planning dirs | Reference only; stop updating | 2026-02-26 |
+| Unify 8 repos into AgentForge | Each repo best-in-class at one piece; together = complete platform | 2026-03-10 |
+| Middleware chain pattern | Borrowed from DeerFlow (8 real middlewares, 1,089 LOC) | 2026-03-02 |
+| Git worktree isolation | Industry standard for multi-Claude-Code | 2026-03-02 |
+| Use rmcp for MCP | Official Rust SDK, `#[tool]` macro | 2026-03-02 |
 
 ---
 
@@ -149,76 +101,53 @@ These are NOT in scope until users demand them:
 
 ### Before Starting Work
 1. Read this file
-2. Check `docs/SESSION_LOG.md` for recent sessions
-3. Pick a task from the current sprint
+2. Check `../docs/sprints/SPRINT_PLAN.md` for current sprint
+3. Pick a task from the active sprint
 
 ### During Work
 - One session = one focused deliverable
 - Commit early, commit often
-- Don't update frozen planning docs — write code
 
 ### When Done
 1. Commit all changes
-2. Log what was done in `docs/SESSION_LOG.md`
-3. Update this file only if priorities changed
+2. Update this file only if priorities changed
 
 ---
 
 ## File Map
 
 ```
-forge-project/                    <-- Everything lives here
-  crates/                         <-- 9 workspace crates
+agentforge-hq/                   <-- This directory (was forge-project)
+  crates/                         <-- 13 workspace crates
     forge-core/                   ForgeEvent (35 variants), EventBus, errors, IDs
     forge-agent/                  Agent model, 10 presets, validation
-    forge-db/                     SQLite WAL, 5 migrations, 8 repos, BatchWriter
+    forge-db/                     SQLite WAL, 12 migrations, 16 repos, BatchWriter
     forge-process/                Claude CLI spawn, stream-json, ConcurrentRunner, LoopDetector
     forge-safety/                 CircuitBreaker, RateLimiter, CostTracker
     forge-api/                    Axum HTTP + WebSocket + middleware + embedded frontend
     forge-app/                    Binary entry point, wiring, shutdown
     forge-git/                    Git worktree create/remove/list
+    forge-org/                    Company, Department, OrgPosition, org chart
+    forge-persona/                Persona catalog, parser, hire flow
+    forge-governance/             Goals, Approvals
+    forge-mcp/                    MCP protocol stubs
     forge-mcp-bin/                MCP stdio server (rmcp)
   frontend/                       SvelteKit 5 + TailwindCSS 4
-  migrations/                     0001_init, 0002_add_cost, 0003_add_memory, 0004_add_hooks, 0005_scheduler_analytics
+  migrations/                     0001–0012 (org, personas, governance)
   skills/                         10 seed Markdown skill files
   scripts/                        e2e-smoke.sh
-  .github/workflows/              ci.yml, release.yml
-  docs/                           Current docs (audit, borrowed ideas, tasks)
-    FORGE_AUDIT_2026_03_02.md     Full audit report
-    BORROWED_IDEAS.md             DeerFlow + Claude-Flow + industry analysis
-    agents/                       Agent task records, wave coordination
-  archive/                        Frozen reference + old planning docs
+  docs/                           Implementation-level docs
   NORTH_STAR.md                   YOU ARE HERE
-  MASTER_TASK_LIST.md             Sprint tasks
+  CLAUDE.md                       AI agent context
   README.md                       GitHub landing page
 ```
 
 ---
 
-## Reference Material
+## Documentation
 
-### In This Repo
-
-| Resource | Location | Notes |
-|----------|----------|-------|
-| Full audit report | `docs/FORGE_AUDIT_2026_03_02.md` | Per-crate grades, gap analysis, proposal |
-| Borrowed ideas | `docs/BORROWED_IDEAS.md` | DeerFlow, Claude-Flow, reference repos, industry research |
-
-### Companion Repo: claude-parent
-
-> **GitHub:** [mbaneshi/claude-parent](https://github.com/mbaneshi/claude-parent)
-> **Local:** `/Users/bm/claude-parent/` (forge-project was split out of this repo on 2026-03-02)
-
-| Resource | Location | Notes |
-|----------|----------|-------|
-| 61 reference repos | `refrence-repo/` (local) or [online](https://github.com/mbaneshi/claude-parent) | Top 4: hooks-observability, Workflow, ralph, infrastructure-showcase |
-| Reference map | `reference-map/` | 13-category taxonomy of all 61 repos |
-| Capability map | `docs/CLAUDE_CODE_CAPABILITY_MAP_AND_FORGE_ROADMAP.md` | Claude Code capabilities mapped to Forge features |
-| AI doc landscape | `docs/ai-documentation-landscape.md` | AGENTS.md standard, industry state (2026) |
-
-### External (Local)
-
-| Resource | Location | Notes |
-|----------|----------|-------|
-| DeerFlow (verified) | `/Users/bm/cod/trend/26-feb/deer-flow` | ~10K real LOC Python, middleware + skills + memory + sub-agents |
-| Claude-Flow (mixed) | `/Users/bm/cod/trend/26-feb/claude-flow` | ~60% real, study swarm coordinator + ADR pattern |
+| Scope | Where |
+|-------|-------|
+| AgentForge strategy, epics, sprints | `../docs/INDEX.md` (workspace level) |
+| Implementation details (this app) | `docs/README.md` (this directory) |
+| AI agent context | `CLAUDE.md` (this directory) |

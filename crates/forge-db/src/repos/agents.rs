@@ -172,6 +172,16 @@ impl AgentRepo {
         self.get(id)
     }
 
+    pub fn set_persona_id(&self, id: &AgentId, persona_id: &str) -> ForgeResult<()> {
+        let conn = self.conn.lock().expect("db mutex poisoned");
+        conn.execute(
+            "UPDATE agents SET persona_id = ?1 WHERE id = ?2",
+            rusqlite::params![persona_id, id.0.to_string()],
+        )
+        .map_err(|e| ForgeError::Database(Box::new(e)))?;
+        Ok(())
+    }
+
     pub fn delete(&self, id: &AgentId) -> ForgeResult<()> {
         let conn = self.conn.lock().expect("db mutex poisoned");
         let rows = conn

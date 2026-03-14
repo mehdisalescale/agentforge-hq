@@ -373,6 +373,7 @@ dependencies = [
  "forge-core",
  "forge-db",
  "forge-org",
+ "forge-persona",
  "forge-process",
  "forge-safety",
  "futures-util",

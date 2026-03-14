@@ -1,7 +1,9 @@
-# Claude Forge — Technical Documentation
+# AgentForge HQ — Technical Documentation
 
-> Implementation-specific docs for the Rust + Svelte single-binary orchestrator.  
+> Implementation-specific docs for the Rust + Svelte single-binary platform.
 > For project-wide AgentForge docs (vision, epics, sprints, research), start at [`/docs/INDEX.md`](../../docs/INDEX.md).
+>
+> **Repo:** [mehdisalescale/agentforge-hq](https://github.com/mehdisalescale/agentforge-hq)
 
 ## Architecture
 
@@ -16,10 +18,14 @@
 | `forge-api` | Axum HTTP + WebSocket, routes, CORS, rust-embed SPA |
 | `forge-process` | Spawn Claude CLI, stream-json parsing, ConcurrentRunner, LoopDetector |
 | `forge-agent` | Agent model, 10 presets, validation |
-| `forge-db` | SQLite WAL, 8 migrations, 12 repos, BatchWriter |
+| `forge-db` | SQLite WAL, 12 migrations, 16 repos, BatchWriter |
 | `forge-core` | ForgeEvent (35 variants), EventBus, shared types, error hierarchy |
 | `forge-safety` | CircuitBreaker, RateLimiter, CostTracker |
 | `forge-git` | Git worktree create/remove/list for multi-agent isolation |
+| `forge-org` | Company, Department, OrgPosition models + org chart builder |
+| `forge-persona` | 100+ persona catalog, division taxonomy, parser, hire flow |
+| `forge-governance` | Goal and Approval models |
+| `forge-mcp` | MCP protocol stubs |
 | `forge-mcp-bin` | MCP stdio server (rmcp, 10 tools, 5 resources) |
 
 ## Epic 1 — Implemented Surfaces (Org + Personas + Governance)
@@ -44,16 +50,16 @@ These are the concrete slices implemented in this codebase for Epic 1:
   - API: `forge-api::routes::governance` (`/goals`, `/approvals`)
   - Frontend: `frontend/src/routes/goals/+page.svelte`, `frontend/src/routes/approvals/+page.svelte`
 
-For higher-level intent and story breakdown for Epic 1, see `/docs/engineering/EPIC1_FOUNDATION_TASKS.md` in the workspace root; this section exists only to show how that plan maps onto concrete code and endpoints here.
+For higher-level intent and story breakdown for Epic 1, see `/docs/engineering/EPIC1_FOUNDATION_TASKS.md` in the workspace root.
 
 ## Where to Find High-Level Plans
 
 The **authoritative source** for AgentForge strategy and planning lives one level up:
 
-- Product vision & strategy → [`/docs/strategy/`](../../docs/strategy/)  
-- Epics & requirements → [`/docs/product/`](../../docs/product/)  
-- Expansion plan (absorbing 8 repos) → [`/docs/engineering/EXPANSION_PLAN.md`](../../docs/engineering/EXPANSION_PLAN.md)  
-- Multi-agent dev system → [`/docs/engineering/MULTI_AGENT_DEVELOPMENT_SYSTEM.md`](../../docs/engineering/MULTI_AGENT_DEVELOPMENT_SYSTEM.md)  
-- Current sprint plan → [`/docs/sprints/SPRINT_PLAN.md`](../../docs/sprints/SPRINT_PLAN.md)  
+- Product vision & strategy → [`/docs/strategy/`](../../docs/strategy/)
+- Epics & requirements → [`/docs/product/`](../../docs/product/)
+- Expansion plan (absorbing 8 repos) → [`/docs/engineering/EXPANSION_PLAN.md`](../../docs/engineering/EXPANSION_PLAN.md)
+- Multi-agent dev system → [`/docs/engineering/MULTI_AGENT_DEVELOPMENT_SYSTEM.md`](../../docs/engineering/MULTI_AGENT_DEVELOPMENT_SYSTEM.md)
+- Current sprint plan → [`/docs/sprints/SPRINT_PLAN.md`](../../docs/sprints/SPRINT_PLAN.md)
 
-This `forge-project/docs` folder should only contain **implementation-level** docs: how we apply those plans to this Rust + Svelte codebase.
+This `agentforge-hq/docs` folder should only contain **implementation-level** docs: how we apply those plans to this Rust + Svelte codebase.

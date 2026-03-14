@@ -9,11 +9,11 @@
 
 use axum::{
     extract::{Path, Query, State},
-    routing::{get, patch, post},
+    routing::{get, patch},
     Json, Router,
 };
-use forge_db::{Approval, ApprovalRepo, Goal, GoalRepo, NewApproval, NewGoal};
-use serde::{Deserialize, Serialize};
+use forge_db::{Approval, Goal, NewApproval, NewGoal};
+use serde::Deserialize;
 
 use crate::error::api_error;
 use crate::state::AppState;
@@ -86,22 +86,10 @@ async fn update_goal_status(
         )));
     }
 
-    let mut goal = state.goal_repo.get(&id).map_err(api_error)?;
-    goal.status = body.status;
-
-    // Persist status only.
-    {
-        let conn = state
-            .goal_repo
-            .conn
-            .lock()
-            .expect("goal repo db mutex poisoned");
-        conn.execute(
-            "UPDATE goals SET status = ?1, updated_at = datetime('now') WHERE id = ?2",
-            rusqlite::params![goal.status, goal.id],
-        )
-        .map_err(|e| api_error(forge_core::error::ForgeError::Database(Box::new(e))))?;
-    }
+    let goal = state
+        .goal_repo
+        .update_status(&id, &body.status)
+        .map_err(api_error)?;
 
     Ok(Json(goal))
 }
@@ -164,13 +152,6 @@ struct UpdateApprovalStatusBody {
     approver: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
-struct UpdatedApproval {
-    id: String,
-    status: String,
-    approver: Option<String>,
-}
-
 async fn update_approval_status(
     State(state): State<AppState>,
     Path(id): Path<String>,
@@ -183,22 +164,10 @@ async fn update_approval_status(
         )));
     }
 
-    let mut approval = state.approval_repo.get(&id).map_err(api_error)?;
-    approval.status = body.status;
-    approval.approver = body.approver;
-
-    {
-        let conn = state
-            .approval_repo
-            .conn
-            .lock()
-            .expect("approval repo db mutex poisoned");
-        conn.execute(
-            "UPDATE approvals SET status = ?1, approver = ?2, updated_at = datetime('now') WHERE id = ?3",
-            rusqlite::params![approval.status, approval.approver, approval.id],
-        )
-        .map_err(|e| api_error(forge_core::error::ForgeError::Database(Box::new(e))))?;
-    }
+    let approval = state
+        .approval_repo
+        .update_status(&id, &body.status, body.approver.as_deref())
+        .map_err(api_error)?;
 
     Ok(Json(approval))
 }
