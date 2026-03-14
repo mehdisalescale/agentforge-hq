@@ -14,6 +14,12 @@
     type Agent,
     type ForgeEventWire,
   } from '$lib/api';
+  import {
+    Building2, Users, Bot, Network, Target, ShieldCheck,
+    GitBranch, Clock, BarChart3, Puzzle, Brain, Webhook,
+    Rocket, ArrowRight, Sparkles, MessageSquare, Wrench,
+    ClipboardList, CircleCheck
+  } from 'lucide-svelte';
 
   function renderStreamMarkdown(raw: string): string {
     if (!raw?.trim()) return '';
@@ -57,12 +63,12 @@
     events: SwimLaneEvent[];
   }
 
-  const KIND_ICONS: Record<OutputBlock['kind'], string> = {
-    assistant: '\u{1F4AC}',
-    tool_use: '\u{1F527}',
-    tool_result: '\u{1F4CB}',
-    thinking: '\u{1F9E0}',
-    result: '\u2705',
+  const KIND_ICONS: Record<OutputBlock['kind'], { icon: typeof MessageSquare; label: string }> = {
+    assistant: { icon: MessageSquare, label: 'Assistant' },
+    tool_use: { icon: Wrench, label: 'Tool Call' },
+    tool_result: { icon: ClipboardList, label: 'Tool Result' },
+    thinking: { icon: Brain, label: 'Thinking' },
+    result: { icon: CircleCheck, label: 'Result' },
   };
 
   const STATUS_COLORS: Record<string, string> = {
@@ -352,42 +358,117 @@
 <div class="page dashboard">
   {#if agents.length === 0 && !agentsError && streamStatus === 'idle'}
   <section class="onboarding">
-    <h1>Welcome to AgentForge</h1>
-    <p class="onboarding-sub">AI workforce platform. Hire agents, organize teams, ship work.</p>
+    <div class="onboarding-hero">
+      <div class="hero-icon"><Sparkles size={32} /></div>
+      <h1>Welcome to AgentForge</h1>
+      <p class="onboarding-sub">
+        Your self-improving AI workforce platform. Build teams of intelligent agents,
+        organize them into companies with real org charts, set budgets and goals,
+        and watch them execute tasks with full governance controls.
+      </p>
+    </div>
 
+    <h2 class="section-label">Get started in 3 steps</h2>
     <div class="onboarding-steps">
       <div class="step-card">
-        <span class="step-num">1</span>
+        <div class="step-header">
+          <span class="step-num">1</span>
+          <div class="step-icon"><Building2 size={20} /></div>
+        </div>
         <h3>Create a Company</h3>
-        <p>Set up your organization with a name, mission, and budget.</p>
-        <a href="/companies" class="step-link">Go to Companies</a>
+        <p>Define your organization with a name, mission statement, and budget.
+           This is the foundation that everything else builds on &mdash; departments,
+           teams, and agent assignments all live under a company.</p>
+        <a href="/companies" class="step-link">
+          Go to Companies <ArrowRight size={14} />
+        </a>
       </div>
       <div class="step-card">
-        <span class="step-num">2</span>
+        <div class="step-header">
+          <span class="step-num">2</span>
+          <div class="step-icon"><Users size={20} /></div>
+        </div>
         <h3>Hire Personas</h3>
-        <p>Browse 100+ AI agent personas and hire them into your company.</p>
-        <a href="/personas" class="step-link">Browse Personas</a>
+        <p>Browse a catalog of 100+ pre-built AI agent personas across engineering,
+           product, marketing, design, and more. Hire them into your company and
+           they'll automatically get placed in the org chart.</p>
+        <a href="/personas" class="step-link">
+          Browse Personas <ArrowRight size={14} />
+        </a>
       </div>
       <div class="step-card">
-        <span class="step-num">3</span>
+        <div class="step-header">
+          <span class="step-num">3</span>
+          <div class="step-icon"><Rocket size={20} /></div>
+        </div>
         <h3>Run Agents</h3>
-        <p>Give your agents tasks, watch them stream results in real-time.</p>
-        <a href="/agents" class="step-link">Manage Agents</a>
+        <p>Give your agents tasks with natural language prompts. Watch them stream
+           results in real-time, spawn sub-agents for complex work, and use tools
+           autonomously. All output is logged and exportable.</p>
+        <a href="/agents" class="step-link">
+          Manage Agents <ArrowRight size={14} />
+        </a>
       </div>
     </div>
 
-    <div class="onboarding-more">
-      <h3>Explore more</h3>
-      <div class="feature-grid">
-        <a href="/org-chart" class="feature-chip">Org Chart</a>
-        <a href="/goals" class="feature-chip">Goals</a>
-        <a href="/approvals" class="feature-chip">Approvals</a>
-        <a href="/workflows" class="feature-chip">Workflows</a>
-        <a href="/schedules" class="feature-chip">Schedules</a>
-        <a href="/analytics" class="feature-chip">Analytics</a>
-        <a href="/skills" class="feature-chip">Skills</a>
-        <a href="/memory" class="feature-chip">Memory</a>
-      </div>
+    <h2 class="section-label">Explore the platform</h2>
+    <div class="feature-grid">
+      <a href="/org-chart" class="feature-chip">
+        <Network size={16} />
+        <div>
+          <strong>Org Chart</strong>
+          <span>Visualize team hierarchy</span>
+        </div>
+      </a>
+      <a href="/goals" class="feature-chip">
+        <Target size={16} />
+        <div>
+          <strong>Goals</strong>
+          <span>Track company objectives</span>
+        </div>
+      </a>
+      <a href="/approvals" class="feature-chip">
+        <ShieldCheck size={16} />
+        <div>
+          <strong>Approvals</strong>
+          <span>Governance for decisions</span>
+        </div>
+      </a>
+      <a href="/workflows" class="feature-chip">
+        <GitBranch size={16} />
+        <div>
+          <strong>Workflows</strong>
+          <span>Multi-step automations</span>
+        </div>
+      </a>
+      <a href="/schedules" class="feature-chip">
+        <Clock size={16} />
+        <div>
+          <strong>Schedules</strong>
+          <span>Cron-based agent runs</span>
+        </div>
+      </a>
+      <a href="/analytics" class="feature-chip">
+        <BarChart3 size={16} />
+        <div>
+          <strong>Analytics</strong>
+          <span>Cost and usage insights</span>
+        </div>
+      </a>
+      <a href="/skills" class="feature-chip">
+        <Puzzle size={16} />
+        <div>
+          <strong>Skills</strong>
+          <span>Agent capability library</span>
+        </div>
+      </a>
+      <a href="/memory" class="feature-chip">
+        <Brain size={16} />
+        <div>
+          <strong>Memory</strong>
+          <span>Persistent knowledge base</span>
+        </div>
+      </a>
     </div>
   </section>
   {/if}
@@ -467,8 +548,9 @@
                 <span class="muted swim-col-empty">Waiting for output...</span>
               {:else}
                 {#each col.events as evt}
+                  {@const Icon = KIND_ICONS[evt.kind].icon}
                   <div class="swim-evt" class:swim-evt-tool={evt.kind === 'tool_use' || evt.kind === 'tool_result'} class:swim-evt-thinking={evt.kind === 'thinking'}>
-                    <span class="swim-evt-icon">{KIND_ICONS[evt.kind]}</span>
+                    <span class="swim-evt-icon"><Icon size={14} /></span>
                     <span class="swim-evt-content">{evt.content.slice(0, 200)}{evt.content.length > 200 ? '...' : ''}</span>
                   </div>
                 {/each}
@@ -557,34 +639,71 @@
 <style>
   /* --- Onboarding --- */
   .onboarding {
-    margin-bottom: 2rem;
-    padding-bottom: 2rem;
+    margin-bottom: 2.5rem;
+    padding-bottom: 2.5rem;
     border-bottom: 1px solid var(--border);
   }
+  .onboarding-hero {
+    text-align: center;
+    margin-bottom: 2rem;
+  }
+  .hero-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 3.5rem;
+    height: 3.5rem;
+    border-radius: 16px;
+    background: var(--accent-muted);
+    color: var(--accent);
+    margin-bottom: 1rem;
+  }
   .onboarding h1 {
-    margin: 0 0 0.25rem 0;
-    font-size: 1.6rem;
+    margin: 0 0 0.5rem 0;
+    font-size: 1.75rem;
     font-weight: 700;
+    letter-spacing: -0.03em;
   }
   .onboarding-sub {
-    margin: 0 0 1.5rem 0;
+    margin: 0 auto;
     color: var(--muted);
-    font-size: 1rem;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    max-width: 36rem;
+  }
+  .section-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin: 0 0 0.75rem 0;
   }
   .onboarding-steps {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
     gap: 1rem;
-    margin-bottom: 1.5rem;
+    margin-bottom: 2rem;
   }
   .step-card {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 1rem;
+    border-radius: var(--radius-lg);
+    padding: 1.25rem;
     display: flex;
     flex-direction: column;
-    gap: 0.4rem;
+    gap: 0.5rem;
+    transition: border-color var(--transition), box-shadow var(--transition);
+  }
+  .step-card:hover {
+    border-color: var(--border-hover);
+    box-shadow: var(--shadow-sm);
+  }
+  .step-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
   }
   .step-num {
     display: inline-flex;
@@ -599,53 +718,77 @@
     font-weight: 700;
     flex-shrink: 0;
   }
+  .step-icon {
+    color: var(--accent);
+    opacity: 0.7;
+    display: flex;
+  }
   .step-card h3 {
     margin: 0;
-    font-size: 0.95rem;
+    font-size: 1rem;
     font-weight: 600;
+    letter-spacing: -0.01em;
   }
   .step-card p {
     margin: 0;
-    font-size: 0.82rem;
+    font-size: 0.85rem;
     color: var(--muted);
-    line-height: 1.4;
+    line-height: 1.55;
     flex: 1;
   }
   .step-link {
-    font-size: 0.82rem;
+    font-size: 0.85rem;
     color: var(--accent);
     text-decoration: none;
     font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    margin-top: 0.25rem;
+    transition: gap var(--transition);
   }
   .step-link:hover {
-    text-decoration: underline;
-  }
-  .onboarding-more {
-    margin-top: 0.5rem;
-  }
-  .onboarding-more h3 {
-    margin: 0 0 0.5rem 0;
-    font-size: 0.85rem;
-    color: var(--muted);
-    font-weight: 500;
-  }
-  .feature-grid {
-    display: flex;
-    flex-wrap: wrap;
     gap: 0.5rem;
   }
+  .feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 0.6rem;
+  }
   .feature-chip {
-    padding: 0.35rem 0.75rem;
-    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius);
     border: 1px solid var(--border);
     background: var(--surface);
     color: var(--text);
-    font-size: 0.82rem;
     text-decoration: none;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.65rem;
+    transition: border-color var(--transition), box-shadow var(--transition);
   }
   .feature-chip:hover {
-    background: rgba(255, 255, 255, 0.06);
-    border-color: var(--accent);
+    border-color: var(--border-hover);
+    box-shadow: var(--shadow-sm);
+  }
+  .feature-chip :global(svg) {
+    color: var(--accent);
+    flex-shrink: 0;
+    margin-top: 2px;
+    opacity: 0.7;
+  }
+  .feature-chip div {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+  }
+  .feature-chip strong {
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+  .feature-chip span {
+    font-size: 0.75rem;
+    color: var(--muted);
   }
 
   .page {
@@ -734,8 +877,8 @@
   .stream-output {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 1rem;
+    border-radius: var(--radius);
+    padding: 1.25rem;
     min-height: 8rem;
   }
   .stream-output.empty {
@@ -755,17 +898,16 @@
     padding-left: 1.5rem;
   }
   .stream-rendered :global(pre) {
-    background: var(--surface);
+    background: var(--bg);
     border: 1px solid var(--border);
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     padding: 0.75rem;
     overflow-x: auto;
     margin: 0.5rem 0;
-    font-family: ui-monospace, monospace;
-    font-size: 0.85rem;
+    font-size: 0.82rem;
   }
   .stream-rendered :global(code) {
-    font-family: ui-monospace, monospace;
+    font-size: 0.85em;
   }
   .stream-rendered :global(p) { margin: 0.5rem 0; }
   .block-tool {
@@ -822,8 +964,9 @@
   .subagent-card {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: var(--radius);
     padding: 0.75rem;
+    transition: border-color var(--transition);
   }
   .subagent-card.requested {
     border-color: #71717a;
@@ -845,7 +988,6 @@
     margin-bottom: 0.35rem;
   }
   .subagent-id {
-    font-family: ui-monospace, monospace;
     font-size: 0.8rem;
     color: var(--text);
   }
@@ -922,7 +1064,7 @@
     background: var(--surface);
     border: 1px solid var(--border);
     border-top: 3px solid var(--lane-color, var(--border));
-    border-radius: 8px;
+    border-radius: var(--radius);
     display: flex;
     flex-direction: column;
   }
@@ -936,7 +1078,6 @@
   }
   .swim-col-name {
     font-size: 0.8rem;
-    font-family: ui-monospace, monospace;
     font-weight: 600;
     color: var(--text);
     overflow: hidden;

@@ -1,42 +1,81 @@
 <script lang="ts">
   import '../app.css';
+  import { page } from '$app/stores';
+  import {
+    Zap, Bot, History, GitBranch,
+    Building2, Users, Network, Target, ShieldCheck,
+    Puzzle, Brain, Webhook, Clock,
+    BarChart3, Settings
+  } from 'lucide-svelte';
+
+  const navGroups = [
+    {
+      label: 'Workspace',
+      links: [
+        { href: '/', text: 'Run', icon: Zap },
+        { href: '/agents', text: 'Agents', icon: Bot },
+        { href: '/sessions', text: 'Sessions', icon: History },
+        { href: '/workflows', text: 'Workflows', icon: GitBranch },
+      ]
+    },
+    {
+      label: 'Organization',
+      links: [
+        { href: '/companies', text: 'Companies', icon: Building2 },
+        { href: '/personas', text: 'Personas', icon: Users },
+        { href: '/org-chart', text: 'Org Chart', icon: Network },
+        { href: '/goals', text: 'Goals', icon: Target },
+        { href: '/approvals', text: 'Approvals', icon: ShieldCheck },
+      ]
+    },
+    {
+      label: 'Configuration',
+      links: [
+        { href: '/skills', text: 'Skills', icon: Puzzle },
+        { href: '/memory', text: 'Memory', icon: Brain },
+        { href: '/hooks', text: 'Hooks', icon: Webhook },
+        { href: '/schedules', text: 'Schedules', icon: Clock },
+      ]
+    },
+    {
+      label: 'Insights',
+      links: [
+        { href: '/analytics', text: 'Analytics', icon: BarChart3 },
+        { href: '/settings', text: 'Settings', icon: Settings },
+      ]
+    },
+  ];
+
+  function isActive(href: string, pathname: string): boolean {
+    if (href === '/') return pathname === '/';
+    return pathname.startsWith(href);
+  }
 </script>
 
 <div class="app">
   <aside class="sidebar">
     <nav class="nav">
-      <a class="brand" href="/">AgentForge</a>
+      <a class="brand" href="/">
+        <Zap size={18} />
+        AgentForge
+      </a>
 
-      <div class="nav-group">
-        <span class="nav-label">Workspace</span>
-        <a class="link" href="/">Run</a>
-        <a class="link" href="/agents">Agents</a>
-        <a class="link" href="/sessions">Sessions</a>
-        <a class="link" href="/workflows">Workflows</a>
-      </div>
-
-      <div class="nav-group">
-        <span class="nav-label">Organization</span>
-        <a class="link" href="/companies">Companies</a>
-        <a class="link" href="/personas">Personas</a>
-        <a class="link" href="/org-chart">Org Chart</a>
-        <a class="link" href="/goals">Goals</a>
-        <a class="link" href="/approvals">Approvals</a>
-      </div>
-
-      <div class="nav-group">
-        <span class="nav-label">Configuration</span>
-        <a class="link" href="/skills">Skills</a>
-        <a class="link" href="/memory">Memory</a>
-        <a class="link" href="/hooks">Hooks</a>
-        <a class="link" href="/schedules">Schedules</a>
-      </div>
-
-      <div class="nav-group">
-        <span class="nav-label">Insights</span>
-        <a class="link" href="/analytics">Analytics</a>
-        <a class="link" href="/settings">Settings</a>
-      </div>
+      {#each navGroups as group}
+        <div class="nav-group">
+          <span class="nav-label">{group.label}</span>
+          {#each group.links as link}
+            {@const Icon = link.icon}
+            <a
+              class="link"
+              class:active={isActive(link.href, $page.url.pathname)}
+              href={link.href}
+            >
+              <Icon size={16} />
+              {link.text}
+            </a>
+          {/each}
+        </div>
+      {/each}
     </nav>
   </aside>
   <main class="main">

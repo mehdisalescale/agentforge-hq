@@ -2,6 +2,7 @@
   import { setContext } from 'svelte';
   import { onMount } from 'svelte';
   import { listCompanies, createCompany, type Company } from '$lib/api';
+  import { Building2, Plus, DollarSign } from 'lucide-svelte';
 
   setContext('pageTitle', 'Companies');
 
@@ -85,8 +86,11 @@
 
 <div class="companies-page">
   <header class="page-header">
-    <h1>Companies</h1>
-    <button class="btn btn-primary" onclick={openForm}>New company</button>
+    <div>
+      <h1>Companies</h1>
+      <p class="page-desc">Create and manage your organizations. Each company has its own org chart, budget, and team of agents.</p>
+    </div>
+    <button class="btn btn-primary" onclick={openForm}><Plus size={16} /> New company</button>
   </header>
 
   {#if error}
@@ -164,10 +168,24 @@
 
   .page-header {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
     gap: 1rem;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1.75rem;
+  }
+
+  .page-header h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  .page-desc {
+    margin: 0.25rem 0 0 0;
+    color: var(--muted);
+    font-size: 0.875rem;
+    line-height: 1.5;
   }
 
   .company-cards {
@@ -179,22 +197,30 @@
   .card {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 1rem;
+    border-radius: var(--radius);
+    padding: 1.25rem;
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+    transition: border-color var(--transition), box-shadow var(--transition);
+  }
+
+  .card:hover {
+    border-color: var(--border-hover);
+    box-shadow: var(--shadow-sm);
   }
 
   .card-title {
     margin: 0;
-    font-size: 1.1rem;
+    font-size: 1.05rem;
+    font-weight: 600;
   }
 
   .card-mission {
     margin: 0;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
     color: var(--muted);
+    line-height: 1.5;
   }
 
   .card-budget {
@@ -202,6 +228,8 @@
     justify-content: space-between;
     font-size: 0.85rem;
     margin: 0.25rem 0 0 0;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border);
   }
 
   .card-budget .label {
@@ -209,7 +237,7 @@
   }
 
   .empty-state {
-    padding: 2rem 1rem;
+    padding: 3rem 1rem;
     text-align: center;
   }
 
@@ -219,18 +247,35 @@
 
   .btn {
     padding: 0.5rem 1rem;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     border: 1px solid var(--border);
     background: var(--surface);
     color: var(--text);
     cursor: pointer;
     font-family: inherit;
+    font-size: 0.875rem;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    transition: all var(--transition);
+  }
+
+  .btn:hover {
+    background: var(--surface-hover);
+    border-color: var(--border-hover);
   }
 
   .btn-primary {
     background: var(--accent);
     border-color: var(--accent);
-    color: #0f0f12;
+    color: #09090b;
+    font-weight: 600;
+  }
+
+  .btn-primary:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
   }
 
   .btn-ghost {
@@ -245,17 +290,18 @@
 
   .message.error {
     padding: 0.75rem 1rem;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     margin-bottom: 1rem;
-    background: rgba(239, 68, 68, 0.15);
+    background: var(--danger-muted);
     color: #fca5a5;
-    border: 1px solid rgba(239, 68, 68, 0.3);
+    border: 1px solid rgba(248, 113, 113, 0.3);
   }
 
   .modal-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.6);
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -266,12 +312,20 @@
   .modal {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 1.5rem;
+    border-radius: var(--radius-lg);
+    padding: 1.75rem;
     width: 100%;
     max-width: 28rem;
     max-height: 90vh;
     overflow: auto;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .modal h2 {
+    margin: 0 0 1rem 0;
+    font-size: 1.2rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
   }
 
   .company-form label {
@@ -289,12 +343,20 @@
   .company-form input,
   .company-form textarea {
     padding: 0.5rem 0.75rem;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     border: 1px solid var(--border);
     background: var(--bg);
     color: var(--text);
-    font-size: 0.9rem;
+    font-size: 0.875rem;
     font-family: inherit;
+    transition: border-color var(--transition);
+  }
+
+  .company-form input:focus,
+  .company-form textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-muted);
   }
 
   .form-actions {

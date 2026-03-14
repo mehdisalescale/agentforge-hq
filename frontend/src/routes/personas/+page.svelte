@@ -12,6 +12,8 @@
     type Department,
     type OrgPosition,
   } from '$lib/api';
+  import Markdown from '$lib/components/Markdown.svelte';
+  import { Search, Filter, UserPlus, X } from 'lucide-svelte';
 
   setContext('pageTitle', 'Personas');
 
@@ -131,10 +133,11 @@
 
 <div class="personas-page">
   <header class="page-header">
-    <h1>Persona catalog</h1>
+    <h1>Persona Catalog</h1>
+    <p class="page-desc">Browse 100+ pre-built AI agent personas. Filter by division or search to find the right fit, then hire them into your company.</p>
     <div class="filters">
       <label>
-        <span>Division</span>
+        <span><Filter size={12} /> Division</span>
         <input
           type="text"
           bind:value={divisionFilter}
@@ -143,7 +146,7 @@
         />
       </label>
       <label>
-        <span>Search</span>
+        <span><Search size={12} /> Search</span>
         <input
           type="search"
           bind:value={query}
@@ -153,7 +156,7 @@
       </label>
       <div class="filter-actions">
         <button class="btn" type="button" onclick={load}>Apply</button>
-        <button class="btn btn-ghost" type="button" onclick={clearFilters}>Reset</button>
+        <button class="btn btn-ghost" type="button" onclick={clearFilters}><X size={14} /> Reset</button>
       </div>
     </div>
   </header>
@@ -180,7 +183,7 @@
               <h2 class="card-title">{p.name}</h2>
               <p class="card-division">{p.division_slug}</p>
             </div>
-            <button class="btn btn-small" type="button" onclick={() => openHireModal(p)}>Hire…</button>
+            <button class="btn btn-small" type="button" onclick={() => openHireModal(p)}><UserPlus size={14} /> Hire</button>
           </header>
           <p class="card-summary">{p.short_description}</p>
           {#if p.tags?.length}
@@ -276,8 +279,23 @@
   .page-header {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
+    gap: 0.75rem;
+    margin-bottom: 1.75rem;
+  }
+
+  .page-header h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  .page-desc {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.9rem;
+    line-height: 1.5;
+    max-width: 40rem;
   }
 
   .filters {
@@ -285,27 +303,39 @@
     flex-wrap: wrap;
     gap: 0.75rem;
     align-items: flex-end;
+    margin-top: 0.25rem;
   }
 
   .filters label {
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
+    gap: 0.3rem;
     min-width: 12rem;
   }
 
   .filters span {
     font-size: 0.8rem;
     color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
   }
 
   .filters input {
-    padding: 0.4rem 0.6rem;
-    border-radius: 6px;
+    padding: 0.45rem 0.7rem;
+    border-radius: var(--radius-sm);
     border: 1px solid var(--border);
     background: var(--bg);
     color: var(--text);
-    font-size: 0.9rem;
+    font-size: 0.875rem;
+    font-family: inherit;
+    transition: border-color var(--transition);
+  }
+
+  .filters input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-muted);
   }
 
   .filter-actions {
@@ -315,18 +345,32 @@
 
   .btn {
     padding: 0.45rem 0.9rem;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     border: 1px solid var(--border);
     background: var(--surface);
     color: var(--text);
     cursor: pointer;
     font-family: inherit;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    transition: all var(--transition);
+  }
+
+  .btn:hover {
+    background: var(--surface-hover);
+    border-color: var(--border-hover);
   }
 
   .btn-ghost {
     background: transparent;
     border-color: transparent;
+  }
+
+  .btn-ghost:hover {
+    background: var(--surface-hover);
   }
 
   .btn-small {
@@ -351,12 +395,18 @@
 
   .card {
     background: var(--surface);
-    border-radius: 8px;
+    border-radius: var(--radius);
     border: 1px solid var(--border);
-    padding: 1rem;
+    padding: 1.25rem;
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+    transition: border-color var(--transition), box-shadow var(--transition);
+  }
+
+  .card:hover {
+    border-color: var(--border-hover);
+    box-shadow: var(--shadow-sm);
   }
 
   .card-header {
@@ -397,14 +447,16 @@
   .tags li {
     padding: 0.15rem 0.5rem;
     border-radius: 999px;
-    background: rgba(148, 163, 184, 0.15);
-    color: #e5e7eb;
-    font-size: 0.75rem;
+    background: var(--accent-muted);
+    color: var(--text-secondary);
+    font-size: 0.72rem;
+    font-weight: 500;
   }
 
   .tags .more {
     background: transparent;
-    border: 1px dashed rgba(148, 163, 184, 0.5);
+    border: 1px dashed var(--border-hover);
+    color: var(--muted);
   }
 
   .message.error {
@@ -428,7 +480,8 @@
   .modal-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.6);
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -438,13 +491,14 @@
 
   .modal {
     background: var(--surface);
-    border-radius: 8px;
+    border-radius: var(--radius-lg);
     border: 1px solid var(--border);
-    padding: 1.25rem;
+    padding: 1.5rem;
     width: 100%;
     max-width: 30rem;
     max-height: 90vh;
     overflow: auto;
+    box-shadow: var(--shadow-lg);
   }
 
   .modal-header {
@@ -474,12 +528,21 @@
 
   .hire-form select,
   .hire-form input {
-    padding: 0.4rem 0.6rem;
-    border-radius: 6px;
+    padding: 0.45rem 0.7rem;
+    border-radius: var(--radius-sm);
     border: 1px solid var(--border);
     background: var(--bg);
     color: var(--text);
-    font-size: 0.9rem;
+    font-size: 0.875rem;
+    font-family: inherit;
+    transition: border-color var(--transition);
+  }
+
+  .hire-form select:focus,
+  .hire-form input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-muted);
   }
 
   .form-actions {
