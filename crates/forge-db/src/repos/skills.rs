@@ -118,6 +118,10 @@ impl SkillRepo {
         for entry in entries {
             let entry = entry.map_err(ForgeError::Io)?;
             let path = entry.path();
+            if path.is_dir() {
+                count += self.load_from_dir(&path)?;
+                continue;
+            }
             if path.extension().and_then(|e| e.to_str()) != Some("md") {
                 continue;
             }
