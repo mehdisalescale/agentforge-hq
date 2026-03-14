@@ -272,6 +272,52 @@ impl Middleware for SkillInjectionMiddleware {
     }
 }
 
+/// Classifies the prompt into a TaskType and injects methodology skills.
+pub struct TaskTypeDetectionMiddleware {
+    pub skill_repo: Arc<SkillRepo>,
+}
+
+impl Middleware for TaskTypeDetectionMiddleware {
+    fn process<'a>(
+        &'a self,
+        ctx: &'a mut RunContext,
+        next: Next<'a>,
+    ) -> Pin<Box<dyn Future<Output = Result<RunResponse, MiddlewareError>> + Send + 'a>> {
+        Box::pin(async move {
+            let detector = forge_process::task_type::TaskTypeDetector::new();
+            let task_type = detector.classify(&ctx.prompt);
+            ctx.metadata.insert("task_type".into(), format!("{:?}", task_type));
+
+            let router = forge_process::skill_router::SkillRouter::new();
+            let skill_names = router.skills_for(task_type);
+
+            if !skill_names.is_empty() {
+                if let Ok(all_skills) = self.skill_repo.list() {
+                    let mut injected: Vec<String> = ctx.metadata
+                        .get("injected_skills")
+                        .map(|s| vec![s.clone()])
+                        .unwrap_or_default();
+
+                    for skill in &all_skills {
+                        if skill_names.iter().any(|n| n == &skill.name) {
+                            injected.push(format!("## Methodology: {}\n{}", skill.name, skill.content));
+                        }
+                    }
+                    if !injected.is_empty() {
+                        ctx.metadata.insert("injected_skills".into(), injected.join("\n\n"));
+                    }
+                }
+            }
+
+            next.run(ctx).await
+        })
+    }
+
+    fn name(&self) -> &str {
+        "task_type_detection"
+    }
+}
+
 /// Wraps the inner chain: sets session to "running" before, updates to
 /// "completed"/"failed" after, and emits lifecycle events.
 pub struct PersistMiddleware {
@@ -977,6 +1023,39 @@ mod tests {
             result,
             Err(MiddlewareError::QualityGateFailed { .. })
         ));
+    }
+
+    // -- TaskTypeDetectionMiddleware tests -----------------------------------
+
+    #[tokio::test]
+    async fn task_type_detection_sets_metadata() {
+        let conn = forge_db::DbPool::in_memory().unwrap();
+        { let c = conn.connection(); forge_db::Migrator::new(&c).apply_pending().unwrap(); }
+        let skill_repo = Arc::new(SkillRepo::new(conn.conn_arc()));
+        let mw = TaskTypeDetectionMiddleware { skill_repo };
+        let mut chain = MiddlewareChain::new();
+        chain.add(mw);
+        let mut ctx = test_context();
+        ctx.prompt = "fix the login bug".into();
+        let result = chain.execute(&mut ctx).await;
+        assert!(result.is_ok());
+        assert_eq!(ctx.metadata.get("task_type"), Some(&"BugFix".to_string()));
+    }
+
+    #[tokio::test]
+    async fn task_type_general_injects_no_methodology() {
+        let conn = forge_db::DbPool::in_memory().unwrap();
+        { let c = conn.connection(); forge_db::Migrator::new(&c).apply_pending().unwrap(); }
+        let skill_repo = Arc::new(SkillRepo::new(conn.conn_arc()));
+        let mw = TaskTypeDetectionMiddleware { skill_repo };
+        let mut chain = MiddlewareChain::new();
+        chain.add(mw);
+        let mut ctx = test_context();
+        ctx.prompt = "hello world".into();
+        let result = chain.execute(&mut ctx).await;
+        assert!(result.is_ok());
+        assert_eq!(ctx.metadata.get("task_type"), Some(&"General".to_string()));
+        // No methodology skills injected for General
     }
 
     #[tokio::test]

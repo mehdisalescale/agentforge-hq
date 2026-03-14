@@ -10,6 +10,7 @@ pub mod pipeline;
 pub mod runner;
 pub mod spawn;
 pub mod stream_event;
+pub mod skill_router;
 pub mod task_type;
 
 pub use best_of_n::{BestOfNRunner, SelectionResult, select_best};
