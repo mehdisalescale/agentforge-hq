@@ -1,12 +1,15 @@
 //! Process spawning for Claude Code CLI and stream-json parsing.
 //! Agent B: runner emits process output as ForgeEvent to EventBus.
 
+pub mod backend;
 pub mod best_of_n;
+pub mod claude_backend;
 pub mod concurrent;
 pub mod context_pruner;
 pub mod loop_detect;
 pub mod parse;
 pub mod pipeline;
+pub mod review;
 pub mod runner;
 pub mod spawn;
 pub mod stream_event;
