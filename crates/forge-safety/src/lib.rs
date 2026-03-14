@@ -1,6 +1,8 @@
 //! Safety controls: circuit breaker, rate limiter, budget enforcement.
 //! Circuit breaker: 3-state FSM to stop calls when failures exceed threshold.
 
+pub mod scanner;
+
 use std::sync::atomic::{AtomicU32, AtomicU8, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
