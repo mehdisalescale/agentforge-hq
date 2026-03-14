@@ -202,6 +202,15 @@ mod tests {
                 error: "oops".into(),
                 timestamp: ts,
             },
+            ForgeEvent::SecurityScanPassed {
+                session_id: session_id.clone(),
+                timestamp: ts,
+            },
+            ForgeEvent::SecurityScanFailed {
+                session_id: session_id.clone(),
+                findings: vec!["[Critical] eval_injection (line 1): Dynamic code execution".into()],
+                timestamp: ts,
+            },
             ForgeEvent::Error {
                 message: "m".into(),
                 context: None,

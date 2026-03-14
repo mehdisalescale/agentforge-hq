@@ -226,6 +226,17 @@ pub enum ForgeEvent {
         timestamp: DateTime<Utc>,
     },
 
+    // Security scan events
+    SecurityScanPassed {
+        session_id: SessionId,
+        timestamp: DateTime<Utc>,
+    },
+    SecurityScanFailed {
+        session_id: SessionId,
+        findings: Vec<String>,
+        timestamp: DateTime<Utc>,
+    },
+
     // Generic error
     Error {
         message: String,
@@ -275,6 +286,8 @@ impl ForgeEvent {
             | ForgeEvent::PipelineStepCompleted { timestamp, .. }
             | ForgeEvent::PipelineCompleted { timestamp, .. }
             | ForgeEvent::CompactionCompleted { timestamp, .. }
+            | ForgeEvent::SecurityScanPassed { timestamp, .. }
+            | ForgeEvent::SecurityScanFailed { timestamp, .. }
             | ForgeEvent::Error { timestamp, .. } => *timestamp,
         }
     }

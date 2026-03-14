@@ -15,8 +15,8 @@ use std::sync::Arc;
 use crate::error::{api_error, parse_uuid, rate_limit_exceeded};
 use crate::middleware::{
     CircuitBreakerMiddleware, CostCheckMiddleware, MiddlewareChain, MiddlewareError,
-    PersistMiddleware, RateLimitMiddleware, RunContext, SkillInjectionMiddleware,
-    TaskTypeDetectionMiddleware, SpawnMiddleware,
+    PersistMiddleware, RateLimitMiddleware, RunContext, SecurityScanMiddleware,
+    SkillInjectionMiddleware, TaskTypeDetectionMiddleware, SpawnMiddleware,
 };
 use crate::state::AppState;
 
@@ -94,6 +94,9 @@ async fn run_handler(
     });
     chain.add(TaskTypeDetectionMiddleware {
         skill_repo: Arc::clone(&state.skill_repo),
+    });
+    chain.add(SecurityScanMiddleware {
+        event_bus: Arc::clone(&state.event_bus),
     });
     chain.add(PersistMiddleware {
         session_repo: Arc::clone(&state.session_repo),
