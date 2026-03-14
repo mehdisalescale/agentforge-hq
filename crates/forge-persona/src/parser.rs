@@ -183,8 +183,8 @@ fn parse_markdown_sections(content: &str) -> (String, String, HashMap<String, St
                 para_lines.push(trimmed.to_string());
             }
         } else if trimmed.is_empty() {
-            break;
-        } else {
+            collecting = false;
+        } else if collecting {
             para_lines.push(trimmed.to_string());
         }
     }

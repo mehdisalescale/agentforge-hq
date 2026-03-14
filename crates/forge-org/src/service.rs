@@ -8,50 +8,61 @@ pub fn build_org_chart(
     departments: Vec<Department>,
     positions: Vec<OrgPosition>,
 ) -> CompanyOrgChart {
-    let nodes: HashMap<String, OrgChartNode> = positions
-        .into_iter()
-        .map(|p| {
-            let id = p.id.clone();
-            (
-                id,
-                OrgChartNode {
-                    position: p,
-                    children: Vec::new(),
-                },
-            )
-        })
-        .collect();
-
-    let mut roots = Vec::new();
-
-    // Attach children to their parents while preserving all nodes.
+    // Index positions by id, tracking parent edges separately.
     let mut by_id: HashMap<String, OrgChartNode> = HashMap::new();
-    let mut parent_map: HashMap<String, Option<String>> = HashMap::new();
+    let mut children_of: HashMap<String, Vec<String>> = HashMap::new();
+    let mut root_ids: Vec<String> = Vec::new();
 
-    for (id, node) in nodes.into_iter() {
-        parent_map.insert(id.clone(), node.position.reports_to.clone());
-        by_id.insert(id, node);
-    }
-
-    // Build child edges.
-    let ids: Vec<String> = by_id.keys().cloned().collect();
-    for id in &ids {
-        if let Some(Some(parent_id)) = parent_map.get(id) {
-            if let Some(child) = by_id.get(id).cloned() {
-                if let Some(parent) = by_id.get_mut(parent_id) {
-                    parent.children.push(child);
-                }
-            }
+    for p in &positions {
+        if let Some(ref parent_id) = p.reports_to {
+            children_of
+                .entry(parent_id.clone())
+                .or_default()
+                .push(p.id.clone());
         }
     }
 
-    // Roots are nodes without a valid parent.
-    for id in ids {
-        let parent_id = parent_map.get(&id).and_then(|p| p.clone());
-        if parent_id.is_none() || !by_id.contains_key(parent_id.as_ref().unwrap()) {
-            if let Some(node) = by_id.get(&id) {
-                roots.push(node.clone());
+    for p in positions {
+        let id = p.id.clone();
+        by_id.insert(
+            id,
+            OrgChartNode {
+                position: p,
+                children: Vec::new(),
+            },
+        );
+    }
+
+    // Identify roots (no parent, or parent not in the set).
+    for (id, node) in &by_id {
+        match &node.position.reports_to {
+            None => root_ids.push(id.clone()),
+            Some(pid) if !by_id.contains_key(pid) => root_ids.push(id.clone()),
+            _ => {}
+        }
+    }
+
+    // Recursively build the tree from roots downward.
+    fn build_subtree(
+        id: &str,
+        by_id: &mut HashMap<String, OrgChartNode>,
+        children_of: &HashMap<String, Vec<String>>,
+    ) -> Option<OrgChartNode> {
+        let mut node = by_id.remove(id)?;
+        if let Some(child_ids) = children_of.get(id) {
+            for cid in child_ids {
+                if let Some(child) = build_subtree(cid, by_id, children_of) {
+                    node.children.push(child);
+                }
             }
+        }
+        Some(node)
+    }
+
+    let mut roots = Vec::new();
+    for rid in root_ids {
+        if let Some(tree) = build_subtree(&rid, &mut by_id, &children_of) {
+            roots.push(tree);
         }
     }
 

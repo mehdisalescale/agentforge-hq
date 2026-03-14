@@ -247,7 +247,7 @@ mod tests {
                 .unwrap();
         }
 
-        std::thread::sleep(Duration::from_millis(2500));
+        std::thread::sleep(Duration::from_millis(3500));
 
         let count: i32 = conn
             .lock()
