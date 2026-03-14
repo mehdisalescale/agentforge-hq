@@ -87,6 +87,65 @@ impl CompanyRepo {
             })
     }
 
+    pub fn update(
+        &self,
+        id: &str,
+        name: Option<&str>,
+        mission: Option<&str>,
+        budget_limit: Option<f64>,
+    ) -> ForgeResult<Company> {
+        let conn = self.conn.lock().expect("db mutex poisoned");
+        let now = Utc::now().to_rfc3339();
+
+        let mut sets = vec!["updated_at = ?1".to_string()];
+        let mut params: Vec<Box<dyn rusqlite::types::ToSql>> = vec![Box::new(now)];
+
+        if let Some(n) = name {
+            params.push(Box::new(n.to_string()));
+            sets.push(format!("name = ?{}", params.len()));
+        }
+        if let Some(m) = mission {
+            params.push(Box::new(m.to_string()));
+            sets.push(format!("mission = ?{}", params.len()));
+        }
+        if let Some(b) = budget_limit {
+            params.push(Box::new(b));
+            sets.push(format!("budget_limit = ?{}", params.len()));
+        }
+
+        params.push(Box::new(id.to_string()));
+        let id_param = params.len();
+
+        let sql = format!(
+            "UPDATE companies SET {} WHERE id = ?{}",
+            sets.join(", "),
+            id_param
+        );
+
+        let affected = conn
+            .execute(&sql, rusqlite::params_from_iter(params.iter().map(|p| p.as_ref())))
+            .map_err(|e| ForgeError::Database(Box::new(e)))?;
+
+        if affected == 0 {
+            return Err(ForgeError::Validation(format!("company not found: {id}")));
+        }
+
+        drop(conn);
+        self.get(id)
+    }
+
+    pub fn delete(&self, id: &str) -> ForgeResult<()> {
+        let conn = self.conn.lock().expect("db mutex poisoned");
+        let affected = conn
+            .execute("DELETE FROM companies WHERE id = ?1", rusqlite::params![id])
+            .map_err(|e| ForgeError::Database(Box::new(e)))?;
+
+        if affected == 0 {
+            return Err(ForgeError::Validation(format!("company not found: {id}")));
+        }
+        Ok(())
+    }
+
     pub fn list(&self) -> ForgeResult<Vec<Company>> {
         let conn = self.conn.lock().expect("db mutex poisoned");
         let mut stmt = conn

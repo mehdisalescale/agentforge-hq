@@ -3,7 +3,7 @@ use forge_core::error::{ForgeError, ForgeResult};
 use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
 
-use forge_persona::model::{Persona, PersonaDivision, PersonaId};
+use forge_persona::model::{Persona, PersonaDivision, PersonaDivisionId, PersonaId};
 
 pub struct PersonaRepo {
     conn: Arc<Mutex<Connection>>,
@@ -91,6 +91,54 @@ impl PersonaRepo {
         tx.commit()
             .map_err(|e| ForgeError::Database(Box::new(e)))?;
         Ok(())
+    }
+
+    pub fn list_divisions(&self) -> ForgeResult<Vec<PersonaDivision>> {
+        let conn = self.conn.lock().expect("db mutex poisoned");
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, slug, name, description, agent_count, created_at, updated_at
+                 FROM persona_divisions ORDER BY name ASC",
+            )
+            .map_err(|e| ForgeError::Database(Box::new(e)))?;
+
+        let rows = stmt
+            .query_map([], |row| {
+                let id_str: String = row.get(0)?;
+                let id = PersonaDivisionId(
+                    id_str
+                        .parse()
+                        .map_err(|_| rusqlite::Error::InvalidQuery)?,
+                );
+                let slug: String = row.get(1)?;
+                let name: String = row.get(2)?;
+                let description: Option<String> = row.get(3)?;
+                let agent_count: i64 = row.get(4)?;
+                let created_at_str: String = row.get(5)?;
+                let updated_at_str: String = row.get(6)?;
+
+                let created_at = DateTime::parse_from_rfc3339(&created_at_str)
+                    .map_err(|_| rusqlite::Error::InvalidQuery)?
+                    .with_timezone(&Utc);
+                let updated_at = DateTime::parse_from_rfc3339(&updated_at_str)
+                    .map_err(|_| rusqlite::Error::InvalidQuery)?
+                    .with_timezone(&Utc);
+
+                Ok(PersonaDivision {
+                    id,
+                    slug,
+                    name,
+                    description,
+                    agent_count: agent_count as u32,
+                    created_at,
+                    updated_at,
+                })
+            })
+            .map_err(|e| ForgeError::Database(Box::new(e)))?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| ForgeError::Database(Box::new(e)))?;
+
+        Ok(rows)
     }
 
     pub fn list(&self, division_slug: Option<&str>, search: Option<&str>) -> ForgeResult<Vec<Persona>> {

@@ -1,10 +1,11 @@
 //! Org and governance routes: companies, departments, positions, and org chart.
 
 use axum::{
-    extract::{Query, State},
+    extract::{Path, Query, State},
     routing::get,
     Json, Router,
 };
+use http::StatusCode;
 use serde::Deserialize;
 
 use crate::error::api_error;
@@ -16,8 +17,16 @@ pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/companies", get(list_companies).post(create_company))
         .route(
+            "/companies/:id",
+            get(get_company).patch(update_company).delete(delete_company),
+        )
+        .route(
             "/departments",
             get(list_departments_by_company).post(create_department),
+        )
+        .route(
+            "/departments/:id",
+            get(get_department).patch(update_department).delete(delete_department),
         )
         .route(
             "/org-positions",
@@ -51,6 +60,41 @@ async fn create_company(
     };
     let company = state.company_repo.create(&input).map_err(api_error)?;
     Ok(Json(company))
+}
+
+async fn get_company(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Result<Json<Company>, axum::response::Response> {
+    let company = state.company_repo.get(&id).map_err(api_error)?;
+    Ok(Json(company))
+}
+
+#[derive(Debug, Deserialize)]
+struct UpdateCompanyBody {
+    name: Option<String>,
+    mission: Option<String>,
+    budget_limit: Option<f64>,
+}
+
+async fn update_company(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Json(body): Json<UpdateCompanyBody>,
+) -> Result<Json<Company>, axum::response::Response> {
+    let company = state
+        .company_repo
+        .update(&id, body.name.as_deref(), body.mission.as_deref(), body.budget_limit)
+        .map_err(api_error)?;
+    Ok(Json(company))
+}
+
+async fn delete_company(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Result<StatusCode, axum::response::Response> {
+    state.company_repo.delete(&id).map_err(api_error)?;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 #[derive(Debug, Deserialize)]
@@ -87,6 +131,40 @@ async fn list_departments_by_company(
         .list_by_company(&query.company_id)
         .map_err(api_error)?;
     Ok(Json(depts))
+}
+
+async fn get_department(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Result<Json<Department>, axum::response::Response> {
+    let dept = state.department_repo.get(&id).map_err(api_error)?;
+    Ok(Json(dept))
+}
+
+#[derive(Debug, Deserialize)]
+struct UpdateDepartmentBody {
+    name: Option<String>,
+    description: Option<String>,
+}
+
+async fn update_department(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Json(body): Json<UpdateDepartmentBody>,
+) -> Result<Json<Department>, axum::response::Response> {
+    let dept = state
+        .department_repo
+        .update(&id, body.name.as_deref(), body.description.as_deref())
+        .map_err(api_error)?;
+    Ok(Json(dept))
+}
+
+async fn delete_department(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Result<StatusCode, axum::response::Response> {
+    state.department_repo.delete(&id).map_err(api_error)?;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 #[derive(Debug, Deserialize)]

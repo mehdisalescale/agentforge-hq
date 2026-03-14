@@ -72,6 +72,60 @@ impl DepartmentRepo {
             })
     }
 
+    pub fn update(
+        &self,
+        id: &str,
+        name: Option<&str>,
+        description: Option<&str>,
+    ) -> ForgeResult<Department> {
+        let conn = self.conn.lock().expect("db mutex poisoned");
+        let now = Utc::now().to_rfc3339();
+
+        let mut sets = vec!["updated_at = ?1".to_string()];
+        let mut params: Vec<Box<dyn rusqlite::types::ToSql>> = vec![Box::new(now)];
+
+        if let Some(n) = name {
+            params.push(Box::new(n.to_string()));
+            sets.push(format!("name = ?{}", params.len()));
+        }
+        if let Some(d) = description {
+            params.push(Box::new(d.to_string()));
+            sets.push(format!("description = ?{}", params.len()));
+        }
+
+        params.push(Box::new(id.to_string()));
+        let id_param = params.len();
+
+        let sql = format!(
+            "UPDATE departments SET {} WHERE id = ?{}",
+            sets.join(", "),
+            id_param
+        );
+
+        let affected = conn
+            .execute(&sql, rusqlite::params_from_iter(params.iter().map(|p| p.as_ref())))
+            .map_err(|e| ForgeError::Database(Box::new(e)))?;
+
+        if affected == 0 {
+            return Err(ForgeError::Validation(format!("department not found: {id}")));
+        }
+
+        drop(conn);
+        self.get(id)
+    }
+
+    pub fn delete(&self, id: &str) -> ForgeResult<()> {
+        let conn = self.conn.lock().expect("db mutex poisoned");
+        let affected = conn
+            .execute("DELETE FROM departments WHERE id = ?1", rusqlite::params![id])
+            .map_err(|e| ForgeError::Database(Box::new(e)))?;
+
+        if affected == 0 {
+            return Err(ForgeError::Validation(format!("department not found: {id}")));
+        }
+        Ok(())
+    }
+
     pub fn list_by_company(&self, company_id: &str) -> ForgeResult<Vec<Department>> {
         let conn = self.conn.lock().expect("db mutex poisoned");
         let mut stmt = conn

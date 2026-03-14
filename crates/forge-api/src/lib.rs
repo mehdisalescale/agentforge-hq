@@ -392,6 +392,16 @@ mod tests {
         (status, json)
     }
 
+    async fn json_delete(app: &Router, uri: &str) -> StatusCode {
+        let req = Request::builder()
+            .method("DELETE")
+            .uri(format!("http://localhost{uri}"))
+            .body(Body::empty())
+            .unwrap();
+        let res = app.clone().oneshot(req).await.unwrap();
+        res.status()
+    }
+
     #[tokio::test]
     async fn epic1_company_crud() {
         let app = app(test_state());
@@ -552,6 +562,107 @@ mod tests {
 
         // Persona catalog starts empty (no seed data in test DB)
         let (status, json) = json_get(&app, "/api/v1/personas").await;
+        assert_eq!(status, StatusCode::OK);
+        assert!(json.is_array());
+    }
+
+    #[tokio::test]
+    async fn epic1_company_detail_and_update() {
+        let app = app(test_state());
+
+        // Create company
+        let (_, company) = json_post(&app, "/api/v1/companies", serde_json::json!({
+            "name": "DetailCo",
+            "mission": "Original mission",
+            "budget_limit": 5000.0
+        })).await;
+        let id = company["id"].as_str().unwrap();
+
+        // Get single
+        let (status, detail) = json_get(&app, &format!("/api/v1/companies/{id}")).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(detail["name"], "DetailCo");
+
+        // Update mission only
+        let (status, updated) = json_patch(&app, &format!("/api/v1/companies/{id}"), serde_json::json!({
+            "mission": "New mission"
+        })).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(updated["mission"], "New mission");
+        assert_eq!(updated["name"], "DetailCo"); // name unchanged
+
+        // Update name and budget
+        let (status, updated) = json_patch(&app, &format!("/api/v1/companies/{id}"), serde_json::json!({
+            "name": "RenamedCo",
+            "budget_limit": 9999.0
+        })).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(updated["name"], "RenamedCo");
+        assert_eq!(updated["budget_limit"], 9999.0);
+    }
+
+    #[tokio::test]
+    async fn epic1_company_delete() {
+        let app = app(test_state());
+
+        let (_, company) = json_post(&app, "/api/v1/companies", serde_json::json!({
+            "name": "DeleteMe"
+        })).await;
+        let id = company["id"].as_str().unwrap();
+
+        let status = json_delete(&app, &format!("/api/v1/companies/{id}")).await;
+        assert_eq!(status, StatusCode::NO_CONTENT);
+
+        // List should be empty
+        let (_, list) = json_get(&app, "/api/v1/companies").await;
+        assert_eq!(list.as_array().unwrap().len(), 0);
+    }
+
+    #[tokio::test]
+    async fn epic1_department_detail_update_delete() {
+        let app = app(test_state());
+
+        let (_, company) = json_post(&app, "/api/v1/companies", serde_json::json!({
+            "name": "DeptTestCo"
+        })).await;
+        let cid = company["id"].as_str().unwrap();
+
+        let (_, dept) = json_post(&app, "/api/v1/departments", serde_json::json!({
+            "company_id": cid,
+            "name": "Sales",
+            "description": "Sell things"
+        })).await;
+        let did = dept["id"].as_str().unwrap();
+
+        // Get single department
+        let (status, detail) = json_get(&app, &format!("/api/v1/departments/{did}")).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(detail["name"], "Sales");
+
+        // Update
+        let (status, updated) = json_patch(&app, &format!("/api/v1/departments/{did}"), serde_json::json!({
+            "name": "Revenue",
+            "description": "Drive revenue"
+        })).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(updated["name"], "Revenue");
+        assert_eq!(updated["description"], "Drive revenue");
+
+        // Delete
+        let status = json_delete(&app, &format!("/api/v1/departments/{did}")).await;
+        assert_eq!(status, StatusCode::NO_CONTENT);
+
+        // List should be empty
+        let (_, depts) = json_get(&app, &format!("/api/v1/departments?company_id={cid}")).await;
+        assert_eq!(depts.as_array().unwrap().len(), 0);
+    }
+
+    #[tokio::test]
+    async fn epic1_persona_divisions_list() {
+        let app = app(test_state());
+
+        // Divisions list returns 200 (empty in test DB)
+        let (status, json) = json_get(&app, "/api/v1/personas/divisions").await;
         assert_eq!(status, StatusCode::OK);
         assert!(json.is_array());
     }

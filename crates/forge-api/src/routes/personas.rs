@@ -9,7 +9,7 @@ use axum::{
     routing::get,
     Json, Router,
 };
-use forge_persona::model::{Persona, PersonaId};
+use forge_persona::model::{Persona, PersonaDivision, PersonaId};
 use serde::Deserialize;
 
 use crate::error::api_error;
@@ -18,6 +18,7 @@ use crate::state::AppState;
 pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/personas", get(list_personas))
+        .route("/personas/divisions", get(list_divisions))
         .route("/personas/:id", get(get_persona).post(hire_persona))
 }
 
@@ -43,6 +44,13 @@ async fn list_personas(
         .map_err(api_error)?;
 
     Ok(Json(personas))
+}
+
+async fn list_divisions(
+    State(state): State<AppState>,
+) -> Result<Json<Vec<PersonaDivision>>, axum::response::Response> {
+    let divisions = state.persona_repo.list_divisions().map_err(api_error)?;
+    Ok(Json(divisions))
 }
 
 async fn get_persona(
