@@ -158,8 +158,7 @@ mod tests {
     use std::sync::Arc;
     use tower::ServiceExt;
 
-    #[tokio::test]
-    async fn skills_list_returns_200_and_empty_array() {
+    fn test_state() -> AppState {
         let db = DbPool::in_memory().unwrap();
         let conn_arc = db.conn_arc();
         {
@@ -167,23 +166,15 @@ mod tests {
             let migrator = Migrator::new(&conn);
             migrator.apply_pending().unwrap();
         }
-        let agent_repo = AgentRepo::new(Arc::clone(&conn_arc));
-        let session_repo = SessionRepo::new(Arc::clone(&conn_arc));
-        let event_repo = EventRepo::new(Arc::clone(&conn_arc));
-        let skill_repo = SkillRepo::new(Arc::clone(&conn_arc));
-        let workflow_repo = WorkflowRepo::new(Arc::clone(&conn_arc));
-        let memory_repo = MemoryRepo::new(Arc::clone(&conn_arc));
-        let hook_repo = HookRepo::new(Arc::clone(&conn_arc));
-        let event_bus = EventBus::new(16);
-        let state = AppState::new(
-            Arc::new(agent_repo),
-            Arc::new(session_repo),
-            Arc::new(event_repo),
-            Arc::new(event_bus),
-            Arc::new(skill_repo),
-            Arc::new(workflow_repo),
-            Arc::new(memory_repo),
-            Arc::new(hook_repo),
+        AppState::new(
+            Arc::new(AgentRepo::new(Arc::clone(&conn_arc))),
+            Arc::new(SessionRepo::new(Arc::clone(&conn_arc))),
+            Arc::new(EventRepo::new(Arc::clone(&conn_arc))),
+            Arc::new(EventBus::new(16)),
+            Arc::new(SkillRepo::new(Arc::clone(&conn_arc))),
+            Arc::new(WorkflowRepo::new(Arc::clone(&conn_arc))),
+            Arc::new(MemoryRepo::new(Arc::clone(&conn_arc))),
+            Arc::new(HookRepo::new(Arc::clone(&conn_arc))),
             Arc::new(ScheduleRepo::new(Arc::clone(&conn_arc))),
             Arc::new(AnalyticsRepo::new(Arc::clone(&conn_arc))),
             Arc::new(CompactionRepo::new(Arc::clone(&conn_arc))),
@@ -198,7 +189,12 @@ mod tests {
                 rate_limiter: Arc::new(RateLimiter::new(100, Duration::from_secs(1))),
                 cost_tracker: Arc::new(forge_safety::CostTracker::default()),
             },
-        );
+        )
+    }
+
+    #[tokio::test]
+    async fn skills_list_returns_200_and_empty_array() {
+        let state = test_state();
         let app = app(state);
         let request = Request::builder()
             .uri("http://localhost/api/v1/skills")
@@ -214,45 +210,7 @@ mod tests {
 
     #[tokio::test]
     async fn workflows_list_returns_200() {
-        let db = DbPool::in_memory().unwrap();
-        let conn_arc = db.conn_arc();
-        {
-            let conn = conn_arc.lock().unwrap();
-            let migrator = Migrator::new(&conn);
-            migrator.apply_pending().unwrap();
-        }
-        let agent_repo = AgentRepo::new(Arc::clone(&conn_arc));
-        let session_repo = SessionRepo::new(Arc::clone(&conn_arc));
-        let event_repo = EventRepo::new(Arc::clone(&conn_arc));
-        let skill_repo = SkillRepo::new(Arc::clone(&conn_arc));
-        let workflow_repo = WorkflowRepo::new(Arc::clone(&conn_arc));
-        let memory_repo = MemoryRepo::new(Arc::clone(&conn_arc));
-        let hook_repo = HookRepo::new(Arc::clone(&conn_arc));
-        let event_bus = EventBus::new(16);
-        let state = AppState::new(
-            Arc::new(agent_repo),
-            Arc::new(session_repo),
-            Arc::new(event_repo),
-            Arc::new(event_bus),
-            Arc::new(skill_repo),
-            Arc::new(workflow_repo),
-            Arc::new(memory_repo),
-            Arc::new(hook_repo),
-            Arc::new(ScheduleRepo::new(Arc::clone(&conn_arc))),
-            Arc::new(AnalyticsRepo::new(Arc::clone(&conn_arc))),
-            Arc::new(CompactionRepo::new(Arc::clone(&conn_arc))),
-            Arc::new(CompanyRepo::new(Arc::clone(&conn_arc))),
-            Arc::new(DepartmentRepo::new(Arc::clone(&conn_arc))),
-            Arc::new(OrgPositionRepo::new(Arc::clone(&conn_arc))),
-            Arc::new(GoalRepo::new(Arc::clone(&conn_arc))),
-            Arc::new(ApprovalRepo::new(Arc::clone(&conn_arc))),
-            Arc::new(PersonaRepo::new(Arc::clone(&conn_arc))),
-            SafetyState {
-                circuit_breaker: Arc::new(CircuitBreaker::default()),
-                rate_limiter: Arc::new(RateLimiter::new(100, Duration::from_secs(1))),
-                cost_tracker: Arc::new(forge_safety::CostTracker::default()),
-            },
-        );
+        let state = test_state();
         let app = app(state);
         let request = Request::builder()
             .uri("http://localhost/api/v1/workflows")
@@ -267,46 +225,7 @@ mod tests {
 
     #[tokio::test]
     async fn health_check_responds_ok() {
-        let db = DbPool::in_memory().unwrap();
-        let conn_arc = db.conn_arc();
-        {
-            let conn = conn_arc.lock().unwrap();
-            let migrator = Migrator::new(&conn);
-            migrator.apply_pending().unwrap();
-        }
-        let agent_repo = AgentRepo::new(Arc::clone(&conn_arc));
-        let session_repo = SessionRepo::new(Arc::clone(&conn_arc));
-        let event_repo = EventRepo::new(Arc::clone(&conn_arc));
-        let skill_repo = SkillRepo::new(Arc::clone(&conn_arc));
-        let workflow_repo = WorkflowRepo::new(Arc::clone(&conn_arc));
-        let memory_repo = MemoryRepo::new(Arc::clone(&conn_arc));
-        let hook_repo = HookRepo::new(Arc::clone(&conn_arc));
-        let event_bus = EventBus::new(16);
-        let state = AppState::new(
-            Arc::new(agent_repo),
-            Arc::new(session_repo),
-            Arc::new(event_repo),
-            Arc::new(event_bus),
-            Arc::new(skill_repo),
-            Arc::new(workflow_repo),
-            Arc::new(memory_repo),
-            Arc::new(hook_repo),
-            Arc::new(ScheduleRepo::new(Arc::clone(&conn_arc))),
-            Arc::new(AnalyticsRepo::new(Arc::clone(&conn_arc))),
-            Arc::new(CompactionRepo::new(Arc::clone(&conn_arc))),
-            Arc::new(CompanyRepo::new(Arc::clone(&conn_arc))),
-            Arc::new(DepartmentRepo::new(Arc::clone(&conn_arc))),
-            Arc::new(OrgPositionRepo::new(Arc::clone(&conn_arc))),
-            Arc::new(GoalRepo::new(Arc::clone(&conn_arc))),
-            Arc::new(ApprovalRepo::new(Arc::clone(&conn_arc))),
-            Arc::new(PersonaRepo::new(Arc::clone(&conn_arc))),
-            SafetyState {
-                circuit_breaker: Arc::new(CircuitBreaker::default()),
-                rate_limiter: Arc::new(RateLimiter::new(100, Duration::from_secs(1))),
-                cost_tracker: Arc::new(forge_safety::CostTracker::default()),
-            },
-        );
-
+        let state = test_state();
         let app = app(state);
         let request = Request::builder()
             .uri("http://localhost/api/v1/health")
@@ -321,27 +240,10 @@ mod tests {
 
     #[tokio::test]
     async fn session_crud_and_export() {
-        use axum::body::Body;
-        use forge_core::EventBus;
         use forge_agent::model::NewAgent;
-        use forge_db::{
-            AgentRepo, AnalyticsRepo, ApprovalRepo, CompanyRepo, CompactionRepo, DbPool,
-            DepartmentRepo, EventRepo, GoalRepo, HookRepo, MemoryRepo, Migrator, OrgPositionRepo,
-            PersonaRepo, ScheduleRepo, SessionRepo, SkillRepo, WorkflowRepo,
-        };
-        use http::{Request, StatusCode};
-        use std::sync::Arc;
-        use tower::ServiceExt;
 
-        let db = DbPool::in_memory().unwrap();
-        let conn_arc = db.conn_arc();
-        {
-            let conn = conn_arc.lock().unwrap();
-            let migrator = Migrator::new(&conn);
-            migrator.apply_pending().unwrap();
-        }
-        let agent_repo = AgentRepo::new(Arc::clone(&conn_arc));
-        let agent = agent_repo
+        let state = test_state();
+        let agent = state.agent_repo
             .create(&NewAgent {
                 name: "ExportTestAgent".into(),
                 model: None,
@@ -353,38 +255,6 @@ mod tests {
                 config: None,
             })
             .unwrap();
-
-        let session_repo = SessionRepo::new(Arc::clone(&conn_arc));
-        let event_repo = EventRepo::new(Arc::clone(&conn_arc));
-        let skill_repo = SkillRepo::new(Arc::clone(&conn_arc));
-        let workflow_repo = WorkflowRepo::new(Arc::clone(&conn_arc));
-        let memory_repo = MemoryRepo::new(Arc::clone(&conn_arc));
-        let hook_repo = HookRepo::new(Arc::clone(&conn_arc));
-        let event_bus = EventBus::new(16);
-        let state = AppState::new(
-            Arc::new(agent_repo),
-            Arc::new(session_repo),
-            Arc::new(event_repo),
-            Arc::new(event_bus),
-            Arc::new(skill_repo),
-            Arc::new(workflow_repo),
-            Arc::new(memory_repo),
-            Arc::new(hook_repo),
-            Arc::new(ScheduleRepo::new(Arc::clone(&conn_arc))),
-            Arc::new(AnalyticsRepo::new(Arc::clone(&conn_arc))),
-            Arc::new(CompactionRepo::new(Arc::clone(&conn_arc))),
-            Arc::new(CompanyRepo::new(Arc::clone(&conn_arc))),
-            Arc::new(DepartmentRepo::new(Arc::clone(&conn_arc))),
-            Arc::new(OrgPositionRepo::new(Arc::clone(&conn_arc))),
-            Arc::new(GoalRepo::new(Arc::clone(&conn_arc))),
-            Arc::new(ApprovalRepo::new(Arc::clone(&conn_arc))),
-            Arc::new(PersonaRepo::new(Arc::clone(&conn_arc))),
-            SafetyState {
-                circuit_breaker: Arc::new(CircuitBreaker::default()),
-                rate_limiter: Arc::new(RateLimiter::new(100, Duration::from_secs(1))),
-                cost_tracker: Arc::new(forge_safety::CostTracker::default()),
-            },
-        );
 
         let app = app(state);
 
@@ -446,23 +316,10 @@ mod tests {
     #[tokio::test]
     #[ignore] // Requires `claude` CLI installed — run with `cargo test -- --ignored`
     async fn run_returns_202_and_session_id() {
-        use axum::body::Body;
-        use forge_core::EventBus;
         use forge_agent::model::NewAgent;
-        use forge_db::{AgentRepo, AnalyticsRepo, ApprovalRepo, CompanyRepo, CompactionRepo, DbPool, DepartmentRepo, EventRepo, GoalRepo, HookRepo, MemoryRepo, Migrator, OrgPositionRepo, PersonaRepo, ScheduleRepo, SessionRepo, SkillRepo, WorkflowRepo};
-        use http::{Request, StatusCode};
-        use std::sync::Arc;
-        use tower::ServiceExt;
 
-        let db = DbPool::in_memory().unwrap();
-        let conn_arc = db.conn_arc();
-        {
-            let conn = conn_arc.lock().unwrap();
-            let migrator = Migrator::new(&conn);
-            migrator.apply_pending().unwrap();
-        }
-        let agent_repo = AgentRepo::new(Arc::clone(&conn_arc));
-        let agent = agent_repo
+        let state = test_state();
+        let agent = state.agent_repo
             .create(&NewAgent {
                 name: "RunTestAgent".into(),
                 model: None,
@@ -474,38 +331,6 @@ mod tests {
                 config: None,
             })
             .unwrap();
-
-        let session_repo = SessionRepo::new(Arc::clone(&conn_arc));
-        let event_repo = EventRepo::new(Arc::clone(&conn_arc));
-        let skill_repo = SkillRepo::new(Arc::clone(&conn_arc));
-        let workflow_repo = WorkflowRepo::new(Arc::clone(&conn_arc));
-        let memory_repo = MemoryRepo::new(Arc::clone(&conn_arc));
-        let hook_repo = HookRepo::new(Arc::clone(&conn_arc));
-        let event_bus = EventBus::new(16);
-        let state = AppState::new(
-            Arc::new(agent_repo),
-            Arc::new(session_repo),
-            Arc::new(event_repo),
-            Arc::new(event_bus),
-            Arc::new(skill_repo),
-            Arc::new(workflow_repo),
-            Arc::new(memory_repo),
-            Arc::new(hook_repo),
-            Arc::new(ScheduleRepo::new(Arc::clone(&conn_arc))),
-            Arc::new(AnalyticsRepo::new(Arc::clone(&conn_arc))),
-            Arc::new(CompactionRepo::new(Arc::clone(&conn_arc))),
-            Arc::new(CompanyRepo::new(Arc::clone(&conn_arc))),
-            Arc::new(DepartmentRepo::new(Arc::clone(&conn_arc))),
-            Arc::new(OrgPositionRepo::new(Arc::clone(&conn_arc))),
-            Arc::new(GoalRepo::new(Arc::clone(&conn_arc))),
-            Arc::new(ApprovalRepo::new(Arc::clone(&conn_arc))),
-            Arc::new(PersonaRepo::new(Arc::clone(&conn_arc))),
-            SafetyState {
-                circuit_breaker: Arc::new(CircuitBreaker::default()),
-                rate_limiter: Arc::new(RateLimiter::new(100, Duration::from_secs(1))),
-                cost_tracker: Arc::new(forge_safety::CostTracker::default()),
-            },
-        );
 
         let app = app(state);
         let body = serde_json::json!({
@@ -523,5 +348,211 @@ mod tests {
         let body = axum::body::to_bytes(res.into_body(), usize::MAX).await.unwrap();
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert!(json.get("session_id").and_then(|v| v.as_str()).is_some());
+    }
+
+    // --- Epic 1 integration tests ---
+
+    async fn json_post(app: &Router, uri: &str, body: serde_json::Value) -> (StatusCode, serde_json::Value) {
+        let req = Request::builder()
+            .method("POST")
+            .uri(format!("http://localhost{uri}"))
+            .header("content-type", "application/json")
+            .body(Body::from(body.to_string()))
+            .unwrap();
+        let res = app.clone().oneshot(req).await.unwrap();
+        let status = res.status();
+        let bytes = axum::body::to_bytes(res.into_body(), usize::MAX).await.unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap_or(serde_json::Value::Null);
+        (status, json)
+    }
+
+    async fn json_get(app: &Router, uri: &str) -> (StatusCode, serde_json::Value) {
+        let req = Request::builder()
+            .uri(format!("http://localhost{uri}"))
+            .body(Body::empty())
+            .unwrap();
+        let res = app.clone().oneshot(req).await.unwrap();
+        let status = res.status();
+        let bytes = axum::body::to_bytes(res.into_body(), usize::MAX).await.unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap_or(serde_json::Value::Null);
+        (status, json)
+    }
+
+    async fn json_patch(app: &Router, uri: &str, body: serde_json::Value) -> (StatusCode, serde_json::Value) {
+        let req = Request::builder()
+            .method("PATCH")
+            .uri(format!("http://localhost{uri}"))
+            .header("content-type", "application/json")
+            .body(Body::from(body.to_string()))
+            .unwrap();
+        let res = app.clone().oneshot(req).await.unwrap();
+        let status = res.status();
+        let bytes = axum::body::to_bytes(res.into_body(), usize::MAX).await.unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap_or(serde_json::Value::Null);
+        (status, json)
+    }
+
+    #[tokio::test]
+    async fn epic1_company_crud() {
+        let app = app(test_state());
+
+        // List initially empty
+        let (status, json) = json_get(&app, "/api/v1/companies").await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(json.as_array().unwrap().len(), 0);
+
+        // Create
+        let (status, company) = json_post(&app, "/api/v1/companies", serde_json::json!({
+            "name": "Acme Corp",
+            "mission": "Build great things",
+            "budget_limit": 10000.0
+        })).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(company["name"], "Acme Corp");
+        assert!(company["id"].as_str().is_some());
+
+        // List now has one
+        let (_, json) = json_get(&app, "/api/v1/companies").await;
+        assert_eq!(json.as_array().unwrap().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn epic1_departments_and_org_positions() {
+        let app = app(test_state());
+
+        let (_, company) = json_post(&app, "/api/v1/companies", serde_json::json!({
+            "name": "TestOrg"
+        })).await;
+        let cid = company["id"].as_str().unwrap();
+
+        // Create department
+        let (status, dept) = json_post(&app, "/api/v1/departments", serde_json::json!({
+            "company_id": cid,
+            "name": "Engineering",
+            "description": "Build stuff"
+        })).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(dept["name"], "Engineering");
+
+        // List departments
+        let (_, depts) = json_get(&app, &format!("/api/v1/departments?company_id={cid}")).await;
+        assert_eq!(depts.as_array().unwrap().len(), 1);
+
+        // Create org position
+        let (status, pos) = json_post(&app, "/api/v1/org-positions", serde_json::json!({
+            "company_id": cid,
+            "department_id": dept["id"].as_str().unwrap(),
+            "role": "lead",
+            "title": "Tech Lead"
+        })).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(pos["role"], "lead");
+
+        // List positions
+        let (_, positions) = json_get(&app, &format!("/api/v1/org-positions?company_id={cid}")).await;
+        assert_eq!(positions.as_array().unwrap().len(), 1);
+
+        // Org chart
+        let (status, chart) = json_get(&app, &format!("/api/v1/org-chart?company_id={cid}")).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(chart["company"]["name"], "TestOrg");
+        assert_eq!(chart["roots"].as_array().unwrap().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn epic1_goal_lifecycle() {
+        let app = app(test_state());
+
+        let (_, company) = json_post(&app, "/api/v1/companies", serde_json::json!({
+            "name": "GoalCo"
+        })).await;
+        let cid = company["id"].as_str().unwrap();
+
+        // Create goal
+        let (status, goal) = json_post(&app, "/api/v1/goals", serde_json::json!({
+            "company_id": cid,
+            "title": "Ship v1",
+            "description": "Launch the product"
+        })).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(goal["status"], "planned");
+        let gid = goal["id"].as_str().unwrap();
+
+        // List goals
+        let (_, goals) = json_get(&app, &format!("/api/v1/goals?company_id={cid}")).await;
+        assert_eq!(goals.as_array().unwrap().len(), 1);
+
+        // Update status to in_progress
+        let (status, updated) = json_patch(&app, &format!("/api/v1/goals/{gid}/status"), serde_json::json!({
+            "status": "in_progress"
+        })).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(updated["status"], "in_progress");
+
+        // Update status to completed
+        let (status, updated) = json_patch(&app, &format!("/api/v1/goals/{gid}/status"), serde_json::json!({
+            "status": "completed"
+        })).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(updated["status"], "completed");
+
+        // Invalid status rejected
+        let (status, _) = json_patch(&app, &format!("/api/v1/goals/{gid}/status"), serde_json::json!({
+            "status": "bogus"
+        })).await;
+        assert!(status.is_client_error() || status.is_server_error());
+    }
+
+    #[tokio::test]
+    async fn epic1_approval_lifecycle() {
+        let app = app(test_state());
+
+        let (_, company) = json_post(&app, "/api/v1/companies", serde_json::json!({
+            "name": "ApprovalCo"
+        })).await;
+        let cid = company["id"].as_str().unwrap();
+
+        // Create approval
+        let (status, approval) = json_post(&app, "/api/v1/approvals", serde_json::json!({
+            "company_id": cid,
+            "approval_type": "budget_increase",
+            "requester": "alice",
+            "data_json": { "amount": 5000 }
+        })).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(approval["status"], "pending");
+        assert_eq!(approval["requester"], "alice");
+        let aid = approval["id"].as_str().unwrap();
+
+        // List approvals
+        let (_, approvals) = json_get(&app, &format!("/api/v1/approvals?company_id={cid}")).await;
+        assert_eq!(approvals.as_array().unwrap().len(), 1);
+
+        // Filter by status
+        let (_, filtered) = json_get(&app, &format!("/api/v1/approvals?company_id={cid}&status=approved")).await;
+        assert_eq!(filtered.as_array().unwrap().len(), 0);
+
+        // Approve it
+        let (status, updated) = json_patch(&app, &format!("/api/v1/approvals/{aid}"), serde_json::json!({
+            "status": "approved",
+            "approver": "bob"
+        })).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(updated["status"], "approved");
+        assert_eq!(updated["approver"], "bob");
+
+        // Now filter returns it
+        let (_, filtered) = json_get(&app, &format!("/api/v1/approvals?company_id={cid}&status=approved")).await;
+        assert_eq!(filtered.as_array().unwrap().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn epic1_personas_list() {
+        let app = app(test_state());
+
+        // Persona catalog starts empty (no seed data in test DB)
+        let (status, json) = json_get(&app, "/api/v1/personas").await;
+        assert_eq!(status, StatusCode::OK);
+        assert!(json.is_array());
     }
 }
