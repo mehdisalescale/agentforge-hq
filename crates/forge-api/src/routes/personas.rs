@@ -95,8 +95,15 @@ async fn hire_persona(
     let persona = state.persona_repo.get(&persona_id).map_err(api_error)?;
 
     // Create an agent that reflects this persona.
+    // Agent names only allow [A-Za-z0-9_-], so convert spaces to hyphens and strip invalid chars.
+    let agent_name: String = persona
+        .name
+        .chars()
+        .map(|c| if c == ' ' { '-' } else { c })
+        .filter(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == '_')
+        .collect();
     let new_agent = forge_agent::model::NewAgent {
-        name: persona.name.clone(),
+        name: agent_name,
         model: None,
         system_prompt: Some(format!(
             "You are persona '{}'. Short summary: {}.\nUse this as your operating persona.",

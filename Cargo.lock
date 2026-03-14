@@ -400,6 +400,7 @@ dependencies = [
  "forge-api",
  "forge-core",
  "forge-db",
+ "forge-persona",
  "forge-safety",
  "rusqlite",
  "tokio",

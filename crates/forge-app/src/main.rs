@@ -11,6 +11,8 @@ use forge_db::{
 };
 
 mod scheduler;
+use forge_persona::parser::PersonaParser;
+use forge_persona::model::{Persona, PersonaDivision, PersonaDivisionId};
 use forge_safety::{CircuitBreaker, CostTracker, RateLimiter};
 use std::env;
 use std::net::SocketAddr;
@@ -76,6 +78,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     if let Err(e) = skill_repo.load_from_dir(std::path::Path::new("skills")) {
         tracing::warn!("skill loading failed: {}", e);
     }
+
+    // Seed persona catalog from personas/ directory.
+    seed_personas(&persona_repo);
 
     // S1: Wire BatchWriter to EventBus — persist all events to SQLite.
     let batch_writer = Arc::new(BatchWriter::spawn(Arc::clone(&conn_arc)));
@@ -171,4 +176,77 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         }
     }
     Ok(())
+}
+
+fn seed_personas(persona_repo: &forge_db::PersonaRepo) {
+    let personas_dir = std::path::Path::new("personas");
+    if !personas_dir.is_dir() {
+        info!("no personas/ directory found, skipping persona seeding");
+        return;
+    }
+
+    let parser = PersonaParser::new(personas_dir);
+    let parsed = match parser.parse_all() {
+        Ok(p) => p,
+        Err(e) => {
+            tracing::warn!("persona parsing failed: {:?}", e);
+            return;
+        }
+    };
+
+    if parsed.is_empty() {
+        info!("no persona files found in personas/");
+        return;
+    }
+
+    // Build divisions from discovered division slugs.
+    let mut seen_divisions = std::collections::HashMap::<String, usize>::new();
+    for p in &parsed {
+        *seen_divisions.entry(p.division_slug.clone()).or_insert(0) += 1;
+    }
+
+    let now = chrono::Utc::now();
+    let divisions: Vec<PersonaDivision> = seen_divisions
+        .iter()
+        .map(|(slug, count)| {
+            let name = slug
+                .split('-')
+                .map(|w| {
+                    let mut c = w.chars();
+                    match c.next() {
+                        None => String::new(),
+                        Some(f) => f.to_uppercase().to_string() + c.as_str(),
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join(" ");
+            PersonaDivision {
+                id: PersonaDivisionId::new(),
+                slug: slug.clone(),
+                name,
+                description: None,
+                agent_count: *count as u32,
+                created_at: now,
+                updated_at: now,
+            }
+        })
+        .collect();
+
+    if let Err(e) = persona_repo.upsert_divisions(&divisions) {
+        tracing::warn!("persona division seeding failed: {}", e);
+        return;
+    }
+
+    let personas: Vec<Persona> = parsed.into_iter().map(Persona::from).collect();
+    let count = personas.len();
+    if let Err(e) = persona_repo.upsert_personas(&personas) {
+        tracing::warn!("persona seeding failed: {}", e);
+        return;
+    }
+
+    info!(
+        count,
+        divisions = divisions.len(),
+        "persona catalog seeded"
+    );
 }

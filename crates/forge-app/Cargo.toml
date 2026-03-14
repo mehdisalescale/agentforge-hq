@@ -13,6 +13,7 @@ forge-core = { path = "../forge-core" }
 forge-db = { path = "../forge-db" }
 forge-agent = { path = "../forge-agent" }
 forge-safety = { path = "../forge-safety" }
+forge-persona = { path = "../forge-persona" }
 tokio = { version = "1", features = ["full"] }
 chrono = { workspace = true }
 tracing = "0.1"

@@ -134,6 +134,7 @@ agentforge-hq/                   <-- This directory (was forge-project)
     forge-mcp-bin/                MCP stdio server (rmcp)
   frontend/                       SvelteKit 5 + TailwindCSS 4
   migrations/                     0001–0012 (org, personas, governance)
+  personas/                       112 persona Markdown files (11 divisions, seeded at startup)
   skills/                         10 seed Markdown skill files
   scripts/                        e2e-smoke.sh
   docs/                           Implementation-level docs
