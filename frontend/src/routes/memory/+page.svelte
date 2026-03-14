@@ -156,7 +156,7 @@
 </script>
 
 <svelte:head>
-  <title>Memory · Claude Forge</title>
+  <title>Memory · AgentForge</title>
 </svelte:head>
 
 <div class="memory-page">

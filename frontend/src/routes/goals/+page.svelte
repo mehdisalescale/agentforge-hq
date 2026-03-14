@@ -117,7 +117,7 @@
 </script>
 
 <svelte:head>
-  <title>Goals - Claude Forge</title>
+  <title>Goals - AgentForge</title>
 </svelte:head>
 
 <div class="goals-page">

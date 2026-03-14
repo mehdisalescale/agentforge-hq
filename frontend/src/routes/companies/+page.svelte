@@ -15,7 +15,7 @@
 
   let name = $state('');
   let mission = $state('');
-  let budgetLimit = $state('');
+  let budgetLimit = $state<string | number>('');
 
   async function loadCompanies() {
     loading = true;
@@ -54,10 +54,10 @@
         name: name.trim(),
       };
       if (mission.trim()) payload.mission = mission.trim();
-      const bl = budgetLimit.trim();
+      const bl = String(budgetLimit).trim();
       if (bl) {
         const n = Number(bl);
-        if (!Number.isNaN(n)) payload.budget_limit = n;
+        if (!Number.isNaN(n) && n > 0) payload.budget_limit = n;
       }
       await createCompany(payload);
       closeForm();
@@ -80,7 +80,7 @@
 </script>
 
 <svelte:head>
-  <title>Companies - Claude Forge</title>
+  <title>Companies - AgentForge</title>
 </svelte:head>
 
 <div class="companies-page">

@@ -346,10 +346,52 @@
 </script>
 
 <svelte:head>
-  <title>Dashboard - Claude Forge</title>
+  <title>Dashboard - AgentForge</title>
 </svelte:head>
 
 <div class="page dashboard">
+  {#if agents.length === 0 && !agentsError && streamStatus === 'idle'}
+  <section class="onboarding">
+    <h1>Welcome to AgentForge</h1>
+    <p class="onboarding-sub">AI workforce platform. Hire agents, organize teams, ship work.</p>
+
+    <div class="onboarding-steps">
+      <div class="step-card">
+        <span class="step-num">1</span>
+        <h3>Create a Company</h3>
+        <p>Set up your organization with a name, mission, and budget.</p>
+        <a href="/companies" class="step-link">Go to Companies</a>
+      </div>
+      <div class="step-card">
+        <span class="step-num">2</span>
+        <h3>Hire Personas</h3>
+        <p>Browse 100+ AI agent personas and hire them into your company.</p>
+        <a href="/personas" class="step-link">Browse Personas</a>
+      </div>
+      <div class="step-card">
+        <span class="step-num">3</span>
+        <h3>Run Agents</h3>
+        <p>Give your agents tasks, watch them stream results in real-time.</p>
+        <a href="/agents" class="step-link">Manage Agents</a>
+      </div>
+    </div>
+
+    <div class="onboarding-more">
+      <h3>Explore more</h3>
+      <div class="feature-grid">
+        <a href="/org-chart" class="feature-chip">Org Chart</a>
+        <a href="/goals" class="feature-chip">Goals</a>
+        <a href="/approvals" class="feature-chip">Approvals</a>
+        <a href="/workflows" class="feature-chip">Workflows</a>
+        <a href="/schedules" class="feature-chip">Schedules</a>
+        <a href="/analytics" class="feature-chip">Analytics</a>
+        <a href="/skills" class="feature-chip">Skills</a>
+        <a href="/memory" class="feature-chip">Memory</a>
+      </div>
+    </div>
+  </section>
+  {/if}
+
   <section class="run-section">
     <h2>Run</h2>
     {#if resumeSessionId}
@@ -513,6 +555,99 @@
 </div>
 
 <style>
+  /* --- Onboarding --- */
+  .onboarding {
+    margin-bottom: 2rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .onboarding h1 {
+    margin: 0 0 0.25rem 0;
+    font-size: 1.6rem;
+    font-weight: 700;
+  }
+  .onboarding-sub {
+    margin: 0 0 1.5rem 0;
+    color: var(--muted);
+    font-size: 1rem;
+  }
+  .onboarding-steps {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  .step-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+  .step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 50%;
+    background: var(--accent);
+    color: var(--bg);
+    font-size: 0.75rem;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .step-card h3 {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+  }
+  .step-card p {
+    margin: 0;
+    font-size: 0.82rem;
+    color: var(--muted);
+    line-height: 1.4;
+    flex: 1;
+  }
+  .step-link {
+    font-size: 0.82rem;
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 500;
+  }
+  .step-link:hover {
+    text-decoration: underline;
+  }
+  .onboarding-more {
+    margin-top: 0.5rem;
+  }
+  .onboarding-more h3 {
+    margin: 0 0 0.5rem 0;
+    font-size: 0.85rem;
+    color: var(--muted);
+    font-weight: 500;
+  }
+  .feature-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .feature-chip {
+    padding: 0.35rem 0.75rem;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 0.82rem;
+    text-decoration: none;
+  }
+  .feature-chip:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: var(--accent);
+  }
+
   .page {
     max-width: 52rem;
   }

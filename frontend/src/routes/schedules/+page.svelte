@@ -160,7 +160,7 @@
 </script>
 
 <svelte:head>
-  <title>Schedules &middot; Claude Forge</title>
+  <title>Schedules &middot; AgentForge</title>
 </svelte:head>
 
 <div class="schedules-page">

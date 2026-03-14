@@ -62,7 +62,7 @@
 </script>
 
 <svelte:head>
-  <title>Org Chart - Claude Forge</title>
+  <title>Org Chart - AgentForge</title>
 </svelte:head>
 
 <div class="org-page">

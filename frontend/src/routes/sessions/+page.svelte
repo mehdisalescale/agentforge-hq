@@ -86,7 +86,7 @@
 </script>
 
 <svelte:head>
-  <title>Sessions · Claude Forge</title>
+  <title>Sessions · AgentForge</title>
 </svelte:head>
 
 <div class="page sessions-page">

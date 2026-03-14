@@ -64,7 +64,7 @@
 </script>
 
 <svelte:head>
-  <title>Settings · Claude Forge</title>
+  <title>Settings · AgentForge</title>
 </svelte:head>
 
 <div class="settings-page">
@@ -140,7 +140,7 @@
   <section class="section">
     <h2 class="section-title">About</h2>
     <p class="about-text">
-      Claude Forge is a multi-agent Claude Code orchestrator. Rust/Axum backend + Svelte 5 frontend, shipped as a single binary.
+      AgentForge is a self-improving AI workforce platform. Browse 100+ agent personas, hire them into org charts, and let them execute real work with budgets and governance. Single binary, zero deps.
     </p>
   </section>
 </div>

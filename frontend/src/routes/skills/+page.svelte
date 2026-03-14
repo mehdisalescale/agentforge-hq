@@ -74,7 +74,7 @@
 </script>
 
 <svelte:head>
-  <title>Skills · Claude Forge</title>
+  <title>Skills · AgentForge</title>
 </svelte:head>
 
 <div class="skills-page">

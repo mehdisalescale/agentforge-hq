@@ -169,7 +169,7 @@
 </script>
 
 <svelte:head>
-  <title>Hooks · Claude Forge</title>
+  <title>Hooks · AgentForge</title>
 </svelte:head>
 
 <div class="hooks-page">

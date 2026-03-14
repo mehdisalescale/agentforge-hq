@@ -56,7 +56,7 @@
 </script>
 
 <svelte:head>
-  <title>Analytics &middot; Claude Forge</title>
+  <title>Analytics &middot; AgentForge</title>
 </svelte:head>
 
 <div class="analytics-page">

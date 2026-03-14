@@ -270,7 +270,7 @@
 </script>
 
 <svelte:head>
-  <title>Workflows - Claude Forge</title>
+  <title>Workflows - AgentForge</title>
 </svelte:head>
 
 <div class="workflows-page">

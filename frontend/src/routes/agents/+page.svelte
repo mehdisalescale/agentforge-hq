@@ -166,7 +166,7 @@
 </script>
 
 <svelte:head>
-  <title>Agents · Claude Forge</title>
+  <title>Agents · AgentForge</title>
 </svelte:head>
 
 <div class="agents-page">

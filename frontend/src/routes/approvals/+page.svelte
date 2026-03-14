@@ -83,7 +83,7 @@
 </script>
 
 <svelte:head>
-  <title>Approvals - Claude Forge</title>
+  <title>Approvals - AgentForge</title>
 </svelte:head>
 
 <div class="approvals-page">

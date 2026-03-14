@@ -126,7 +126,7 @@
 </script>
 
 <svelte:head>
-  <title>Personas - Claude Forge</title>
+  <title>Personas - AgentForge</title>
 </svelte:head>
 
 <div class="personas-page">
