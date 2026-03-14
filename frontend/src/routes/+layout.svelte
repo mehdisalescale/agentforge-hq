@@ -1,6 +1,7 @@
 <script lang="ts">
   import '../app.css';
   import { page } from '$app/stores';
+  import Onboarding from '$lib/components/Onboarding.svelte';
   import {
     Zap, Bot, History, GitBranch,
     Building2, Users, Network, Target, ShieldCheck,
@@ -51,6 +52,8 @@
     return pathname.startsWith(href);
   }
 </script>
+
+<Onboarding />
 
 <div class="app">
   <aside class="sidebar">
