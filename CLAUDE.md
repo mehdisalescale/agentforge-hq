@@ -32,7 +32,7 @@ forge-app          binary: DB setup, API server, embedded frontend, graceful shu
 ├── forge-persona  100+ persona catalog, division taxonomy, parser, hire flow
 ├── forge-governance  Goal and Approval models
 ├── forge-mcp      MCP protocol stubs
-└── forge-mcp-bin  MCP stdio server (rmcp, 13 tools)
+└── forge-mcp-bin  MCP stdio server (rmcp, 19 tools)
 ```
 
 ## Build & Test
@@ -123,15 +123,16 @@ A typical Epic 1 flow is:
 4. Capture intent in `/goals` and keep status updated.
 5. Use `/approvals` as the thin governance layer for decisions that need an explicit yes/no.
 
-## MCP Tools (forge-mcp-bin, 13 tools)
+## MCP Tools (forge-mcp-bin, 19 tools)
 
 The MCP server exposes these tools over stdio transport:
 
 - **Agent CRUD:** `agent_list`, `agent_get`, `agent_create`, `agent_update`, `agent_delete`
 - **Session CRUD:** `session_list`, `session_get`, `session_create`, `session_delete`, `session_export`
 - **Intelligence:** `forge_classify_task` — classify a prompt into task type + recommended skills
-- **Workforce:** `forge_list_personas` — list personas with optional division/search filter
-- **Governance:** `forge_get_budget` — get budget status (remaining, used, limit) for a company
+- **Workforce:** `forge_list_personas` — list personas with optional division/search filter; `forge_hire_persona` — hire a persona into a company (creates agent + org position)
+- **Governance:** `forge_get_budget` — get budget status; `forge_request_approval` — request an approval; `forge_check_approval` — check approval status; `forge_list_goals` — list company goals
+- **Observability:** `forge_get_session_events` — get all events for a session; `forge_get_analytics` — usage analytics (costs, session stats, agent breakdown)
 
 ## Wave 4 Architecture (in progress)
 

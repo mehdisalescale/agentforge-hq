@@ -461,9 +461,12 @@ dependencies = [
 name = "forge-mcp-bin"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "forge-agent",
  "forge-core",
  "forge-db",
+ "forge-persona",
+ "forge-process",
  "rmcp",
  "schemars",
  "serde",

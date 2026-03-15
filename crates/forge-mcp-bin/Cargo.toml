@@ -14,6 +14,7 @@ forge-agent = { path = "../forge-agent" }
 forge-db = { path = "../forge-db" }
 forge-process = { path = "../forge-process" }
 forge-persona = { path = "../forge-persona" }
+chrono = { workspace = true }
 rmcp = { version = "0.17", features = ["server", "transport-io", "macros"] }
 tokio = { workspace = true, features = ["full"] }
 uuid = { workspace = true }

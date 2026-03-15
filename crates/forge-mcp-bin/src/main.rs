@@ -3,7 +3,12 @@
 
 use forge_agent::model::{NewAgent, UpdateAgent};
 use forge_core::ids::{AgentId, SessionId};
-use forge_db::{AgentRepo, CompanyRepo, EventRepo, Migrator, NewSession, PersonaRepo, SessionRepo, StoredEvent};
+use forge_db::{
+    AgentRepo, AnalyticsRepo, ApprovalRepo, CompanyRepo, EventRepo, GoalRepo, Migrator,
+    NewApproval, NewOrgPosition, NewSession, OrgPositionRepo, PersonaRepo, SessionRepo,
+    StoredEvent,
+};
+use forge_persona::model::PersonaId;
 use rmcp::handler::server::tool::ToolRouter;
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::model::*;
@@ -27,6 +32,10 @@ pub struct ForgeMcp {
     event_repo: Arc<EventRepo>,
     persona_repo: Arc<PersonaRepo>,
     company_repo: Arc<CompanyRepo>,
+    approval_repo: Arc<ApprovalRepo>,
+    analytics_repo: Arc<AnalyticsRepo>,
+    goal_repo: Arc<GoalRepo>,
+    org_position_repo: Arc<OrgPositionRepo>,
     tool_router: ToolRouter<Self>,
 }
 
@@ -100,6 +109,42 @@ pub struct GetBudgetParam {
     company_id: String,
 }
 
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct RequestApprovalParam {
+    #[schemars(description = "UUID of the company")]
+    company_id: String,
+    #[schemars(description = "Approval type: budget_increase, run_authorization, deployment, other")]
+    approval_type: String,
+    #[schemars(description = "Description of what needs approval")]
+    description: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetSessionEventsParam {
+    #[schemars(description = "UUID of the session")]
+    session_id: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetAnalyticsParam {
+    #[schemars(description = "UUID of the company (optional — omit for global analytics)")]
+    company_id: Option<String>,
+    #[schemars(description = "Start date (YYYY-MM-DD, default: 30 days ago)")]
+    start: Option<String>,
+    #[schemars(description = "End date (YYYY-MM-DD, default: today)")]
+    end: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct HirePersonaParam {
+    #[schemars(description = "UUID of the persona to hire")]
+    persona_id: String,
+    #[schemars(description = "UUID of the company to hire into")]
+    company_id: String,
+    #[schemars(description = "UUID of the department (optional)")]
+    department_id: Option<String>,
+}
+
 // --- Helper ---
 
 fn parse_uuid(s: &str) -> Result<uuid::Uuid, ErrorData> {
@@ -126,6 +171,10 @@ impl ForgeMcp {
         event_repo: Arc<EventRepo>,
         persona_repo: Arc<PersonaRepo>,
         company_repo: Arc<CompanyRepo>,
+        approval_repo: Arc<ApprovalRepo>,
+        analytics_repo: Arc<AnalyticsRepo>,
+        goal_repo: Arc<GoalRepo>,
+        org_position_repo: Arc<OrgPositionRepo>,
     ) -> Self {
         Self {
             agent_repo,
@@ -133,6 +182,10 @@ impl ForgeMcp {
             event_repo,
             persona_repo,
             company_repo,
+            approval_repo,
+            analytics_repo,
+            goal_repo,
+            org_position_repo,
             tool_router: Self::tool_router(),
         }
     }
@@ -380,6 +433,188 @@ impl ForgeMcp {
             serde_json::to_string_pretty(&result).unwrap_or_default(),
         )]))
     }
+
+    // --- Governance tools ---
+
+    #[tool(
+        name = "forge_request_approval",
+        description = "Request an approval from the company governance. Returns the approval ID to check later."
+    )]
+    async fn request_approval(
+        &self,
+        Parameters(p): Parameters<RequestApprovalParam>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let input = NewApproval {
+            company_id: p.company_id,
+            approval_type: p.approval_type,
+            requester: "mcp-client".to_string(),
+            data_json: serde_json::json!({ "description": p.description }).to_string(),
+        };
+        let approval = self.approval_repo.create(&input).map_err(forge_err)?;
+        to_json_content(&serde_json::json!({
+            "id": approval.id,
+            "status": approval.status,
+            "created_at": approval.created_at.to_rfc3339(),
+        }))
+    }
+
+    #[tool(
+        name = "forge_check_approval",
+        description = "Check the status of an approval request"
+    )]
+    async fn check_approval(
+        &self,
+        Parameters(IdParam { id }): Parameters<IdParam>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let approval = self.approval_repo.get(&id).map_err(forge_err)?;
+        to_json_content(&serde_json::json!({
+            "id": approval.id,
+            "company_id": approval.company_id,
+            "approval_type": approval.approval_type,
+            "status": approval.status,
+            "requester": approval.requester,
+            "approver": approval.approver,
+            "data": approval.data_json,
+            "created_at": approval.created_at.to_rfc3339(),
+            "updated_at": approval.updated_at.to_rfc3339(),
+        }))
+    }
+
+    // --- Execution tools ---
+
+    #[tool(
+        name = "forge_get_session_events",
+        description = "Get all events for a session — tool uses, outputs, costs, security findings"
+    )]
+    async fn get_session_events(
+        &self,
+        Parameters(p): Parameters<GetSessionEventsParam>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let session_id = SessionId(parse_uuid(&p.session_id)?);
+        let events = self.event_repo.query_by_session(&session_id).map_err(forge_err)?;
+        to_json_content(&events)
+    }
+
+    // --- Observability tools ---
+
+    #[tool(
+        name = "forge_get_analytics",
+        description = "Get usage analytics — run counts, costs, success rates. Filter by company and date range."
+    )]
+    async fn get_analytics(
+        &self,
+        Parameters(p): Parameters<GetAnalyticsParam>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let today = chrono::Utc::now().date_naive();
+        let end = p.end.unwrap_or_else(|| today.format("%Y-%m-%d").to_string());
+        let start = p.start.unwrap_or_else(|| {
+            (today - chrono::Duration::days(30))
+                .format("%Y-%m-%d")
+                .to_string()
+        });
+        let report = self.analytics_repo.usage_report(&start, &end).map_err(forge_err)?;
+        let mut result = serde_json::json!({
+            "total_cost": report.total_cost,
+            "projected_monthly_cost": report.projected_monthly_cost,
+            "stats": {
+                "total_sessions": report.stats.total,
+                "completed": report.stats.completed,
+                "failed": report.stats.failed,
+                "avg_cost": report.stats.avg_cost,
+                "p90_cost": report.stats.p90_cost,
+            },
+            "daily_costs": report.daily_costs.iter().map(|d| serde_json::json!({
+                "date": d.date,
+                "cost": d.cost,
+            })).collect::<Vec<_>>(),
+            "agent_breakdown": report.agent_breakdown.iter().map(|a| serde_json::json!({
+                "agent_id": a.agent_id,
+                "total_cost": a.total_cost,
+                "session_count": a.session_count,
+            })).collect::<Vec<_>>(),
+        });
+        if let Some(ref cid) = p.company_id {
+            result["company_id"] = serde_json::json!(cid);
+        }
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&result).unwrap_or_default(),
+        )]))
+    }
+
+    // --- Workforce tools ---
+
+    #[tool(
+        name = "forge_hire_persona",
+        description = "Hire a persona into a company — creates an agent and org position"
+    )]
+    async fn hire_persona(
+        &self,
+        Parameters(p): Parameters<HirePersonaParam>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let persona_id = PersonaId(parse_uuid(&p.persona_id)?);
+        let persona = self
+            .persona_repo
+            .get(&persona_id)
+            .map_err(|e| ErrorData::internal_error(format!("Persona not found: {}", e), None))?;
+
+        // Create agent from persona (same logic as forge-api hire endpoint)
+        let agent_name: String = persona
+            .name
+            .chars()
+            .map(|c| if c == ' ' { '-' } else { c })
+            .filter(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == '_')
+            .collect();
+        let new_agent = NewAgent {
+            name: agent_name,
+            model: None,
+            system_prompt: Some(format!(
+                "You are persona '{}'. Short summary: {}.\nUse this as your operating persona.",
+                persona.name, persona.short_description
+            )),
+            allowed_tools: None,
+            max_turns: None,
+            use_max: None,
+            preset: None,
+            config: None,
+        };
+        let agent = self.agent_repo.create(&new_agent).map_err(forge_err)?;
+
+        // Link persona_id for traceability
+        self.agent_repo
+            .set_persona_id(&agent.id, &persona_id.0.to_string())
+            .map_err(forge_err)?;
+
+        // Create org position
+        let pos_input = NewOrgPosition {
+            company_id: p.company_id,
+            department_id: p.department_id,
+            agent_id: Some(agent.id.0.to_string()),
+            reports_to: None,
+            role: persona.slug.clone(),
+            title: Some(persona.name.clone()),
+        };
+        let position = self.org_position_repo.create(&pos_input).map_err(forge_err)?;
+
+        to_json_content(&serde_json::json!({
+            "agent_id": agent.id.0.to_string(),
+            "position_id": position.id,
+            "persona_name": persona.name,
+        }))
+    }
+
+    // --- Goal tools ---
+
+    #[tool(
+        name = "forge_list_goals",
+        description = "List goals for a company"
+    )]
+    async fn list_goals(
+        &self,
+        Parameters(p): Parameters<GetBudgetParam>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let goals = self.goal_repo.list_by_company(&p.company_id).map_err(forge_err)?;
+        to_json_content(&goals)
+    }
 }
 
 #[tool_handler]
@@ -387,10 +622,13 @@ impl ServerHandler for ForgeMcp {
     fn get_info(&self) -> ServerInfo {
         ServerInfo {
             instructions: Some(
-                "Forge MCP server: manage Claude Code agents, sessions, personas, and budgets. \
-                 Tools: agent_list, agent_get, agent_create, agent_update, agent_delete, \
-                 session_list, session_get, session_create, session_delete, session_export, \
-                 forge_classify_task, forge_list_personas, forge_get_budget."
+                "Forge MCP server: manage Claude Code agents, sessions, personas, budgets, \
+                 governance, and analytics. Tools: agent_list, agent_get, agent_create, \
+                 agent_update, agent_delete, session_list, session_get, session_create, \
+                 session_delete, session_export, forge_classify_task, forge_list_personas, \
+                 forge_get_budget, forge_request_approval, forge_check_approval, \
+                 forge_get_session_events, forge_get_analytics, forge_hire_persona, \
+                 forge_list_goals."
                     .into(),
             ),
             capabilities: ServerCapabilities::builder().enable_tools().build(),
@@ -447,9 +685,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let event_repo = Arc::new(EventRepo::new(Arc::clone(&conn)));
     let persona_repo = Arc::new(PersonaRepo::new(Arc::clone(&conn)));
     let company_repo = Arc::new(CompanyRepo::new(Arc::clone(&conn)));
+    let approval_repo = Arc::new(ApprovalRepo::new(Arc::clone(&conn)));
+    let analytics_repo = Arc::new(AnalyticsRepo::new(Arc::clone(&conn)));
+    let goal_repo = Arc::new(GoalRepo::new(Arc::clone(&conn)));
+    let org_position_repo = Arc::new(OrgPositionRepo::new(Arc::clone(&conn)));
 
     tracing::info!("starting Forge MCP server (stdio)");
-    let server = ForgeMcp::new(agent_repo, session_repo, event_repo, persona_repo, company_repo);
+    let server = ForgeMcp::new(
+        agent_repo,
+        session_repo,
+        event_repo,
+        persona_repo,
+        company_repo,
+        approval_repo,
+        analytics_repo,
+        goal_repo,
+        org_position_repo,
+    );
     let service = server.serve(rmcp::transport::stdio()).await?;
     service.waiting().await?;
 
