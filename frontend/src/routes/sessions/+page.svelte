@@ -2,15 +2,38 @@
   import { setContext } from 'svelte';
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
+  import { marked } from 'marked';
+  import DOMPurify from 'dompurify';
   import {
     listSessions,
     getSession,
+    getSessionEvents,
     exportSessionUrl,
     exportSessionHtmlUrl,
     listAgents,
     type Session,
+    type SessionEvent,
     type Agent,
   } from '$lib/api';
+
+  interface OutputBlock {
+    kind: 'assistant' | 'tool_use' | 'tool_result' | 'thinking' | 'result';
+    content: string;
+  }
+
+  function normalizeBlockKind(k: string): OutputBlock['kind'] {
+    const s = (k ?? 'assistant').toString().toLowerCase();
+    if (s === 'tooluse') return 'tool_use';
+    if (s === 'toolresult') return 'tool_result';
+    if (s === 'thinking' || s === 'result') return s;
+    return 'assistant';
+  }
+
+  function renderMarkdown(raw: string): string {
+    if (!raw?.trim()) return '';
+    const html = marked.parse(raw, { async: false }) as string;
+    return DOMPurify.sanitize(html);
+  }
 
   setContext('pageTitle', 'Sessions');
 
@@ -21,6 +44,8 @@
   let detailError: string = $state('');
   let agents: Agent[] = $state([]);
   let viewMode: 'list' | 'kanban' = $state('list');
+  let sessionOutput: OutputBlock[] = $state([]);
+  let outputLoading: boolean = $state(false);
 
   // Kanban columns derived from sessions
   const KANBAN_STATUSES = ['created', 'running', 'completed', 'failed'] as const;
@@ -58,10 +83,38 @@
     selectedId = id;
     detailError = '';
     detail = null;
+    sessionOutput = [];
     try {
       detail = await getSession(id);
+      loadSessionOutput(id);
     } catch (e) {
       detailError = e instanceof Error ? e.message : String(e);
+    }
+  }
+
+  async function loadSessionOutput(sessionId: string) {
+    outputLoading = true;
+    try {
+      const events = await getSessionEvents(sessionId);
+      const blocks: OutputBlock[] = [];
+      for (const ev of events) {
+        if (ev.event_type !== 'ProcessOutput') continue;
+        let data: Record<string, unknown> = {};
+        try { data = JSON.parse(ev.data_json); } catch { continue; }
+        const kind = normalizeBlockKind((data.kind as string) ?? 'assistant');
+        const content = typeof data.content === 'string' ? data.content : String(data.content ?? '');
+        if (!content) continue;
+        if (blocks.length > 0 && blocks[blocks.length - 1].kind === kind) {
+          blocks[blocks.length - 1].content += content;
+        } else {
+          blocks.push({ kind, content });
+        }
+      }
+      sessionOutput = blocks;
+    } catch {
+      sessionOutput = [];
+    } finally {
+      outputLoading = false;
     }
   }
 
@@ -152,6 +205,35 @@
           <button type="button" class="secondary" onclick={() => detail && exportAs(detail.id, 'json')}>Export JSON</button>
           <button type="button" class="secondary" onclick={() => detail && exportHtml(detail.id)}>Export HTML</button>
         </div>
+        <div class="session-output">
+          <h3>Output</h3>
+          {#if outputLoading}
+            <p class="muted">Loading output...</p>
+          {:else if sessionOutput.length === 0}
+            <p class="muted">No output recorded for this session.</p>
+          {:else}
+            {#each sessionOutput as block}
+              {#if block.kind === 'assistant' || block.kind === 'result'}
+                <div class="block-assistant rendered">{@html renderMarkdown(block.content)}</div>
+              {:else if block.kind === 'tool_use'}
+                <details class="block-tool">
+                  <summary>Tool Call</summary>
+                  <pre><code>{block.content}</code></pre>
+                </details>
+              {:else if block.kind === 'tool_result'}
+                <details class="block-tool result">
+                  <summary>Tool Result</summary>
+                  <pre><code>{block.content}</code></pre>
+                </details>
+              {:else if block.kind === 'thinking'}
+                <details class="block-thinking">
+                  <summary>Thinking...</summary>
+                  <pre class="dimmed">{block.content}</pre>
+                </details>
+              {/if}
+            {/each}
+          {/if}
+        </div>
       </section>
     {/if}
   {:else}
@@ -234,6 +316,35 @@
               <button type="button" class="secondary" disabled title="Coming soon — requires worktree API">
                 Cleanup
               </button>
+            {/if}
+          </div>
+          <div class="session-output">
+            <h3>Output</h3>
+            {#if outputLoading}
+              <p class="muted">Loading output...</p>
+            {:else if sessionOutput.length === 0}
+              <p class="muted">No output recorded for this session.</p>
+            {:else}
+              {#each sessionOutput as block}
+                {#if block.kind === 'assistant' || block.kind === 'result'}
+                  <div class="block-assistant rendered">{@html renderMarkdown(block.content)}</div>
+                {:else if block.kind === 'tool_use'}
+                  <details class="block-tool">
+                    <summary>Tool Call</summary>
+                    <pre><code>{block.content}</code></pre>
+                  </details>
+                {:else if block.kind === 'tool_result'}
+                  <details class="block-tool result">
+                    <summary>Tool Result</summary>
+                    <pre><code>{block.content}</code></pre>
+                  </details>
+                {:else if block.kind === 'thinking'}
+                  <details class="block-thinking">
+                    <summary>Thinking...</summary>
+                    <pre class="dimmed">{block.content}</pre>
+                  </details>
+                {/if}
+              {/each}
             {/if}
           </div>
         {:else}
@@ -533,5 +644,67 @@
     margin: 0 0 0.75rem 0;
     font-size: 1rem;
     font-weight: 600;
+  }
+  /* --- Session output rendering --- */
+  .session-output {
+    margin-top: 1.25rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+  }
+  .session-output h3 {
+    margin: 0 0 0.75rem 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .session-output .rendered {
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+  .session-output .rendered :global(h1) { font-size: 1.15rem; margin: 0 0 0.5rem 0; }
+  .session-output .rendered :global(h2) { font-size: 1rem; margin: 0.75rem 0 0.4rem 0; }
+  .session-output .rendered :global(h3) { font-size: 0.95rem; margin: 0.5rem 0 0.3rem 0; }
+  .session-output .rendered :global(ul), .session-output .rendered :global(ol) {
+    margin: 0.25rem 0;
+    padding-left: 1.5rem;
+  }
+  .session-output .rendered :global(pre) {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.75rem;
+    overflow-x: auto;
+    margin: 0.5rem 0;
+    font-size: 0.82rem;
+  }
+  .session-output .rendered :global(code) { font-size: 0.85em; }
+  .session-output .rendered :global(p) { margin: 0.5rem 0; }
+  .block-tool {
+    border-left: 3px solid var(--accent);
+    margin: 0.5rem 0;
+    padding-left: 0.75rem;
+  }
+  .block-tool.result {
+    border-left-color: #86efac;
+  }
+  .block-tool summary,
+  .block-thinking summary {
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
+  .block-tool pre,
+  .block-thinking pre {
+    margin: 0.25rem 0 0 0;
+    font-size: 0.85rem;
+    overflow-x: auto;
+  }
+  .block-thinking {
+    border-left: 3px solid var(--border);
+    margin: 0.5rem 0;
+    padding-left: 0.75rem;
+  }
+  .block-thinking .dimmed {
+    color: var(--muted);
   }
 </style>

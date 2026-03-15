@@ -5,7 +5,7 @@ use forge_core::ids::SessionId;
 use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct StoredEvent {
     pub id: String,
     pub session_id: Option<String>,

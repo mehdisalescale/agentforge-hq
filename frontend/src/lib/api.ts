@@ -26,6 +26,7 @@ export interface Agent {
   max_turns: number | null;
   use_max: boolean;
   preset: AgentPreset | null;
+  persona_id: string | null;
   config: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
@@ -168,6 +169,22 @@ export async function deleteSession(id: string): Promise<void> {
     method: 'DELETE',
   });
   await handleResponse<void>(res);
+}
+
+// --- Session events ---
+
+export interface SessionEvent {
+  id: string;
+  session_id: string | null;
+  agent_id: string | null;
+  event_type: string;
+  data_json: string;
+  timestamp: string;
+}
+
+export async function getSessionEvents(id: string): Promise<SessionEvent[]> {
+  const res = await fetch(`${API_BASE}/api/v1/sessions/${encodeURIComponent(id)}/events`);
+  return handleResponse<SessionEvent[]>(res);
 }
 
 /** Export session as JSON or Markdown; returns blob URL or throws. */

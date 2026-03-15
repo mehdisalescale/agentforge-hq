@@ -35,6 +35,7 @@ pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/sessions", get(list_sessions).post(create_session))
         .route("/sessions/:id", get(get_session).delete(delete_session))
+        .route("/sessions/:id/events", get(get_session_events))
         .route("/sessions/:id/export", get(export_session))
 }
 
@@ -69,6 +70,18 @@ async fn get_session(
     let session_id = SessionId(parse_uuid(&id)?);
     let session = state.session_repo.get(&session_id).map_err(api_error)?;
     Ok(Json(session))
+}
+
+/// GET /api/v1/sessions/:id/events — fetch stored events for a session
+async fn get_session_events(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Result<Json<Vec<forge_db::StoredEvent>>, axum::response::Response> {
+    let session_id = SessionId(parse_uuid(&id)?);
+    // Verify session exists
+    state.session_repo.get(&session_id).map_err(api_error)?;
+    let events = state.event_repo.query_by_session(&session_id).map_err(api_error)?;
+    Ok(Json(events))
 }
 
 async fn delete_session(
