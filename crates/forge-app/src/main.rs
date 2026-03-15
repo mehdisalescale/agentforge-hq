@@ -11,6 +11,8 @@ use forge_db::{
 };
 
 mod scheduler;
+use forge_agent::model::NewAgent;
+use forge_agent::preset::AgentPreset;
 use forge_persona::parser::PersonaParser;
 use forge_persona::model::{Persona, PersonaDivision, PersonaDivisionId};
 use forge_safety::{CircuitBreaker, CostTracker, RateLimiter};
@@ -81,6 +83,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     // Seed persona catalog from personas/ directory.
     seed_personas(&persona_repo);
+
+    // Seed demo data on first launch so pages aren't empty.
+    seed_demo_data(
+        &company_repo,
+        &department_repo,
+        &agent_repo,
+        &org_position_repo,
+        &goal_repo,
+        &approval_repo,
+    );
 
     // S1: Wire BatchWriter to EventBus — persist all events to SQLite.
     let batch_writer = Arc::new(BatchWriter::spawn(Arc::clone(&conn_arc)));
@@ -249,4 +261,135 @@ fn seed_personas(persona_repo: &forge_db::PersonaRepo) {
         divisions = divisions.len(),
         "persona catalog seeded"
     );
+}
+
+/// Seed demo data on first launch so every page has something to show.
+/// Only runs if no companies exist yet.
+fn seed_demo_data(
+    company_repo: &CompanyRepo,
+    department_repo: &DepartmentRepo,
+    agent_repo: &AgentRepo,
+    org_position_repo: &OrgPositionRepo,
+    goal_repo: &GoalRepo,
+    approval_repo: &ApprovalRepo,
+) {
+    // Skip if companies already exist.
+    match company_repo.list() {
+        Ok(companies) if !companies.is_empty() => return,
+        Err(_) => return,
+        _ => {}
+    }
+
+    info!("seeding demo data for first launch");
+
+    // 1. Create a demo company.
+    let company = match company_repo.create(&forge_db::NewCompany {
+        name: "Acme AI Corp".into(),
+        mission: Some("Ship reliable AI-powered products with autonomous agent teams".into()),
+        budget_limit: Some(500.0),
+    }) {
+        Ok(c) => c,
+        Err(e) => {
+            tracing::warn!("demo seed: failed to create company: {}", e);
+            return;
+        }
+    };
+
+    // 2. Create departments.
+    let eng_dept = department_repo.create(&forge_db::NewDepartment {
+        company_id: company.id.clone(),
+        name: "Engineering".into(),
+        description: Some("Software development and architecture".into()),
+    });
+    let product_dept = department_repo.create(&forge_db::NewDepartment {
+        company_id: company.id.clone(),
+        name: "Product".into(),
+        description: Some("Product management and strategy".into()),
+    });
+
+    let eng_id = eng_dept.as_ref().ok().map(|d| d.id.clone());
+    let product_id = product_dept.as_ref().ok().map(|d| d.id.clone());
+
+    // 3. Create sample agents with org positions.
+    let agents_to_create: Vec<(&str, AgentPreset, Option<String>, &str)> = vec![
+        ("Lead-Architect", AgentPreset::Architect, eng_id.clone(), "Chief Architect"),
+        ("Code-Writer", AgentPreset::CodeWriter, eng_id.clone(), "Senior Engineer"),
+        ("Code-Reviewer", AgentPreset::Reviewer, eng_id.clone(), "Staff Engineer"),
+        ("Product-Manager", AgentPreset::Coordinator, product_id.clone(), "Head of Product"),
+    ];
+
+    let mut lead_position_id: Option<String> = None;
+
+    for (i, (name, preset, dept_id, title)) in agents_to_create.into_iter().enumerate() {
+        let agent = match agent_repo.create(&NewAgent {
+            name: name.into(),
+            model: None,
+            system_prompt: Some(format!("You are {}, a specialist AI agent.", title)),
+            allowed_tools: None,
+            max_turns: None,
+            use_max: None,
+            preset: Some(preset),
+            config: None,
+        }) {
+            Ok(a) => a,
+            Err(e) => {
+                tracing::warn!("demo seed: agent {}: {}", name, e);
+                continue;
+            }
+        };
+
+        let reports_to = if i > 0 { lead_position_id.clone() } else { None };
+
+        let pos = org_position_repo.create(&forge_db::NewOrgPosition {
+            company_id: company.id.clone(),
+            department_id: dept_id,
+            agent_id: Some(agent.id.0.to_string()),
+            reports_to,
+            role: name.into(),
+            title: Some(title.into()),
+        });
+
+        if i == 0 {
+            lead_position_id = pos.ok().map(|p| p.id);
+        }
+    }
+
+    // 4. Create sample goals.
+    let parent_goal = goal_repo.create(&forge_db::NewGoal {
+        company_id: company.id.clone(),
+        parent_id: None,
+        title: "Launch v1.0 product".into(),
+        description: Some("Ship the first production-ready release with core features".into()),
+    });
+
+    if let Ok(pg) = &parent_goal {
+        let _ = goal_repo.create(&forge_db::NewGoal {
+            company_id: company.id.clone(),
+            parent_id: Some(pg.id.clone()),
+            title: "Complete API integration tests".into(),
+            description: Some("Ensure all API endpoints have test coverage above 80%".into()),
+        });
+        let _ = goal_repo.create(&forge_db::NewGoal {
+            company_id: company.id.clone(),
+            parent_id: Some(pg.id.clone()),
+            title: "Security audit pass".into(),
+            description: Some("Run OWASP scan and resolve all critical findings".into()),
+        });
+    }
+
+    // 5. Create a sample approval.
+    let _ = approval_repo.create(&forge_db::NewApproval {
+        company_id: company.id.clone(),
+        approval_type: "budget_increase".into(),
+        requester: "Lead-Architect".into(),
+        data_json: serde_json::json!({
+            "title": "Increase compute budget for load testing",
+            "current_budget": 500,
+            "requested_budget": 750,
+            "reason": "Need additional capacity for pre-launch stress tests"
+        })
+        .to_string(),
+    });
+
+    info!("demo data seeded: 1 company, 2 departments, 4 agents, 3 goals, 1 approval");
 }

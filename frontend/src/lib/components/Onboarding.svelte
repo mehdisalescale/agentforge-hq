@@ -2,17 +2,14 @@
   import { browser } from '$app/environment';
   import { goto } from '$app/navigation';
   import {
-    Sparkles, Zap, Bot, History, GitBranch,
-    Building2, Users, Network, Target, ShieldCheck,
-    Puzzle, Brain, Webhook, Clock,
-    BarChart3, Settings, ArrowRight, ArrowLeft,
-    Rocket, X, ChevronRight, Check, Play
+    Building2, Users, Zap, ArrowRight, X, Sparkles,
+    Network, Target, ShieldCheck, Bot, History, GitBranch,
+    Puzzle, Brain, Webhook, Clock, BarChart3, Settings
   } from 'lucide-svelte';
 
   const STORAGE_KEY = 'agentforge_onboarding_done';
 
   let visible = $state(false);
-  let step = $state(0);
 
   if (browser) {
     const done = localStorage.getItem(STORAGE_KEY);
@@ -24,208 +21,102 @@
     if (browser) localStorage.setItem(STORAGE_KEY, '1');
   }
 
-  function next() {
-    if (step < steps.length - 1) step++;
-  }
-
-  function prev() {
-    if (step > 0) step--;
-  }
-
   function goTo(href: string) {
     dismiss();
     goto(href);
   }
 
-  interface FeatureItem {
-    icon: typeof Zap;
-    name: string;
-    desc: string;
-    href: string;
-  }
-
-  interface Step {
-    id: string;
-    label: string;
-    title: string;
-    subtitle: string;
-    features: FeatureItem[];
-  }
-
-  const steps: Step[] = [
+  const steps = [
     {
-      id: 'welcome',
-      label: 'Welcome',
-      title: 'Welcome to AgentForge',
-      subtitle: 'The self-improving AI workforce platform. Build teams of intelligent agents, organize them into companies, set goals with budgets, and let them execute real work — all with governance controls.',
-      features: [
-        { icon: Building2, name: 'Build Organizations', desc: 'Create companies with departments and org charts', href: '/companies' },
-        { icon: Users, name: 'Hire AI Personas', desc: 'Choose from 100+ pre-built agent personas', href: '/personas' },
-        { icon: Zap, name: 'Execute Tasks', desc: 'Run agents with real-time streaming output', href: '/' },
-        { icon: ShieldCheck, name: 'Govern Decisions', desc: 'Approval workflows and budget controls', href: '/approvals' },
-      ],
+      num: 1,
+      icon: Building2,
+      title: 'Create a company',
+      desc: 'Name it, give it a mission and budget. Everything else lives under a company.',
+      action: 'Create Company',
+      href: '/companies',
     },
     {
-      id: 'workspace',
-      label: 'Workspace',
-      title: 'Your Workspace',
-      subtitle: 'The workspace is where you run agents, manage their configurations, review session history, and orchestrate multi-step workflows.',
-      features: [
-        { icon: Zap, name: 'Run', desc: 'Execute agents with prompts. See streaming output, tool calls, and sub-agent swim lanes in real time.', href: '/' },
-        { icon: Bot, name: 'Agents', desc: 'Create and configure agents with custom system prompts, models, and tool permissions.', href: '/agents' },
-        { icon: History, name: 'Sessions', desc: 'Browse past agent runs. Review outputs, resume interrupted sessions, or re-run with new prompts.', href: '/sessions' },
-        { icon: GitBranch, name: 'Workflows', desc: 'Define multi-step automations that chain agents together with conditional logic.', href: '/workflows' },
-      ],
+      num: 2,
+      icon: Users,
+      title: 'Hire AI personas',
+      desc: 'Pick from 100+ specialists — engineers, designers, PMs — and add them to your org.',
+      action: 'Browse Personas',
+      href: '/personas',
     },
     {
-      id: 'organization',
-      label: 'Organization',
-      title: 'Organization & Governance',
-      subtitle: 'Model your AI workforce like a real company. Create organizations, hire personas into roles, visualize reporting lines, and govern with goals and approvals.',
-      features: [
-        { icon: Building2, name: 'Companies', desc: 'Create organizations with a name, mission, and budget. Everything else is scoped to a company.', href: '/companies' },
-        { icon: Users, name: 'Personas', desc: 'Browse 100+ pre-built personas across 11 divisions. Hire them into your company to auto-create agents and org positions.', href: '/personas' },
-        { icon: Network, name: 'Org Chart', desc: 'Visualize the reporting hierarchy of your AI workforce. See who reports to whom at a glance.', href: '/org-chart' },
-        { icon: Target, name: 'Goals', desc: 'Set company-level objectives and track status. Goals give agents direction and keep work aligned.', href: '/goals' },
-        { icon: ShieldCheck, name: 'Approvals', desc: 'Governance layer for decisions that need explicit sign-off. Review, approve, or reject requests.', href: '/approvals' },
-      ],
-    },
-    {
-      id: 'configuration',
-      label: 'Configuration',
-      title: 'Configuration & Automation',
-      subtitle: 'Fine-tune how your agents work. Equip them with skills, give them persistent memory, wire up event hooks, and schedule recurring tasks.',
-      features: [
-        { icon: Puzzle, name: 'Skills', desc: 'Agent capability library with 30+ skills — from code review and debugging to deep research and TDD.', href: '/skills' },
-        { icon: Brain, name: 'Memory', desc: 'Persistent knowledge base that agents can read and write. Memories carry context across sessions.', href: '/memory' },
-        { icon: Webhook, name: 'Hooks', desc: 'Event-driven automation. Trigger actions when agents start, complete, fail, or produce specific outputs.', href: '/hooks' },
-        { icon: Clock, name: 'Schedules', desc: 'Cron-based scheduling for recurring agent runs. Set it and forget it — agents run on your timetable.', href: '/schedules' },
-      ],
-    },
-    {
-      id: 'insights',
-      label: 'Insights',
-      title: 'Insights & Settings',
-      subtitle: 'Monitor costs, track usage patterns, and configure platform-wide settings.',
-      features: [
-        { icon: BarChart3, name: 'Analytics', desc: 'Cost tracking, token usage, and run statistics. See which agents cost the most and where budgets stand.', href: '/analytics' },
-        { icon: Settings, name: 'Settings', desc: 'Platform configuration — CLI command, rate limits, CORS, budget thresholds, and safety controls.', href: '/settings' },
-      ],
-    },
-    {
-      id: 'getstarted',
-      label: 'Get Started',
-      title: 'You\'re Ready to Go',
-      subtitle: 'Follow these three steps to launch your first AI workforce.',
-      features: [
-        { icon: Building2, name: '1. Create a Company', desc: 'Start by defining your organization with a name, mission, and budget.', href: '/companies' },
-        { icon: Users, name: '2. Hire Personas', desc: 'Browse the catalog and hire AI personas into your company. They\'ll appear in the org chart automatically.', href: '/personas' },
-        { icon: Rocket, name: '3. Run Your First Agent', desc: 'Select an agent, give it a prompt, and watch it work in real time with streaming output.', href: '/' },
-      ],
+      num: 3,
+      icon: Zap,
+      title: 'Run your first agent',
+      desc: 'Give an agent a task in plain English. Watch it work with streaming output.',
+      action: 'Go to Dashboard',
+      href: '/',
     },
   ];
 
-  let currentStep = $derived(steps[step]);
-  let isFirst = $derived(step === 0);
-  let isLast = $derived(step === steps.length - 1);
-  let progress = $derived(((step + 1) / steps.length) * 100);
+  const extras = [
+    { icon: Bot, name: 'Agents', href: '/agents' },
+    { icon: History, name: 'Sessions', href: '/sessions' },
+    { icon: GitBranch, name: 'Workflows', href: '/workflows' },
+    { icon: Network, name: 'Org Chart', href: '/org-chart' },
+    { icon: Target, name: 'Goals', href: '/goals' },
+    { icon: ShieldCheck, name: 'Approvals', href: '/approvals' },
+    { icon: Puzzle, name: 'Skills', href: '/skills' },
+    { icon: Brain, name: 'Memory', href: '/memory' },
+    { icon: Webhook, name: 'Hooks', href: '/hooks' },
+    { icon: Clock, name: 'Schedules', href: '/schedules' },
+    { icon: BarChart3, name: 'Analytics', href: '/analytics' },
+    { icon: Settings, name: 'Settings', href: '/settings' },
+  ];
 </script>
 
 {#if visible}
-<div class="onboarding-overlay" role="dialog" aria-modal="true" aria-label="Welcome to AgentForge">
-  <div class="onboarding-container">
-    <!-- Header -->
-    <div class="ob-header">
-      <div class="ob-brand">
-        <Zap size={20} />
-        <span>AgentForge</span>
-      </div>
-      <button class="ob-close" onclick={dismiss} aria-label="Skip onboarding">
-        <X size={18} />
-      </button>
+<div class="onboarding-overlay" role="dialog" aria-modal="true" aria-label="Get started with AgentForge">
+  <div class="onboarding-card">
+    <button class="dismiss" onclick={dismiss} aria-label="Dismiss">
+      <X size={16} />
+    </button>
+
+    <div class="header">
+      <div class="logo-icon"><Sparkles size={24} /></div>
+      <h1>Get started with AgentForge</h1>
+      <p>Three steps to your first AI workforce.</p>
     </div>
 
-    <!-- Progress bar -->
-    <div class="ob-progress-track">
-      <div class="ob-progress-fill" style="width: {progress}%"></div>
-    </div>
-
-    <!-- Step indicators -->
-    <div class="ob-steps">
-      {#each steps as s, i}
-        <button
-          class="ob-step-dot"
-          class:active={i === step}
-          class:done={i < step}
-          onclick={() => (step = i)}
-          aria-label="Go to {s.label}"
-        >
-          {#if i < step}
-            <Check size={12} />
-          {:else}
-            <span class="ob-step-num">{i + 1}</span>
-          {/if}
-          <span class="ob-step-label">{s.label}</span>
-        </button>
-      {/each}
-    </div>
-
-    <!-- Content -->
-    <div class="ob-content">
-      <div class="ob-content-inner">
-        {#if currentStep.id === 'welcome'}
-          <div class="ob-welcome-icon">
-            <Sparkles size={40} />
-          </div>
-        {/if}
-
-        <h1 class="ob-title">{currentStep.title}</h1>
-        <p class="ob-subtitle">{currentStep.subtitle}</p>
-
-        <div class="ob-features" class:ob-features-2col={currentStep.features.length > 3}>
-          {#each currentStep.features as feature}
-            {@const Icon = feature.icon}
-            <button class="ob-feature-card" onclick={() => goTo(feature.href)}>
-              <div class="ob-feature-icon">
-                <Icon size={22} />
-              </div>
-              <div class="ob-feature-text">
-                <strong>{feature.name}</strong>
-                <span>{feature.desc}</span>
-              </div>
-              <div class="ob-feature-arrow">
-                <ChevronRight size={16} />
-              </div>
+    <ol class="steps">
+      {#each steps as step}
+        {@const Icon = step.icon}
+        <li class="step">
+          <div class="step-marker">{step.num}</div>
+          <div class="step-body">
+            <div class="step-top">
+              <Icon size={18} class="step-icon" />
+              <strong>{step.title}</strong>
+            </div>
+            <p>{step.desc}</p>
+            <button class="step-action" onclick={() => goTo(step.href)}>
+              {step.action}
+              <ArrowRight size={14} />
             </button>
-          {/each}
-        </div>
+          </div>
+        </li>
+      {/each}
+    </ol>
+
+    <div class="extras">
+      <span class="extras-label">Also available</span>
+      <div class="extras-grid">
+        {#each extras as item}
+          {@const Icon = item.icon}
+          <button class="extra-chip" onclick={() => goTo(item.href)}>
+            <Icon size={14} />
+            {item.name}
+          </button>
+        {/each}
       </div>
     </div>
 
-    <!-- Footer navigation -->
-    <div class="ob-footer">
-      <div class="ob-footer-left">
-        <button class="ob-skip" onclick={dismiss}>Skip tour</button>
-      </div>
-      <div class="ob-footer-right">
-        {#if !isFirst}
-          <button class="ob-btn ob-btn-secondary" onclick={prev}>
-            <ArrowLeft size={16} />
-            Back
-          </button>
-        {/if}
-        {#if isLast}
-          <button class="ob-btn ob-btn-primary" onclick={dismiss}>
-            <Play size={16} />
-            Start Building
-          </button>
-        {:else}
-          <button class="ob-btn ob-btn-primary" onclick={next}>
-            Continue
-            <ArrowRight size={16} />
-          </button>
-        {/if}
-      </div>
+    <div class="footer">
+      <button class="skip" onclick={dismiss}>I'll explore on my own</button>
     </div>
   </div>
 </div>
@@ -236,58 +127,40 @@
     position: fixed;
     inset: 0;
     z-index: 1000;
-    background: rgba(0, 0, 0, 0.85);
-    backdrop-filter: blur(12px);
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 1rem;
-    animation: ob-fade-in 300ms ease;
+    animation: fade-in 200ms ease;
   }
 
-  @keyframes ob-fade-in {
+  @keyframes fade-in {
     from { opacity: 0; }
     to { opacity: 1; }
   }
 
-  .onboarding-container {
+  .onboarding-card {
+    position: relative;
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 16px;
     width: 100%;
-    max-width: 52rem;
-    max-height: 92vh;
-    display: flex;
-    flex-direction: column;
-    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(129, 140, 248, 0.08);
-    overflow: hidden;
+    max-width: 32rem;
+    padding: 2rem 1.75rem 1.5rem;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
   }
 
-  /* Header */
-  .ob-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 1rem 1.5rem;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .ob-brand {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    color: var(--accent);
-    font-weight: 700;
-    font-size: 1rem;
-    letter-spacing: -0.02em;
-  }
-
-  .ob-close {
+  .dismiss {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 2rem;
-    height: 2rem;
+    width: 1.75rem;
+    height: 1.75rem;
     border-radius: 6px;
     border: none;
     background: transparent;
@@ -296,253 +169,184 @@
     transition: all var(--transition);
   }
 
-  .ob-close:hover {
+  .dismiss:hover {
     background: var(--surface-hover);
     color: var(--text);
   }
 
-  /* Progress */
-  .ob-progress-track {
-    height: 2px;
-    background: var(--border);
+  .header {
+    text-align: center;
+    margin-bottom: 1.75rem;
   }
 
-  .ob-progress-fill {
-    height: 100%;
-    background: var(--accent);
-    transition: width 300ms ease;
-    border-radius: 1px;
-  }
-
-  /* Step dots */
-  .ob-steps {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.25rem;
-    padding: 1rem 1.5rem 0.5rem;
-  }
-
-  .ob-step-dot {
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-    padding: 0.35rem 0.65rem;
-    border-radius: 20px;
-    border: 1px solid transparent;
-    background: transparent;
-    color: var(--muted);
-    cursor: pointer;
-    font-size: 0.75rem;
-    transition: all var(--transition);
-  }
-
-  .ob-step-dot:hover {
-    background: var(--surface-hover);
-    color: var(--text-secondary);
-  }
-
-  .ob-step-dot.active {
-    background: var(--accent-muted);
-    color: var(--accent);
-    border-color: rgba(129, 140, 248, 0.25);
-  }
-
-  .ob-step-dot.done {
-    color: var(--success);
-  }
-
-  .ob-step-dot.done :global(svg) {
-    color: var(--success);
-  }
-
-  .ob-step-num {
+  .logo-icon {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 1.1rem;
-    height: 1.1rem;
-    border-radius: 50%;
-    background: var(--border);
-    font-size: 0.65rem;
-    font-weight: 700;
-    color: var(--text-secondary);
+    width: 3rem;
+    height: 3rem;
+    border-radius: 12px;
+    background: var(--accent-muted);
+    color: var(--accent);
+    margin-bottom: 0.75rem;
   }
 
-  .ob-step-dot.active .ob-step-num {
+  .header h1 {
+    margin: 0 0 0.35rem;
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--text);
+  }
+
+  .header p {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--muted);
+  }
+
+  .steps {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .step {
+    display: flex;
+    gap: 0.85rem;
+    align-items: flex-start;
+  }
+
+  .step-marker {
+    flex-shrink: 0;
+    width: 1.6rem;
+    height: 1.6rem;
+    border-radius: 50%;
     background: var(--accent);
     color: var(--bg);
-  }
-
-  .ob-step-label {
-    display: none;
-  }
-
-  .ob-step-dot.active .ob-step-label {
-    display: inline;
-    font-weight: 600;
-  }
-
-  @media (min-width: 640px) {
-    .ob-step-label {
-      display: inline;
-    }
-  }
-
-  /* Content */
-  .ob-content {
-    flex: 1;
-    overflow-y: auto;
-    padding: 1.5rem 2rem 1rem;
-  }
-
-  .ob-content-inner {
-    max-width: 44rem;
-    margin: 0 auto;
-  }
-
-  .ob-welcome-icon {
-    display: inline-flex;
+    display: flex;
     align-items: center;
     justify-content: center;
-    width: 4.5rem;
-    height: 4.5rem;
-    border-radius: 20px;
-    background: linear-gradient(135deg, var(--accent-muted), rgba(129, 140, 248, 0.08));
-    color: var(--accent);
-    margin-bottom: 1.25rem;
-    animation: ob-float 3s ease-in-out infinite;
-  }
-
-  @keyframes ob-float {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-6px); }
-  }
-
-  .ob-title {
-    margin: 0 0 0.5rem;
-    font-size: 1.65rem;
+    font-size: 0.75rem;
     font-weight: 700;
-    letter-spacing: -0.03em;
-    color: var(--text);
-    line-height: 1.2;
+    margin-top: 0.1rem;
   }
 
-  .ob-subtitle {
-    margin: 0 0 1.75rem;
-    font-size: 0.95rem;
-    color: var(--muted);
-    line-height: 1.6;
-    max-width: 36rem;
-  }
-
-  /* Feature cards */
-  .ob-features {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .ob-features.ob-features-2col {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 0.5rem;
-  }
-
-  @media (min-width: 640px) {
-    .ob-features.ob-features-2col {
-      grid-template-columns: 1fr 1fr;
-    }
-  }
-
-  .ob-feature-card {
-    display: flex;
-    align-items: center;
-    gap: 0.85rem;
-    padding: 0.85rem 1rem;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    cursor: pointer;
-    transition: all var(--transition);
-    text-align: left;
-    color: var(--text);
-    font-family: inherit;
-  }
-
-  .ob-feature-card:hover {
-    border-color: var(--accent);
-    background: rgba(129, 140, 248, 0.04);
-    box-shadow: 0 0 0 1px rgba(129, 140, 248, 0.08);
-  }
-
-  .ob-feature-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 2.5rem;
-    height: 2.5rem;
-    flex-shrink: 0;
-    border-radius: 10px;
-    background: var(--accent-muted);
-    color: var(--accent);
-  }
-
-  .ob-feature-text {
+  .step-body {
     flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 0.15rem;
     min-width: 0;
   }
 
-  .ob-feature-text strong {
+  .step-top {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 0.2rem;
+  }
+
+  .step-top :global(svg) {
+    color: var(--accent);
+    flex-shrink: 0;
+    opacity: 0.7;
+  }
+
+  .step-top strong {
     font-size: 0.9rem;
     font-weight: 600;
     color: var(--text);
   }
 
-  .ob-feature-text span {
+  .step-body p {
+    margin: 0 0 0.4rem;
     font-size: 0.8rem;
     color: var(--muted);
-    line-height: 1.4;
+    line-height: 1.45;
   }
 
-  .ob-feature-arrow {
-    flex-shrink: 0;
-    color: var(--muted);
-    opacity: 0;
-    transform: translateX(-4px);
+  .step-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.3rem 0.6rem;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--accent);
+    font-size: 0.78rem;
+    font-weight: 500;
+    cursor: pointer;
     transition: all var(--transition);
+    font-family: inherit;
   }
 
-  .ob-feature-card:hover .ob-feature-arrow {
-    opacity: 1;
-    transform: translateX(0);
+  .step-action:hover {
+    background: var(--accent-muted);
+    border-color: var(--accent);
+    gap: 0.45rem;
+  }
+
+  .extras {
+    margin-top: 1.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--border);
+  }
+
+  .extras-label {
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin-bottom: 0.5rem;
+  }
+
+  .extras-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+
+  .extra-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.25rem 0.55rem;
+    border-radius: 5px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.72rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition);
+    font-family: inherit;
+  }
+
+  .extra-chip :global(svg) {
+    color: var(--muted);
+    flex-shrink: 0;
+  }
+
+  .extra-chip:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-muted);
+  }
+
+  .extra-chip:hover :global(svg) {
     color: var(--accent);
   }
 
-  /* Footer */
-  .ob-footer {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 1rem 1.5rem;
-    border-top: 1px solid var(--border);
-    gap: 1rem;
+  .footer {
+    margin-top: 1rem;
+    text-align: center;
   }
 
-  .ob-footer-left {
-    flex-shrink: 0;
-  }
-
-  .ob-footer-right {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .ob-skip {
+  .skip {
     padding: 0.4rem 0.75rem;
     border: none;
     background: transparent;
@@ -554,42 +358,8 @@
     font-family: inherit;
   }
 
-  .ob-skip:hover {
+  .skip:hover {
     color: var(--text-secondary);
     background: var(--surface-hover);
-  }
-
-  .ob-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    padding: 0.5rem 1rem;
-    border-radius: 8px;
-    font-size: 0.875rem;
-    font-weight: 600;
-    cursor: pointer;
-    border: none;
-    transition: all var(--transition);
-    font-family: inherit;
-  }
-
-  .ob-btn-primary {
-    background: var(--accent);
-    color: var(--bg);
-  }
-
-  .ob-btn-primary:hover {
-    background: var(--accent-hover);
-  }
-
-  .ob-btn-secondary {
-    background: var(--surface-hover);
-    color: var(--text-secondary);
-    border: 1px solid var(--border);
-  }
-
-  .ob-btn-secondary:hover {
-    border-color: var(--border-hover);
-    color: var(--text);
   }
 </style>
