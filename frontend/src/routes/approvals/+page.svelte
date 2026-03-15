@@ -90,7 +90,7 @@
   <title>Approvals - AgentForge</title>
 </svelte:head>
 
-<div class="approvals-page">
+<div class="approvals-page" aria-busy={loading}>
   <header class="page-header">
     <h1>Approvals</h1>
     <div class="toolbar">
@@ -152,7 +152,7 @@
           <tr>
             <td>{a.approval_type}</td>
             <td>
-              <span class={`badge badge-${a.status}`}>{a.status}</span>
+              <span class={`badge badge-${a.status}`} role="status" aria-label={`Status: ${a.status}`}>{a.status}</span>
             </td>
             <td>{a.requester}</td>
             <td>{a.approver ?? '—'}</td>

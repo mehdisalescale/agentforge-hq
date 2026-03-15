@@ -52,7 +52,7 @@ impl WorkflowRepo {
             .map_err(|e| ForgeError::Database(Box::new(e)))?;
         stmt.query_row(rusqlite::params![id], row_to_workflow)
             .map_err(|e| match e {
-                rusqlite::Error::QueryReturnedNoRows => ForgeError::WorkflowNotFound(id.to_string()),
+                rusqlite::Error::QueryReturnedNoRows => ForgeError::NotFound { entity: "workflow", id: id.to_string() },
                 other => ForgeError::Database(Box::new(other)),
             })
     }
@@ -136,7 +136,7 @@ impl WorkflowRepo {
             .execute("DELETE FROM workflows WHERE id = ?1", rusqlite::params![id])
             .map_err(|e| ForgeError::Database(Box::new(e)))?;
         if rows == 0 {
-            return Err(ForgeError::WorkflowNotFound(id.to_string()));
+            return Err(ForgeError::NotFound { entity: "workflow", id: id.to_string() });
         }
         Ok(())
     }
@@ -239,8 +239,11 @@ mod tests {
         let result = repo.get(&wf.id);
         assert!(result.is_err());
         match result.unwrap_err() {
-            ForgeError::WorkflowNotFound(id) => assert_eq!(id, wf.id),
-            other => panic!("expected WorkflowNotFound, got {:?}", other),
+            ForgeError::NotFound { entity, id } => {
+                assert_eq!(entity, "workflow");
+                assert_eq!(id, wf.id);
+            }
+            other => panic!("expected NotFound, got {:?}", other),
         }
     }
 

@@ -6,64 +6,45 @@ use axum::{
     Json,
 };
 use forge_core::error::ForgeError;
-use serde::Serialize;
-
-#[derive(Serialize)]
-struct ErrorBody {
-    error: String,
-    code: String,
-}
 
 /// Convert ForgeError to an HTTP response. Use in handlers with .map_err(api_error).
 pub fn api_error(e: ForgeError) -> Response {
-    let (status, code) = match &e {
-        ForgeError::AgentNotFound(_) => (StatusCode::NOT_FOUND, "agent_not_found"),
-        ForgeError::Validation(_) => (StatusCode::BAD_REQUEST, "validation"),
-        ForgeError::Database(_) => (StatusCode::INTERNAL_SERVER_ERROR, "database"),
-        ForgeError::Serialization(_) => (StatusCode::INTERNAL_SERVER_ERROR, "serialization"),
-        ForgeError::EventBus(_) => (StatusCode::INTERNAL_SERVER_ERROR, "event_bus"),
-        ForgeError::SessionNotFound(_) => (StatusCode::NOT_FOUND, "session_not_found"),
-        ForgeError::SkillNotFound(_) => (StatusCode::NOT_FOUND, "skill_not_found"),
-        ForgeError::WorkflowNotFound(_) => (StatusCode::NOT_FOUND, "workflow_not_found"),
-        ForgeError::Io(_) => (StatusCode::INTERNAL_SERVER_ERROR, "io"),
-        ForgeError::Internal(_) => (StatusCode::INTERNAL_SERVER_ERROR, "internal"),
-    };
+    let status = e.http_status();
     if status.is_server_error() {
-        tracing::error!(http_status = %status, error_code = code, error = %e, "API server error");
+        tracing::error!(
+            http_status = %status,
+            error_code = e.error_code(),
+            error = %e,
+            "API server error"
+        );
     }
-    (
-        status,
-        Json(ErrorBody {
-            error: e.to_string(),
-            code: code.to_string(),
-        }),
-    )
-        .into_response()
+    let body = serde_json::json!({
+        "error": e.to_string(),
+        "code": e.error_code(),
+        "retriable": e.is_retriable(),
+    });
+    (status, Json(body)).into_response()
 }
 
 /// Return 429 Too Many Requests for rate limiting.
 pub fn rate_limit_exceeded() -> Response {
-    (
-        StatusCode::TOO_MANY_REQUESTS,
-        Json(ErrorBody {
-            error: "rate limit exceeded".to_string(),
-            code: "rate_limit".to_string(),
-        }),
-    )
-        .into_response()
+    let body = serde_json::json!({
+        "error": "rate limit exceeded",
+        "code": "RATE_LIMITED",
+        "retriable": true,
+    });
+    (StatusCode::TOO_MANY_REQUESTS, Json(body)).into_response()
 }
 
 /// Parse a UUID string, returning a 400 BAD_REQUEST response on failure.
 #[allow(clippy::result_large_err)]
 pub fn parse_uuid(s: &str) -> Result<uuid::Uuid, Response> {
     uuid::Uuid::parse_str(s).map_err(|_| {
-        (
-            StatusCode::BAD_REQUEST,
-            Json(ErrorBody {
-                error: "invalid uuid".to_string(),
-                code: "invalid_id".to_string(),
-            }),
-        )
-            .into_response()
+        let body = serde_json::json!({
+            "error": "invalid uuid",
+            "code": "VALIDATION_ERROR",
+            "retriable": false,
+        });
+        (StatusCode::BAD_REQUEST, Json(body)).into_response()
     })
 }

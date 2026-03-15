@@ -143,7 +143,7 @@ async fn all_agent_stats(
         let entry = stats_map.entry(key).or_insert((0, None, 0.0, 0));
         entry.0 += 1;
         let ts = s.created_at.to_rfc3339();
-        if entry.1.as_ref().map_or(true, |prev| ts > *prev) {
+        if entry.1.as_ref().is_none_or(|prev| ts > *prev) {
             entry.1 = Some(ts);
         }
         entry.2 += s.cost_usd;

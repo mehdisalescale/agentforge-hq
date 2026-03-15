@@ -6,6 +6,7 @@
   import Skeleton from '$lib/components/Skeleton.svelte';
   import ErrorMessage from '$lib/components/ErrorMessage.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
+  import { focusTrap } from '$lib/actions/focusTrap';
 
   setContext('pageTitle', 'Companies');
 
@@ -87,7 +88,7 @@
   <title>Companies - AgentForge</title>
 </svelte:head>
 
-<div class="companies-page">
+<div class="companies-page" aria-busy={loading}>
   <header class="page-header">
     <div>
       <h1>Companies</h1>
@@ -130,8 +131,8 @@
   {/if}
 
   {#if formOpen}
-    <div class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="company-form-title">
-      <div class="modal">
+    <div class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="company-form-title" tabindex="-1" onkeydown={(e) => e.key === 'Escape' && closeForm()}>
+      <div class="modal" use:focusTrap>
         <h2 id="company-form-title">Create company</h2>
         {#if formError}
           <div class="message error">{formError}</div>

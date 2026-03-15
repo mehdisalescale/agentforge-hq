@@ -80,7 +80,7 @@ impl AgentRepo {
             |row| row_to_agent(row).map_err(|e| rusqlite::Error::InvalidParameterName(e.to_string())),
         )
         .map_err(|e| match e {
-            rusqlite::Error::QueryReturnedNoRows => ForgeError::AgentNotFound(id.clone()),
+            rusqlite::Error::QueryReturnedNoRows => ForgeError::NotFound { entity: "agent", id: id.to_string() },
             rusqlite::Error::InvalidParameterName(s) => ForgeError::Validation(s),
             other => ForgeError::Database(Box::new(other)),
         })
@@ -189,7 +189,7 @@ impl AgentRepo {
             .map_err(|e| ForgeError::Database(Box::new(e)))?;
 
         if rows == 0 {
-            return Err(ForgeError::AgentNotFound(id.clone()));
+            return Err(ForgeError::NotFound { entity: "agent", id: id.to_string() });
         }
 
         Ok(())

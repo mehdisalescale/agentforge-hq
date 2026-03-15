@@ -174,6 +174,7 @@ fn to_json_content(value: &impl serde::Serialize) -> Result<CallToolResult, Erro
 
 #[tool_router]
 impl ForgeMcp {
+    #[allow(clippy::too_many_arguments)]
     fn new(
         agent_repo: Arc<AgentRepo>,
         session_repo: Arc<SessionRepo>,

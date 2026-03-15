@@ -128,13 +128,10 @@ async fn run_handler(
     chain_result.map_err(|e| match e {
         MiddlewareError::RateLimited => rate_limit_exceeded(),
         MiddlewareError::CircuitOpen => {
-            api_error(forge_core::error::ForgeError::Internal("circuit breaker open".into()))
+            api_error(forge_core::error::ForgeError::CircuitOpen { reset_in_ms: 0 })
         }
         MiddlewareError::BudgetExceeded { cost, limit } => api_error(
-            forge_core::error::ForgeError::Internal(format!(
-                "budget exceeded: ${:.2} >= ${:.2}",
-                cost, limit
-            )),
+            forge_core::error::ForgeError::BudgetExceeded { cost, limit },
         ),
         MiddlewareError::ExitGateTriggered(reason) => api_error(
             forge_core::error::ForgeError::Internal(format!("exit gate: {}", reason)),
@@ -146,7 +143,7 @@ async fn run_handler(
             )),
         ),
         MiddlewareError::SpawnFailed(msg) => {
-            api_error(forge_core::error::ForgeError::Internal(msg))
+            api_error(forge_core::error::ForgeError::Process(msg))
         }
         MiddlewareError::Internal(msg) => {
             api_error(forge_core::error::ForgeError::Internal(msg))

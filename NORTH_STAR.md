@@ -24,16 +24,16 @@ Unifies 8 open-source repos into one product. The only Rust-native tool in the s
 
 | Crate | What |
 |-------|------|
-| forge-core | ForgeEvent (35 variants), EventBus broadcast, ForgeError, typed IDs |
+| forge-core | ForgeEvent (43 variants), EventBus fan-out (mpsc + broadcast), ForgeError, typed IDs |
 | forge-agent | 10 presets (incl. Coordinator), Agent/NewAgent/UpdateAgent, validation |
-| forge-db | SQLite WAL, 12 migrations, 16 repos, BatchWriter (50/2s) |
+| forge-db | SQLite WAL, 12 migrations, 17 repos, BatchWriter (50/2s), r2d2 connection pool |
 | forge-process | Claude CLI spawn, stream-json, ConcurrentRunner, LoopDetector |
-| forge-safety | CircuitBreaker (3-state FSM), RateLimiter (token bucket), CostTracker |
+| forge-safety | CircuitBreaker (3-state FSM, persistent), RateLimiter (token bucket), CostTracker |
 | forge-api | Full HTTP API + WebSocket, CORS, TraceLayer, rust-embed SPA, middleware chain |
 | forge-app | Binary wiring, graceful shutdown, env config, skill loading, cron scheduler |
 | forge-git | Worktree create/remove/list for multi-agent isolation |
 | forge-mcp | MCP protocol stubs |
-| forge-mcp-bin | MCP stdio server (rmcp, 13 tools) |
+| forge-mcp-bin | MCP stdio server (rmcp, 19 tools) |
 | **forge-org** | Company, Department, OrgPosition models + org chart builder |
 | **forge-persona** | Persona catalog (100+ personas, 11 divisions), parser, hire flow |
 | **forge-governance** | Goal and Approval models |
@@ -59,7 +59,7 @@ Unifies 8 open-source repos into one product. The only Rust-native tool in the s
 
 **Wave 4 (in progress 2026-03-15):**
 - Architecture direction: configure → execute → observe loop
-- MCP tools expanded from 10 to 13 (forge_classify_task, forge_list_personas, forge_get_budget)
+- MCP tools expanded to 19 (agent/session CRUD, classify, personas, budget, approvals, goals, analytics, hire)
 - AgentConfigurator concept (generate CLAUDE.md + hooks.json per persona)
 - HookReceiver endpoints (Claude Code hooks POST events back)
 
@@ -76,7 +76,7 @@ Unifies 8 open-source repos into one product. The only Rust-native tool in the s
 - **v0.5.0**: Cron scheduler, usage analytics, loop detection, quality/exit gates, 150 tests
 - **Epic 1**: Org structure, persona catalog, governance layer, 4 new crates, 5 new frontend pages
 - **Wave 3**: Sidebar cleanup, governance wiring, session output, page verification
-- **Wave 4**: MCP expansion (13 tools), AgentConfigurator, HookReceiver, middleware simplification
+- **Wave 4**: MCP expansion (19 tools), AgentConfigurator, HookReceiver, middleware simplification
 
 ---
 
@@ -133,9 +133,9 @@ Full details: `../docs/product/EPIC_INDEX.md`
 ```
 agentforge-hq/                   <-- This directory (was forge-project)
   crates/                         <-- 13 workspace crates
-    forge-core/                   ForgeEvent (35 variants), EventBus, errors, IDs
+    forge-core/                   ForgeEvent (43 variants), EventBus (fan-out), errors, IDs
     forge-agent/                  Agent model, 10 presets, validation
-    forge-db/                     SQLite WAL, 12 migrations, 16 repos, BatchWriter
+    forge-db/                     SQLite WAL, 12 migrations, 17 repos, BatchWriter
     forge-process/                Claude CLI spawn, stream-json, ConcurrentRunner, LoopDetector
     forge-safety/                 CircuitBreaker, RateLimiter, CostTracker
     forge-api/                    Axum HTTP + WebSocket + middleware + embedded frontend
@@ -147,7 +147,7 @@ agentforge-hq/                   <-- This directory (was forge-project)
     forge-mcp/                    MCP protocol stubs
     forge-mcp-bin/                MCP stdio server (rmcp)
   frontend/                       SvelteKit 5 + TailwindCSS 4
-  migrations/                     0001–0012 (org, personas, governance)
+  migrations/                     0001–0013 (org, personas, governance, safety)
   personas/                       112 persona Markdown files (11 divisions, seeded at startup)
   skills/                         10 seed Markdown skill files
   scripts/                        e2e-smoke.sh

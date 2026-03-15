@@ -14,6 +14,7 @@
   import Skeleton from '$lib/components/Skeleton.svelte';
   import ErrorMessage from '$lib/components/ErrorMessage.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
+  import { focusTrap } from '$lib/actions/focusTrap';
 
   setContext('pageTitle', 'Goals');
 
@@ -124,7 +125,7 @@
   <title>Goals - AgentForge</title>
 </svelte:head>
 
-<div class="goals-page">
+<div class="goals-page" aria-busy={loading}>
   <header class="page-header">
     <h1>Company goals</h1>
     <div class="toolbar">
@@ -209,8 +210,8 @@
   {/if}
 
   {#if createOpen}
-    <div class="modal-backdrop" role="dialog" aria-modal="true">
-      <div class="modal">
+    <div class="modal-backdrop" role="dialog" aria-modal="true" tabindex="-1" onkeydown={(e) => e.key === 'Escape' && closeCreate()}>
+      <div class="modal" use:focusTrap>
         <h2>Create goal</h2>
         {#if createError}
           <div class="message error">{createError}</div>

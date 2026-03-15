@@ -72,7 +72,7 @@ impl SkillRepo {
             .map_err(|e| ForgeError::Database(Box::new(e)))?;
         stmt.query_row(rusqlite::params![id], row_to_skill)
             .map_err(|e| match e {
-                rusqlite::Error::QueryReturnedNoRows => ForgeError::SkillNotFound(id.to_string()),
+                rusqlite::Error::QueryReturnedNoRows => ForgeError::NotFound { entity: "skill", id: id.to_string() },
                 other => ForgeError::Database(Box::new(other)),
             })
     }
@@ -113,10 +113,10 @@ impl SkillRepo {
     /// frontmatter delimited by `---`. Parsed fields: name, description, tags, tools.
     /// Files are upserted into the skills table.
     pub fn load_from_dir(&self, dir: &Path) -> ForgeResult<usize> {
-        let entries = std::fs::read_dir(dir).map_err(ForgeError::Io)?;
+        let entries = std::fs::read_dir(dir).map_err(|e| ForgeError::Internal(format!("io: {}", e)))?;
         let mut count = 0;
         for entry in entries {
-            let entry = entry.map_err(ForgeError::Io)?;
+            let entry = entry.map_err(|e| ForgeError::Internal(format!("io: {}", e)))?;
             let path = entry.path();
             if path.is_dir() {
                 count += self.load_from_dir(&path)?;
@@ -125,7 +125,7 @@ impl SkillRepo {
             if path.extension().and_then(|e| e.to_str()) != Some("md") {
                 continue;
             }
-            let raw = std::fs::read_to_string(&path).map_err(ForgeError::Io)?;
+            let raw = std::fs::read_to_string(&path).map_err(|e| ForgeError::Internal(format!("io: {}", e)))?;
             match parse_skill_frontmatter(&raw) {
                 Some(input) => {
                     self.upsert(&input)?;

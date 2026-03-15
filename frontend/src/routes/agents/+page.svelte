@@ -3,6 +3,7 @@
   import Skeleton from '$lib/components/Skeleton.svelte';
   import ErrorMessage from '$lib/components/ErrorMessage.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
+  import { focusTrap } from '$lib/actions/focusTrap';
   import { Bot } from 'lucide-svelte';
   import {
     listAgents,
@@ -177,7 +178,7 @@
   <title>Agents · AgentForge</title>
 </svelte:head>
 
-<div class="agents-page">
+<div class="agents-page" aria-busy={loading}>
   <header class="page-header">
     <h1>Agents</h1>
     <button class="btn btn-primary" onclick={openCreate}>New agent</button>
@@ -254,8 +255,8 @@
   {/if}
 
   {#if formOpen}
-    <div class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="form-title">
-      <div class="modal">
+    <div class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="form-title" tabindex="-1" onkeydown={(e) => e.key === 'Escape' && closeForm()}>
+      <div class="modal" use:focusTrap>
         <h2 id="form-title">{formOpen === 'create' ? 'Create agent' : 'Edit agent'}</h2>
         {#if formError}
           <div class="message error">{formError}</div>

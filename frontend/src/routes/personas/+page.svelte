@@ -17,6 +17,7 @@
   import Skeleton from '$lib/components/Skeleton.svelte';
   import ErrorMessage from '$lib/components/ErrorMessage.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
+  import { focusTrap } from '$lib/actions/focusTrap';
 
   setContext('pageTitle', 'Personas');
 
@@ -134,7 +135,7 @@
   <title>Personas - AgentForge</title>
 </svelte:head>
 
-<div class="personas-page">
+<div class="personas-page" aria-busy={loading}>
   <header class="page-header">
     <h1>Persona Catalog</h1>
     <p class="page-desc">Browse 100+ pre-built AI agent personas. Filter by division or search to find the right fit, then hire them into your company.</p>
@@ -204,8 +205,8 @@
   {/if}
 
   {#if hireOpen && hireTarget}
-    <div class="modal-backdrop" role="dialog" aria-modal="true">
-      <div class="modal">
+    <div class="modal-backdrop" role="dialog" aria-modal="true" tabindex="-1" onkeydown={(e) => e.key === 'Escape' && closeHireModal()}>
+      <div class="modal" use:focusTrap>
         <header class="modal-header">
           <h2>Hire persona</h2>
           <button class="btn btn-ghost btn-small" type="button" onclick={closeHireModal}>Close</button>

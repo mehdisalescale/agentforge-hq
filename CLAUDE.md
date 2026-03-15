@@ -15,23 +15,22 @@ Users browse 100+ pre-built agent personas, hire them into org charts with budge
 - **Backend:** Rust, Axum, SQLite (WAL mode, rusqlite), tokio
 - **Frontend:** SvelteKit 5, adapter-static, TailwindCSS 4, embedded via rust-embed
 - **MCP Server:** rmcp v0.17 (official Rust MCP SDK), stdio transport
-- **Safety:** Circuit breaker (3-state FSM), rate limiter (token bucket), CostTracker (budget warn/limit)
+- **Safety:** Circuit breaker (3-state FSM, persisted across restarts), rate limiter (token bucket), CostTracker (budget warn/limit), spawn limiter (semaphore)
 
-## Workspace Crates (13)
+## Workspace Crates (12)
 
 ```
 forge-app          binary: DB setup, API server, embedded frontend, graceful shutdown, cron scheduler
 ├── forge-api      Axum HTTP + WebSocket, routes, CORS, TraceLayer, rust-embed SPA
-├── forge-process  spawn Claude CLI, stream-json parsing, ConcurrentRunner, LoopDetector
+├── forge-process  spawn Claude CLI, stream-json parsing, ConcurrentRunner, LoopDetector, SpawnLimiter
 ├── forge-agent    agent model, 10 presets (incl. Coordinator), validation
-├── forge-db       SQLite WAL, 12 migrations, 16 repos, BatchWriter
-├── forge-core     ForgeEvent (43 variants), EventBus broadcast, shared types
-├── forge-safety   CircuitBreaker, RateLimiter, CostTracker
+├── forge-db       SQLite WAL, 12 migrations, 17 repos, BatchWriter, r2d2 connection pool
+├── forge-core     ForgeEvent (43 variants), EventBus fan-out (mpsc + broadcast), shared types
+├── forge-safety   CircuitBreaker (persistent), RateLimiter, CostTracker
 ├── forge-git      git worktree create/remove/list for multi-agent isolation
 ├── forge-org      Company, Department, OrgPosition models + org chart builder
 ├── forge-persona  100+ persona catalog, division taxonomy, parser, hire flow
 ├── forge-governance  Goal and Approval models
-├── forge-mcp      MCP protocol stubs
 └── forge-mcp-bin  MCP stdio server (rmcp, 19 tools)
 ```
 
@@ -71,7 +70,7 @@ cargo check             # should be zero warnings
 - **Frontend state:** Svelte 5 runes (`$state`, `$derived`) across all pages
 - **Error handling:** `ForgeError` hierarchy in forge-core, propagated via `ForgeResult<T>`
 - **IDs:** Newtype wrappers (`AgentId`, `SessionId`, `ScheduleId`) around `uuid::Uuid`
-- **Events:** All state changes emit `ForgeEvent` variants (43 types) through `EventBus` (broadcast channel)
+- **Events:** All state changes emit `ForgeEvent` variants (43 types) through `EventBus` fan-out (mpsc for guaranteed persistence + broadcast for UI)
 - **Persistence:** `BatchWriter` batches events (50 or 2s flush) in transactions
 
 ## Documentation Map

@@ -67,7 +67,7 @@ impl SessionRepo {
             .map_err(|e| ForgeError::Database(Box::new(e)))?;
         stmt.query_row(rusqlite::params![id.0.to_string()], row_to_session)
             .map_err(|e| match e {
-                rusqlite::Error::QueryReturnedNoRows => ForgeError::SessionNotFound(id.clone()),
+                rusqlite::Error::QueryReturnedNoRows => ForgeError::NotFound { entity: "session", id: id.to_string() },
                 other => ForgeError::Database(Box::new(other)),
             })
     }
@@ -98,7 +98,7 @@ impl SessionRepo {
             )
             .map_err(|e| ForgeError::Database(Box::new(e)))?;
         if rows == 0 {
-            return Err(ForgeError::SessionNotFound(id.clone()));
+            return Err(ForgeError::NotFound { entity: "session", id: id.to_string() });
         }
         drop(conn);
         self.get(id)
@@ -114,7 +114,7 @@ impl SessionRepo {
             )
             .map_err(|e| ForgeError::Database(Box::new(e)))?;
         if rows == 0 {
-            return Err(ForgeError::SessionNotFound(id.clone()));
+            return Err(ForgeError::NotFound { entity: "session", id: id.to_string() });
         }
         drop(conn);
         self.get(id)
@@ -134,7 +134,7 @@ impl SessionRepo {
             )
             .map_err(|e| ForgeError::Database(Box::new(e)))?;
         if rows == 0 {
-            return Err(ForgeError::SessionNotFound(id.clone()));
+            return Err(ForgeError::NotFound { entity: "session", id: id.to_string() });
         }
         drop(conn);
         self.get(id)
@@ -146,7 +146,7 @@ impl SessionRepo {
             .execute("DELETE FROM sessions WHERE id = ?1", rusqlite::params![id.0.to_string()])
             .map_err(|e| ForgeError::Database(Box::new(e)))?;
         if rows == 0 {
-            return Err(ForgeError::SessionNotFound(id.clone()));
+            return Err(ForgeError::NotFound { entity: "session", id: id.to_string() });
         }
         Ok(())
     }
