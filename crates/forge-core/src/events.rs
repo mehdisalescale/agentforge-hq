@@ -226,6 +226,25 @@ pub enum ForgeEvent {
         timestamp: DateTime<Utc>,
     },
 
+    // Tool use lifecycle (HookReceiver)
+    ToolUseRequested {
+        session_id: SessionId,
+        tool_name: String,
+        timestamp: DateTime<Utc>,
+    },
+    ToolUseCompleted {
+        session_id: SessionId,
+        tool_name: String,
+        timestamp: DateTime<Utc>,
+    },
+
+    // Session completion (HookReceiver)
+    SessionCompleted {
+        session_id: SessionId,
+        exit_code: i32,
+        timestamp: DateTime<Utc>,
+    },
+
     // Security scan events
     SecurityScanPassed {
         session_id: SessionId,
@@ -286,6 +305,9 @@ impl ForgeEvent {
             | ForgeEvent::PipelineStepCompleted { timestamp, .. }
             | ForgeEvent::PipelineCompleted { timestamp, .. }
             | ForgeEvent::CompactionCompleted { timestamp, .. }
+            | ForgeEvent::ToolUseRequested { timestamp, .. }
+            | ForgeEvent::ToolUseCompleted { timestamp, .. }
+            | ForgeEvent::SessionCompleted { timestamp, .. }
             | ForgeEvent::SecurityScanPassed { timestamp, .. }
             | ForgeEvent::SecurityScanFailed { timestamp, .. }
             | ForgeEvent::Error { timestamp, .. } => *timestamp,

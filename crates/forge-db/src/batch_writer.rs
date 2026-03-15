@@ -163,6 +163,9 @@ fn event_type_name(event: &ForgeEvent) -> &'static str {
         ForgeEvent::PipelineStepCompleted { .. } => "PipelineStepCompleted",
         ForgeEvent::PipelineCompleted { .. } => "PipelineCompleted",
         ForgeEvent::CompactionCompleted { .. } => "CompactionCompleted",
+        ForgeEvent::ToolUseRequested { .. } => "ToolUseRequested",
+        ForgeEvent::ToolUseCompleted { .. } => "ToolUseCompleted",
+        ForgeEvent::SessionCompleted { .. } => "SessionCompleted",
         ForgeEvent::SecurityScanPassed { .. } => "SecurityScanPassed",
         ForgeEvent::SecurityScanFailed { .. } => "SecurityScanFailed",
         ForgeEvent::Error { .. } => "Error",
@@ -195,6 +198,9 @@ fn extract_ids(event: &ForgeEvent) -> (Option<String>, Option<String>) {
         | ForgeEvent::ProcessCompleted { session_id, .. }
         | ForgeEvent::ProcessFailed { session_id, .. }
         | ForgeEvent::SessionResumed { session_id, .. }
+        | ForgeEvent::ToolUseRequested { session_id, .. }
+        | ForgeEvent::ToolUseCompleted { session_id, .. }
+        | ForgeEvent::SessionCompleted { session_id, .. }
         | ForgeEvent::SecurityScanPassed { session_id, .. }
         | ForgeEvent::SecurityScanFailed { session_id, .. } => {
             (None, Some(session_id.0.to_string()))
