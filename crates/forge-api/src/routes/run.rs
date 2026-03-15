@@ -13,10 +13,11 @@ use serde::Deserialize;
 use std::sync::Arc;
 
 use crate::error::{api_error, parse_uuid, rate_limit_exceeded};
+use crate::configurator::AgentConfigurator;
 use crate::middleware::{
     CircuitBreakerMiddleware, CostCheckMiddleware, GovernanceMiddleware, MiddlewareChain,
     MiddlewareError, PersistMiddleware, RateLimitMiddleware, RunContext, SecurityScanMiddleware,
-    SkillInjectionMiddleware, TaskTypeDetectionMiddleware, SpawnMiddleware,
+    SpawnMiddleware,
 };
 use crate::state::AppState;
 
@@ -95,12 +96,6 @@ async fn run_handler(
         goal_repo: Arc::clone(&state.goal_repo),
         approval_repo: Arc::clone(&state.approval_repo),
     });
-    chain.add(SkillInjectionMiddleware {
-        skill_repo: Arc::clone(&state.skill_repo),
-    });
-    chain.add(TaskTypeDetectionMiddleware {
-        skill_repo: Arc::clone(&state.skill_repo),
-    });
     chain.add(SecurityScanMiddleware {
         event_bus: Arc::clone(&state.event_bus),
     });
@@ -108,11 +103,23 @@ async fn run_handler(
         session_repo: Arc::clone(&state.session_repo),
         event_bus: Arc::clone(&state.event_bus),
     });
+
+    // AgentConfigurator replaces SkillInjection + TaskTypeDetection middlewares
+    let configurator = Arc::new(AgentConfigurator {
+        skill_repo: Arc::clone(&state.skill_repo),
+        company_repo: Arc::clone(&state.company_repo),
+        org_position_repo: Arc::clone(&state.org_position_repo),
+        goal_repo: Arc::clone(&state.goal_repo),
+        persona_repo: Arc::clone(&state.persona_repo),
+        agent_repo: Arc::clone(&state.agent_repo),
+    });
+
     chain.add(SpawnMiddleware {
         event_bus: Arc::clone(&state.event_bus),
         session_repo: Arc::clone(&state.session_repo),
         circuit_breaker: Arc::clone(&state.safety.circuit_breaker),
         cost_tracker: Arc::clone(&state.safety.cost_tracker),
+        configurator,
     });
 
     // 4. Execute and map errors to HTTP responses

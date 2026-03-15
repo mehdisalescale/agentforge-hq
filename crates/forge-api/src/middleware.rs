@@ -567,6 +567,7 @@ pub struct SpawnMiddleware {
     pub session_repo: Arc<SessionRepo>,
     pub circuit_breaker: Arc<CircuitBreaker>,
     pub cost_tracker: Arc<CostTracker>,
+    pub configurator: Arc<crate::configurator::AgentConfigurator>,
 }
 
 impl Middleware for SpawnMiddleware {
@@ -576,6 +577,14 @@ impl Middleware for SpawnMiddleware {
         _next: Next<'a>,
     ) -> Pin<Box<dyn Future<Output = Result<RunResponse, MiddlewareError>> + Send + 'a>> {
         Box::pin(async move {
+            // Configure workspace with persona identity, skills, goals, hooks
+            if let Err(e) = self.configurator.configure_workspace(
+                &ctx.agent_id, &ctx.prompt, &ctx.session_id, &ctx.directory
+            ) {
+                tracing::warn!("Failed to configure workspace: {}", e);
+                // Non-fatal — agent runs without persona config
+            }
+
             let resume_arg = ctx.resume_session_id.as_deref();
             let config = SpawnConfig::from_env().with_working_dir(&ctx.directory);
             let mut handle = spawn(&config, &ctx.prompt, resume_arg)

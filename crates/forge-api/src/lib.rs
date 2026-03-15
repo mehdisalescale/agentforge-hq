@@ -1,5 +1,6 @@
 //! Forge HTTP API: health, agent CRUD, WebSocket event stream, embedded frontend.
 
+pub mod configurator;
 pub mod error;
 pub mod middleware;
 pub mod openapi;
