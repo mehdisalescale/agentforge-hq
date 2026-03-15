@@ -15,7 +15,7 @@ use std::sync::Arc;
 use forge_core::event_bus::EventBus;
 use forge_core::events::ForgeEvent;
 use forge_core::ids::{AgentId, SessionId};
-use forge_db::{SessionRepo, SkillRepo};
+use forge_db::{ApprovalRepo, CompanyRepo, GoalRepo, OrgPositionRepo, SessionRepo, SkillRepo};
 use forge_process::stream_event::StreamJsonEvent;
 use forge_process::{parse_line, spawn, ProcessRunner, SpawnConfig, SpawnError};
 use forge_safety::{BudgetStatus, CircuitBreaker, CostTracker, RateLimiter};
@@ -212,6 +212,110 @@ impl Middleware for CostCheckMiddleware {
 
     fn name(&self) -> &str {
         "cost_check"
+    }
+}
+
+/// Governance middleware: injects company goals, enforces company budgets,
+/// and surfaces pending approvals before a run proceeds.
+pub struct GovernanceMiddleware {
+    pub company_repo: Arc<CompanyRepo>,
+    pub org_position_repo: Arc<OrgPositionRepo>,
+    pub goal_repo: Arc<GoalRepo>,
+    pub approval_repo: Arc<ApprovalRepo>,
+}
+
+impl GovernanceMiddleware {
+    /// Find the company_id for a given agent by looking up org_positions.
+    fn find_company_id(&self, agent_id: &str) -> Option<String> {
+        if let Ok(positions) = self.org_position_repo.list_by_company("") {
+            // org_position_repo.list_by_company requires a company_id, so we
+            // need to search across all companies. We'll scan companies instead.
+            drop(positions);
+        }
+        // Look up all companies, then find positions for each that match this agent.
+        // More efficient: query all companies, then for each, check positions.
+        if let Ok(companies) = self.company_repo.list() {
+            for company in &companies {
+                if let Ok(positions) = self.org_position_repo.list_by_company(&company.id) {
+                    if positions.iter().any(|p| p.agent_id.as_deref() == Some(agent_id)) {
+                        return Some(company.id.clone());
+                    }
+                }
+            }
+        }
+        None
+    }
+}
+
+impl Middleware for GovernanceMiddleware {
+    fn process<'a>(
+        &'a self,
+        ctx: &'a mut RunContext,
+        next: Next<'a>,
+    ) -> Pin<Box<dyn Future<Output = Result<RunResponse, MiddlewareError>> + Send + 'a>> {
+        Box::pin(async move {
+            let company_id = self.find_company_id(&ctx.agent_id);
+
+            if let Some(ref cid) = company_id {
+                // --- Budget Enforcement ---
+                if let Ok(company) = self.company_repo.get(cid) {
+                    if let Some(budget_limit) = company.budget_limit {
+                        if budget_limit > 0.0 {
+                            if company.budget_used >= budget_limit {
+                                return Err(MiddlewareError::BudgetExceeded {
+                                    cost: company.budget_used,
+                                    limit: budget_limit,
+                                });
+                            }
+                            if company.budget_used >= budget_limit * 0.9 {
+                                ctx.metadata.insert(
+                                    "budget_warning".into(),
+                                    format!(
+                                        "Company budget 90%+ used (${:.2} of ${:.2})",
+                                        company.budget_used, budget_limit
+                                    ),
+                                );
+                            }
+                        }
+                    }
+                }
+
+                // --- Goal Injection ---
+                if let Ok(goals) = self.goal_repo.list_by_company(cid) {
+                    let active: Vec<String> = goals
+                        .iter()
+                        .filter(|g| g.status == "planned" || g.status == "in_progress")
+                        .map(|g| format!("- {} ({})", g.title, g.status))
+                        .collect();
+                    if !active.is_empty() {
+                        ctx.metadata.insert(
+                            "company_goals".into(),
+                            format!("Active company goals:\n{}", active.join("\n")),
+                        );
+                    }
+                }
+
+                // --- Approval Gating (visibility only) ---
+                if let Ok(approvals) = self.approval_repo.list_by_company(cid) {
+                    let pending: Vec<_> = approvals
+                        .iter()
+                        .filter(|a| a.status == "pending")
+                        .collect();
+                    if !pending.is_empty() {
+                        ctx.metadata.insert(
+                            "pending_approvals".into(),
+                            format!("{} pending approval(s)", pending.len()),
+                        );
+                    }
+                }
+            }
+
+            next.run(ctx).await
+        })
+    }
+
+    fn name(&self) -> &str {
+        "governance"
     }
 }
 
@@ -1206,5 +1310,289 @@ mod tests {
         let result = chain.execute(&mut ctx).await;
         assert!(result.is_ok());
         assert_eq!(ctx.metadata.get("quality_iteration"), Some(&"1".to_string()));
+    }
+
+    // -- GovernanceMiddleware tests ------------------------------------------
+
+    fn setup_governance_db() -> (
+        Arc<CompanyRepo>,
+        Arc<OrgPositionRepo>,
+        Arc<GoalRepo>,
+        Arc<ApprovalRepo>,
+        Arc<forge_db::AgentRepo>,
+        forge_db::DbPool,
+    ) {
+        let db = forge_db::DbPool::in_memory().unwrap();
+        {
+            let c = db.connection();
+            forge_db::Migrator::new(&c).apply_pending().unwrap();
+        }
+        let company_repo = Arc::new(CompanyRepo::new(db.conn_arc()));
+        let org_position_repo = Arc::new(OrgPositionRepo::new(db.conn_arc()));
+        let goal_repo = Arc::new(GoalRepo::new(db.conn_arc()));
+        let approval_repo = Arc::new(ApprovalRepo::new(db.conn_arc()));
+        let agent_repo = Arc::new(forge_db::AgentRepo::new(db.conn_arc()));
+        (company_repo, org_position_repo, goal_repo, approval_repo, agent_repo, db)
+    }
+
+    #[tokio::test]
+    async fn governance_blocks_over_budget() {
+        let (company_repo, org_position_repo, goal_repo, approval_repo, agent_repo, _db) =
+            setup_governance_db();
+
+        // Create company with budget_limit = 100, budget_used = 100
+        let company = company_repo
+            .create(&forge_db::NewCompany {
+                name: "BudgetCo".into(),
+                mission: None,
+                budget_limit: Some(100.0),
+            })
+            .unwrap();
+        // Set budget_used to 100
+        company_repo
+            .update(&company.id, None, None, None)
+            .unwrap();
+        {
+            let conn = _db.connection();
+            conn.execute_batch(&format!(
+                "UPDATE companies SET budget_used = 100.0 WHERE id = '{}'",
+                company.id
+            ))
+            .unwrap();
+        }
+
+        // Create agent and org position linking agent to company
+        let agent = agent_repo
+            .create(&forge_agent::model::NewAgent {
+                name: "test-agent".into(),
+                model: None,
+                system_prompt: None,
+                allowed_tools: None,
+                max_turns: None,
+                use_max: None,
+                preset: None,
+                config: None,
+            })
+            .unwrap();
+        org_position_repo
+            .create(&forge_db::NewOrgPosition {
+                company_id: company.id.clone(),
+                department_id: None,
+                agent_id: Some(agent.id.0.to_string()),
+                reports_to: None,
+                role: "engineer".into(),
+                title: None,
+            })
+            .unwrap();
+
+        let mw = GovernanceMiddleware {
+            company_repo,
+            org_position_repo,
+            goal_repo,
+            approval_repo,
+        };
+        let mut chain = MiddlewareChain::new();
+        chain.add(mw);
+        let mut ctx = test_context();
+        ctx.agent_id = agent.id.0.to_string();
+        let result = chain.execute(&mut ctx).await;
+        assert!(matches!(result, Err(MiddlewareError::BudgetExceeded { .. })));
+    }
+
+    #[tokio::test]
+    async fn governance_warns_near_budget() {
+        let (company_repo, org_position_repo, goal_repo, approval_repo, agent_repo, _db) =
+            setup_governance_db();
+
+        let company = company_repo
+            .create(&forge_db::NewCompany {
+                name: "NearBudgetCo".into(),
+                mission: None,
+                budget_limit: Some(100.0),
+            })
+            .unwrap();
+        {
+            let conn = _db.connection();
+            conn.execute_batch(&format!(
+                "UPDATE companies SET budget_used = 91.0 WHERE id = '{}'",
+                company.id
+            ))
+            .unwrap();
+        }
+
+        let agent = agent_repo
+            .create(&forge_agent::model::NewAgent {
+                name: "test-agent".into(),
+                model: None,
+                system_prompt: None,
+                allowed_tools: None,
+                max_turns: None,
+                use_max: None,
+                preset: None,
+                config: None,
+            })
+            .unwrap();
+        org_position_repo
+            .create(&forge_db::NewOrgPosition {
+                company_id: company.id.clone(),
+                department_id: None,
+                agent_id: Some(agent.id.0.to_string()),
+                reports_to: None,
+                role: "engineer".into(),
+                title: None,
+            })
+            .unwrap();
+
+        let mw = GovernanceMiddleware {
+            company_repo,
+            org_position_repo,
+            goal_repo,
+            approval_repo,
+        };
+        let mut chain = MiddlewareChain::new();
+        chain.add(mw);
+        let mut ctx = test_context();
+        ctx.agent_id = agent.id.0.to_string();
+        let result = chain.execute(&mut ctx).await;
+        assert!(result.is_ok());
+        assert!(ctx.metadata.get("budget_warning").is_some());
+        assert!(ctx.metadata.get("budget_warning").unwrap().contains("91.00"));
+    }
+
+    #[tokio::test]
+    async fn governance_injects_active_goals() {
+        let (company_repo, org_position_repo, goal_repo, approval_repo, agent_repo, _db) =
+            setup_governance_db();
+
+        let company = company_repo
+            .create(&forge_db::NewCompany {
+                name: "GoalCo".into(),
+                mission: None,
+                budget_limit: None,
+            })
+            .unwrap();
+
+        // Create one planned goal and one completed goal
+        goal_repo
+            .create(&forge_db::NewGoal {
+                company_id: company.id.clone(),
+                parent_id: None,
+                title: "Ship v1".into(),
+                description: None,
+            })
+            .unwrap();
+        let completed_goal = goal_repo
+            .create(&forge_db::NewGoal {
+                company_id: company.id.clone(),
+                parent_id: None,
+                title: "Setup CI".into(),
+                description: None,
+            })
+            .unwrap();
+        goal_repo
+            .update_status(&completed_goal.id, "completed")
+            .unwrap();
+
+        let agent = agent_repo
+            .create(&forge_agent::model::NewAgent {
+                name: "test-agent".into(),
+                model: None,
+                system_prompt: None,
+                allowed_tools: None,
+                max_turns: None,
+                use_max: None,
+                preset: None,
+                config: None,
+            })
+            .unwrap();
+        org_position_repo
+            .create(&forge_db::NewOrgPosition {
+                company_id: company.id.clone(),
+                department_id: None,
+                agent_id: Some(agent.id.0.to_string()),
+                reports_to: None,
+                role: "engineer".into(),
+                title: None,
+            })
+            .unwrap();
+
+        let mw = GovernanceMiddleware {
+            company_repo,
+            org_position_repo,
+            goal_repo,
+            approval_repo,
+        };
+        let mut chain = MiddlewareChain::new();
+        chain.add(mw);
+        let mut ctx = test_context();
+        ctx.agent_id = agent.id.0.to_string();
+        let result = chain.execute(&mut ctx).await;
+        assert!(result.is_ok());
+        let goals = ctx.metadata.get("company_goals").unwrap();
+        assert!(goals.contains("Ship v1"));
+        assert!(!goals.contains("Setup CI"));
+    }
+
+    #[tokio::test]
+    async fn governance_surfaces_pending_approvals() {
+        let (company_repo, org_position_repo, goal_repo, approval_repo, agent_repo, _db) =
+            setup_governance_db();
+
+        let company = company_repo
+            .create(&forge_db::NewCompany {
+                name: "ApprovalCo".into(),
+                mission: None,
+                budget_limit: None,
+            })
+            .unwrap();
+
+        approval_repo
+            .create(&forge_db::NewApproval {
+                company_id: company.id.clone(),
+                approval_type: "budget_increase".into(),
+                requester: "agent-1".into(),
+                data_json: "{}".into(),
+            })
+            .unwrap();
+
+        let agent = agent_repo
+            .create(&forge_agent::model::NewAgent {
+                name: "test-agent".into(),
+                model: None,
+                system_prompt: None,
+                allowed_tools: None,
+                max_turns: None,
+                use_max: None,
+                preset: None,
+                config: None,
+            })
+            .unwrap();
+        org_position_repo
+            .create(&forge_db::NewOrgPosition {
+                company_id: company.id.clone(),
+                department_id: None,
+                agent_id: Some(agent.id.0.to_string()),
+                reports_to: None,
+                role: "engineer".into(),
+                title: None,
+            })
+            .unwrap();
+
+        let mw = GovernanceMiddleware {
+            company_repo,
+            org_position_repo,
+            goal_repo,
+            approval_repo,
+        };
+        let mut chain = MiddlewareChain::new();
+        chain.add(mw);
+        let mut ctx = test_context();
+        ctx.agent_id = agent.id.0.to_string();
+        let result = chain.execute(&mut ctx).await;
+        assert!(result.is_ok());
+        assert_eq!(
+            ctx.metadata.get("pending_approvals"),
+            Some(&"1 pending approval(s)".to_string())
+        );
     }
 }
