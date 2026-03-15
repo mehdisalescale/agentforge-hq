@@ -63,7 +63,7 @@ async fn pre_tool_hook(
         session_id: SessionId(parse_uuid_silent(&payload.session_id)),
         tool_name: payload.tool_name.clone(),
         timestamp: chrono::Utc::now(),
-    });
+    }).await;
 
     Json(PreToolResponse {
         allowed: true,
@@ -93,7 +93,7 @@ async fn post_tool_hook(
         session_id: session_id.clone(),
         tool_name: payload.tool_name.clone(),
         timestamp: chrono::Utc::now(),
-    });
+    }).await;
 
     // Security scan on tool output (migrated from SecurityScanMiddleware)
     if let Some(ref output) = payload.tool_output {
@@ -115,7 +115,7 @@ async fn post_tool_hook(
                     session_id: session_id.clone(),
                     findings: finding_strs,
                     timestamp: chrono::Utc::now(),
-                });
+                }).await;
             }
         }
     }
@@ -146,7 +146,7 @@ async fn stop_hook(
             session_id,
             exit_code: 0,
             timestamp: chrono::Utc::now(),
-        });
+        }).await;
     }
 
     StatusCode::OK

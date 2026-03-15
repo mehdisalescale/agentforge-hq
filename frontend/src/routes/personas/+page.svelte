@@ -13,7 +13,10 @@
     type OrgPosition,
   } from '$lib/api';
   import Markdown from '$lib/components/Markdown.svelte';
-  import { Search, Filter, UserPlus, X } from 'lucide-svelte';
+  import { Search, Filter, UserPlus, Users as UsersIcon, X } from 'lucide-svelte';
+  import Skeleton from '$lib/components/Skeleton.svelte';
+  import ErrorMessage from '$lib/components/ErrorMessage.svelte';
+  import EmptyState from '$lib/components/EmptyState.svelte';
 
   setContext('pageTitle', 'Personas');
 
@@ -162,18 +165,17 @@
   </header>
 
   {#if error}
-    <div class="message error" role="alert">{error}</div>
+    <ErrorMessage message={error} onretry={load} />
   {/if}
 
   {#if loading}
-    <p class="muted">Loading personas…</p>
+    <Skeleton type="card" lines={4} />
   {:else if personas.length === 0}
-    <div class="empty-state">
-      <p class="muted">
-        No personas found. Once the persona catalog is imported, they will appear here for browsing
-        and assignment.
-      </p>
-    </div>
+    <EmptyState
+      icon={UsersIcon}
+      title="No personas found"
+      description="Once the persona catalog is imported, they will appear here for browsing and assignment."
+    />
   {:else}
     <section class="grid">
       {#each personas as p (p.id)}

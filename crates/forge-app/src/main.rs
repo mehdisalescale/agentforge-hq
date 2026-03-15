@@ -7,7 +7,7 @@ use forge_core::EventBus;
 use forge_db::{
     AgentRepo, AnalyticsRepo, ApprovalRepo, BatchWriter, CompanyRepo, CompactionRepo, DbPool,
     DepartmentRepo, EventRepo, GoalRepo, HookRepo, MemoryRepo, Migrator, OrgPositionRepo,
-    PersonaRepo, ScheduleRepo, SessionRepo, SkillRepo, WorkflowRepo,
+    PersonaRepo, SafetyRepo, ScheduleRepo, SessionRepo, SkillRepo, WorkflowRepo,
 };
 
 mod scheduler;
@@ -31,14 +31,34 @@ async fn shutdown_signal() {
 
 fn default_db_path() -> String {
     let home = env::var("HOME").unwrap_or_else(|_| "/tmp".into());
-    format!("{}/.claude-forge/forge.db", home)
+    let new_path = format!("{}/.agentforge/forge.db", home);
+    let legacy_path = format!("{}/.claude-forge/forge.db", home);
+
+    // Graceful migration: use legacy path if it exists and new path doesn't
+    if !std::path::Path::new(&new_path).exists() && std::path::Path::new(&legacy_path).exists() {
+        eprintln!("Note: Found database at legacy path ~/.claude-forge/forge.db");
+        eprintln!("      Consider moving to ~/.agentforge/forge.db");
+        return legacy_path;
+    }
+    new_path
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let filter = tracing_subscriber::EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info"));
-    tracing_subscriber::fmt().with_env_filter(filter).init();
+
+    if cfg!(not(debug_assertions)) {
+        // Production: JSON structured logging for machine parsing
+        tracing_subscriber::fmt()
+            .json()
+            .with_env_filter(filter)
+            .with_span_events(tracing_subscriber::fmt::format::FmtSpan::CLOSE)
+            .init();
+    } else {
+        // Development: human-readable format
+        tracing_subscriber::fmt().with_env_filter(filter).init();
+    }
 
     let db_path = env::var("FORGE_DB_PATH").unwrap_or_else(|_| default_db_path());
     let path = Path::new(&db_path);
@@ -74,7 +94,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let goal_repo = GoalRepo::new(Arc::clone(&conn_arc));
     let approval_repo = ApprovalRepo::new(Arc::clone(&conn_arc));
     let persona_repo = PersonaRepo::new(Arc::clone(&conn_arc));
-    let event_bus = EventBus::new(256);
+    let (event_bus, persist_rx) = EventBus::new(1024, 256);
 
     // Load seed skills from the skills/ directory.
     if let Err(e) = skill_repo.load_from_dir(std::path::Path::new("skills")) {
@@ -94,29 +114,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         &approval_repo,
     );
 
-    // S1: Wire BatchWriter to EventBus — persist all events to SQLite.
+    // Persistence channel: guaranteed delivery via mpsc (no Lagged errors possible)
     let batch_writer = Arc::new(BatchWriter::spawn(Arc::clone(&conn_arc)));
     let bw = Arc::clone(&batch_writer);
-    let mut event_rx = event_bus.subscribe();
+    let mut persist_rx = persist_rx;
     tokio::spawn(async move {
-        loop {
-            match event_rx.recv().await {
-                Ok(event) => {
-                    if let Err(e) = bw.write(event) {
-                        tracing::warn!(error = %e, "batch writer: failed to queue event");
-                    }
-                }
-                Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
-                    tracing::warn!(count = n, "batch writer: subscriber lagged, lost events");
-                }
-                Err(tokio::sync::broadcast::error::RecvError::Closed) => {
-                    info!("event bus closed, stopping event persistence");
-                    break;
-                }
+        while let Some(event) = persist_rx.recv().await {
+            if let Err(e) = bw.write(event) {
+                tracing::warn!(error = %e, "batch writer: failed to queue event");
             }
         }
+        info!("persistence channel closed, stopping event persistence");
     });
-    info!("event persistence wired (BatchWriter → EventBus)");
+    info!("event persistence wired (BatchWriter <- mpsc guaranteed channel)");
 
     let rate_limit_max: u32 = env::var("FORGE_RATE_LIMIT_MAX")
         .ok()
@@ -132,8 +142,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     ));
     let budget_warn = env::var("FORGE_BUDGET_WARN").ok().and_then(|s| s.parse().ok());
     let budget_limit = env::var("FORGE_BUDGET_LIMIT").ok().and_then(|s| s.parse().ok());
+    let circuit_breaker = Arc::new(CircuitBreaker::default());
+
+    // Load persisted safety state
+    let safety_repo = SafetyRepo::new(Arc::clone(&conn_arc));
+    if let Ok(Some(cb_json)) = safety_repo.get("circuit_breaker") {
+        if let Ok(saved) = serde_json::from_str::<forge_safety::CircuitBreakerState>(&cb_json) {
+            circuit_breaker.restore_state(&saved);
+            info!("restored circuit breaker state: {}", saved.state);
+        }
+    }
+
+    let circuit_breaker_for_shutdown = Arc::clone(&circuit_breaker);
     let safety = SafetyState {
-        circuit_breaker: Arc::new(CircuitBreaker::default()),
+        circuit_breaker,
         rate_limiter,
         cost_tracker: Arc::new(CostTracker::new(budget_warn, budget_limit)),
     };
@@ -169,6 +191,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let addr: SocketAddr = format!("{}:{}", host, port).parse()?;
     info!(%addr, "starting forge server");
     serve_until_signal(addr, state, shutdown_signal()).await?;
+
+    // Persist safety state before shutdown
+    let cb_state = circuit_breaker_for_shutdown.export_state();
+    if let Ok(json) = serde_json::to_string(&cb_state) {
+        if let Err(e) = safety_repo.set("circuit_breaker", &json) {
+            tracing::warn!("failed to persist circuit breaker state: {}", e);
+        }
+    }
 
     // Cancel the scheduler.
     cancel.cancel();

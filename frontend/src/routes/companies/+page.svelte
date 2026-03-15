@@ -3,6 +3,9 @@
   import { onMount } from 'svelte';
   import { listCompanies, createCompany, type Company } from '$lib/api';
   import { Building2, Plus, DollarSign } from 'lucide-svelte';
+  import Skeleton from '$lib/components/Skeleton.svelte';
+  import ErrorMessage from '$lib/components/ErrorMessage.svelte';
+  import EmptyState from '$lib/components/EmptyState.svelte';
 
   setContext('pageTitle', 'Companies');
 
@@ -94,16 +97,19 @@
   </header>
 
   {#if error}
-    <div class="message error" role="alert">{error}</div>
+    <ErrorMessage message={error} onretry={loadCompanies} />
   {/if}
 
   {#if loading}
-    <p class="muted">Loading companies...</p>
+    <Skeleton type="card" lines={3} />
   {:else if companies.length === 0}
-    <div class="empty-state">
-      <p class="muted">No companies defined yet. Create one to start organizing agents into org charts.</p>
-      <button class="btn btn-primary" onclick={openForm}>Create company</button>
-    </div>
+    <EmptyState
+      icon={Building2}
+      title="No companies yet"
+      description="Create your first company to start organizing agents into org charts."
+      actionLabel="Create company"
+      onaction={openForm}
+    />
   {:else}
     <div class="company-cards">
       {#each companies as c (c.id)}

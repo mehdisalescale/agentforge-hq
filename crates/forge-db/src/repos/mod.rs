@@ -13,4 +13,5 @@ pub mod memory;
 pub mod schedules;
 pub mod sessions;
 pub mod skills;
+pub mod safety;
 pub mod workflows;

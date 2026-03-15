@@ -10,6 +10,10 @@
     type Goal,
     type GoalStatus,
   } from '$lib/api';
+  import { Target as TargetIcon } from 'lucide-svelte';
+  import Skeleton from '$lib/components/Skeleton.svelte';
+  import ErrorMessage from '$lib/components/ErrorMessage.svelte';
+  import EmptyState from '$lib/components/EmptyState.svelte';
 
   setContext('pageTitle', 'Goals');
 
@@ -146,15 +150,21 @@
   </header>
 
   {#if error}
-    <div class="message error" role="alert">{error}</div>
+    <ErrorMessage message={error} onretry={loadInitial} />
   {/if}
 
   {#if loading}
-    <p class="muted">Loading goals…</p>
+    <Skeleton type="table" lines={4} />
   {:else if !selectedCompanyId}
     <p class="muted">Select a company to see its goals.</p>
   {:else if goals.length === 0}
-    <p class="muted">No goals defined yet for this company.</p>
+    <EmptyState
+      icon={TargetIcon}
+      title="No goals yet"
+      description="Define goals for this company to track progress and align your agent workforce."
+      actionLabel="New goal"
+      onaction={openCreate}
+    />
   {:else}
     <table class="table">
       <thead>

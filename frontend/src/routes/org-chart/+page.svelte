@@ -6,9 +6,8 @@
     getOrgChart,
     type Company,
     type CompanyOrgChart,
-    type OrgChartNode,
-    type Department,
   } from '$lib/api';
+  import OrgNode from '$lib/components/OrgNode.svelte';
 
   setContext('pageTitle', 'Org Chart');
 
@@ -17,12 +16,6 @@
   let chart = $state<CompanyOrgChart | null>(null);
   let loading = $state(true);
   let error = $state<string | null>(null);
-
-  function departmentName(departments: Department[], id: string | null | undefined): string {
-    if (!id) return '—';
-    const d = departments.find((x) => x.id === id);
-    return d ? d.name : id.slice(0, 8) + '...';
-  }
 
   async function loadInitial() {
     loading = true;
@@ -112,45 +105,7 @@
 
       <div class="tree">
         {#each chart.roots as node (node.position.id)}
-          <div class="org-node">
-            <div class="org-card">
-              <div class="title">{node.position.title ?? node.position.role}</div>
-              <div class="meta">
-                <span class="meta-label">Department</span>
-                <span>{departmentName(chart.departments, node.position.department_id ?? undefined)}</span>
-              </div>
-            </div>
-            {#if node.children && node.children.length > 0}
-              <div class="children">
-                {#each node.children as child (child.position.id)}
-                  <div class="org-node">
-                    <div class="org-card">
-                      <div class="title">{child.position.title ?? child.position.role}</div>
-                      <div class="meta">
-                        <span class="meta-label">Department</span>
-                        <span>{departmentName(chart.departments, child.position.department_id ?? undefined)}</span>
-                      </div>
-                    </div>
-                    {#if child.children && child.children.length > 0}
-                      <div class="children">
-                        {#each child.children as grand (grand.position.id)}
-                          <div class="org-card org-node">
-                            <div class="title">{grand.position.title ?? grand.position.role}</div>
-                            <div class="meta">
-                              <span class="meta-label">Department</span>
-                              <span
-                                >{departmentName(chart.departments, grand.position.department_id ?? undefined)}</span
-                              >
-                            </div>
-                          </div>
-                        {/each}
-                      </div>
-                    {/if}
-                  </div>
-                {/each}
-              </div>
-            {/if}
-          </div>
+          <OrgNode {node} departments={chart.departments} />
         {/each}
       </div>
     </section>
@@ -227,61 +182,6 @@
 
   .tree {
     padding-left: 0.5rem;
-  }
-
-  .org-node {
-    position: relative;
-    padding-left: 1.25rem;
-    margin: 0.5rem 0;
-  }
-
-  .org-node::before {
-    content: '';
-    position: absolute;
-    left: 0.5rem;
-    top: 0;
-    bottom: 0;
-    border-left: 1px solid var(--border);
-  }
-
-  .org-card {
-    position: relative;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 0.5rem 0.75rem;
-    min-width: 10rem;
-  }
-
-  .org-card::before {
-    content: '';
-    position: absolute;
-    left: -0.75rem;
-    top: 50%;
-    width: 0.75rem;
-    border-top: 1px solid var(--border);
-  }
-
-  .org-card .title {
-    font-size: 0.9rem;
-    font-weight: 600;
-    margin-bottom: 0.15rem;
-  }
-
-  .org-card .meta {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.75rem;
-    color: var(--muted);
-  }
-
-  .meta-label {
-    margin-right: 0.25rem;
-  }
-
-  .children {
-    margin-left: 1.25rem;
-    margin-top: 0.25rem;
   }
 
   .muted {

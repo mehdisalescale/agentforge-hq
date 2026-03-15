@@ -13,32 +13,82 @@ pub struct EventBus {
 - Broadcast channel — multiple subscribers receive every event
 - Used by: BatchWriter (persistence), WebSocket (real-time UI), analytics
 
-## ForgeEvent (38 variants)
+## ForgeEvent (43 variants)
 
-### Session lifecycle
-- `SessionCreated`, `SessionStarted`, `SessionCompleted`, `SessionFailed`, `SessionResumed`
+### System lifecycle
+- `SystemStarted` — server started with version
+- `SystemStopped` — server shutting down
+- `Heartbeat` — periodic liveness signal
+
+### Agent lifecycle
+- `AgentCreated` — new agent registered
+- `AgentUpdated` — agent configuration changed
+- `AgentDeleted` — agent removed
 
 ### Process execution
-- `ProcessSpawned`, `ProcessOutput`, `ProcessCompleted`, `ProcessFailed`
+- `ProcessStarted` — CLI process spawned for a session
+- `ProcessOutput` — stdout/stderr chunk (with `OutputKind`: Assistant, ToolUse, ToolResult, Thinking, Result)
+- `ProcessCompleted` — CLI process exited with code
+- `ProcessFailed` — CLI process error
+
+### Session lifecycle
+- `SessionCreated` — new session opened
+- `SessionResumed` — existing session resumed
+- `SessionCompleted` — session finished (from HookReceiver stop event)
+
+### Workflow lifecycle
+- `WorkflowStarted` — workflow execution began
+- `WorkflowStepCompleted` — a workflow step finished
+- `WorkflowCompleted` — all workflow steps done
+- `WorkflowFailed` — workflow execution error
+
+### Safety
+- `CircuitBreakerTripped` — circuit breaker opened for an agent
+- `BudgetWarning` — cost approaching limit
+- `BudgetExceeded` — cost exceeded limit
+
+### Hook lifecycle
+- `HookStarted` — a Claude Code hook began executing
+- `HookCompleted` — hook finished with duration
+- `HookFailed` — hook execution error
+
+### Sub-agent lifecycle
+- `SubAgentRequested` — parent session requested a sub-agent
+- `SubAgentStarted` — sub-agent session started
+- `SubAgentCompleted` — sub-agent session finished
+- `SubAgentFailed` — sub-agent error
+
+### Schedule lifecycle
+- `ScheduleCreated` — new cron schedule registered
+- `ScheduleTriggered` — schedule fired, session started
+- `ScheduleDeleted` — schedule removed
+
+### Exit gate
+- `ExitGateTriggered` — session stopped by exit gate rule
+
+### Quality checks
+- `QualityCheckStarted` — quality gate evaluation began
+- `QualityCheckPassed` — quality score above threshold
+- `QualityCheckFailed` — quality score below threshold
+
+### Pipeline lifecycle
+- `PipelineStarted` — multi-step pipeline began
+- `PipelineStepCompleted` — a pipeline step finished
+- `PipelineCompleted` — all pipeline steps done
+
+### Compaction
+- `CompactionCompleted` — context compaction with token counts
 
 ### Tool use (HookReceiver)
 - `ToolUseRequested` — Claude Code is about to use a tool
 - `ToolUseCompleted` — tool use finished
 
 ### Security
-- `SecurityScanPassed`, `SecurityScanFailed`
+- `SecurityScanPassed` — security scan found no issues
+- `SecurityScanFailed` — security scan found findings
 
-### Safety
-- `RateLimitHit`, `CircuitBreakerTripped`, `BudgetWarning`, `BudgetExceeded`
-
-### Multi-agent
-- `SubAgentSpawned`, `SubAgentCompleted`, `SubAgentFailed`
-
-### Pipeline
-- `PipelineStarted`, `PipelineStepCompleted`, `PipelineCompleted`
-
-### System
-- `CompactionCompleted`, `Error`
+### Generic
+- `Error` — catch-all error with message and optional context
 
 ## BatchWriter
 

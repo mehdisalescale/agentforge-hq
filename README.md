@@ -16,7 +16,7 @@ Self-improving AI workforce platform. Rust + Svelte 5, single binary.
 - Git worktree isolation for multi-agent safety
 - **Governance layer:** goals, approvals (explicit yes/no decisions)
 - Cron scheduler, usage analytics (daily costs, P90, projected monthly), loop detection
-- MCP server mode (stdio) with 10 tools via rmcp
+- MCP server mode (stdio) with 19 tools via rmcp
 - Safety controls: circuit breaker, rate limiter, budget enforcement, exit gates, quality gates
 
 ## Quick start
@@ -69,14 +69,14 @@ forge-app          binary: DB setup, API server, embedded frontend, graceful shu
 ├── forge-process  spawn Claude CLI, stream-json parsing, ConcurrentRunner, LoopDetector
 ├── forge-agent    agent model, 10 presets (incl. Coordinator), validation
 ├── forge-db       SQLite WAL, 12 migrations, 16 repos, BatchWriter
-├── forge-core     ForgeEvent (35 variants), EventBus broadcast, shared types
+├── forge-core     ForgeEvent (43 variants), EventBus broadcast, shared types
 ├── forge-safety   circuit breaker (3-state FSM), rate limiter (token bucket), CostTracker
 ├── forge-git      git worktree create/remove/list for multi-agent isolation
 ├── forge-org      company, department, org position models + org chart builder
 ├── forge-persona  100+ persona catalog, division taxonomy, hire flow
 ├── forge-governance  goals, approvals (governance layer)
 ├── forge-mcp      MCP protocol stubs
-└── forge-mcp-bin  MCP stdio server (rmcp, 10 tools)
+└── forge-mcp-bin  MCP stdio server (rmcp, 19 tools)
 ```
 
 ## Frontend (16+ pages)

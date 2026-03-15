@@ -25,6 +25,7 @@ pub use repos::workflows::{Workflow, WorkflowRepo};
 pub use repos::compaction::{Compaction, CompactionRepo};
 pub use repos::schedules::{Schedule, ScheduleRepo, NewSchedule, UpdateSchedule};
 pub use repos::analytics::{AnalyticsRepo, UsageReport};
+pub use repos::safety::SafetyRepo;
 
 #[cfg(test)]
 mod tests {

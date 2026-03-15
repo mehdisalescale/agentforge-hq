@@ -19,12 +19,12 @@ mod tests {
 
     #[tokio::test]
     async fn emit_event_received_by_subscriber() {
-        let bus = EventBus::new(16);
+        let (bus, _persist_rx) = EventBus::new(16, 16);
         let mut rx = bus.subscribe();
         let event = ForgeEvent::Heartbeat {
             timestamp: Utc::now(),
         };
-        bus.emit(event.clone()).unwrap();
+        bus.emit(event.clone()).await.unwrap();
         let received = rx.recv().await.unwrap();
         match (&received, &event) {
             (ForgeEvent::Heartbeat { timestamp: t1 }, ForgeEvent::Heartbeat { timestamp: t2 }) => {
@@ -35,8 +35,24 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn emit_event_received_by_persist_channel() {
+        let (bus, mut persist_rx) = EventBus::new(16, 16);
+        let event = ForgeEvent::Heartbeat {
+            timestamp: Utc::now(),
+        };
+        bus.emit(event.clone()).await.unwrap();
+        let received = persist_rx.recv().await.unwrap();
+        match (&received, &event) {
+            (ForgeEvent::Heartbeat { timestamp: t1 }, ForgeEvent::Heartbeat { timestamp: t2 }) => {
+                assert_eq!(t1, t2);
+            }
+            _ => panic!("event variant mismatch"),
+        }
+    }
+
+    #[tokio::test]
     async fn multiple_subscribers_all_receive() {
-        let bus = EventBus::new(16);
+        let (bus, _persist_rx) = EventBus::new(16, 16);
         let mut r1 = bus.subscribe();
         let mut r2 = bus.subscribe();
         let mut r3 = bus.subscribe();
@@ -45,7 +61,7 @@ mod tests {
             name: "Test".into(),
             timestamp: Utc::now(),
         };
-        bus.emit(event.clone()).unwrap();
+        bus.emit(event.clone()).await.unwrap();
         let _ = r1.recv().await.unwrap();
         let _ = r2.recv().await.unwrap();
         let _ = r3.recv().await.unwrap();
@@ -237,7 +253,7 @@ mod tests {
 
     #[test]
     fn subscriber_count_tracks_active_subscribers() {
-        let bus = EventBus::new(16);
+        let (bus, _persist_rx) = EventBus::new(16, 16);
         assert_eq!(bus.subscriber_count(), 0);
         let _r1 = bus.subscribe();
         assert_eq!(bus.subscriber_count(), 1);

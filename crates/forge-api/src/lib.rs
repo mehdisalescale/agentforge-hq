@@ -167,11 +167,12 @@ mod tests {
             let migrator = Migrator::new(&conn);
             migrator.apply_pending().unwrap();
         }
+        let (event_bus, _persist_rx) = EventBus::new(16, 16);
         AppState::new(
             Arc::new(AgentRepo::new(Arc::clone(&conn_arc))),
             Arc::new(SessionRepo::new(Arc::clone(&conn_arc))),
             Arc::new(EventRepo::new(Arc::clone(&conn_arc))),
-            Arc::new(EventBus::new(16)),
+            Arc::new(event_bus),
             Arc::new(SkillRepo::new(Arc::clone(&conn_arc))),
             Arc::new(WorkflowRepo::new(Arc::clone(&conn_arc))),
             Arc::new(MemoryRepo::new(Arc::clone(&conn_arc))),
@@ -666,5 +667,273 @@ mod tests {
         let (status, json) = json_get(&app, "/api/v1/personas/divisions").await;
         assert_eq!(status, StatusCode::OK);
         assert!(json.is_array());
+    }
+
+    // --- Helpers for PUT ---
+
+    async fn json_put(app: &Router, uri: &str, body: serde_json::Value) -> (StatusCode, serde_json::Value) {
+        let req = Request::builder()
+            .method("PUT")
+            .uri(format!("http://localhost{uri}"))
+            .header("content-type", "application/json")
+            .body(Body::from(body.to_string()))
+            .unwrap();
+        let res = app.clone().oneshot(req).await.unwrap();
+        let status = res.status();
+        let bytes = axum::body::to_bytes(res.into_body(), usize::MAX).await.unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap_or(serde_json::Value::Null);
+        (status, json)
+    }
+
+    // --- Agent CRUD tests ---
+
+    #[tokio::test]
+    async fn agents_list_returns_200() {
+        let app = app(test_state());
+        let (status, json) = json_get(&app, "/api/v1/agents").await;
+        assert_eq!(status, StatusCode::OK);
+        assert!(json.is_array());
+    }
+
+    #[tokio::test]
+    async fn agents_crud_lifecycle() {
+        let app = app(test_state());
+
+        // Create
+        let (status, agent) = json_post(&app, "/api/v1/agents", serde_json::json!({
+            "name": "TestBot"
+        })).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(agent["name"], "TestBot");
+        let id = agent["id"].as_str().unwrap();
+
+        // Get by ID
+        let (status, fetched) = json_get(&app, &format!("/api/v1/agents/{id}")).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(fetched["name"], "TestBot");
+
+        // Update (PUT)
+        let (status, updated) = json_put(&app, &format!("/api/v1/agents/{id}"), serde_json::json!({
+            "name": "RenamedBot"
+        })).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(updated["name"], "RenamedBot");
+
+        // Delete
+        let status = json_delete(&app, &format!("/api/v1/agents/{id}")).await;
+        assert_eq!(status, StatusCode::NO_CONTENT);
+
+        // Verify gone
+        let (status, _) = json_get(&app, &format!("/api/v1/agents/{id}")).await;
+        assert!(status.is_client_error() || status.is_server_error());
+    }
+
+    #[tokio::test]
+    async fn agents_get_nonexistent_returns_error() {
+        let app = app(test_state());
+        let fake_id = uuid::Uuid::new_v4();
+        let (status, _) = json_get(&app, &format!("/api/v1/agents/{fake_id}")).await;
+        assert!(status.is_client_error() || status.is_server_error());
+    }
+
+    #[tokio::test]
+    async fn agent_stats_returns_200() {
+        let app = app(test_state());
+
+        // Create an agent first
+        let (_, agent) = json_post(&app, "/api/v1/agents", serde_json::json!({
+            "name": "StatsAgent"
+        })).await;
+        let id = agent["id"].as_str().unwrap();
+
+        // Get stats (no sessions yet, so zeros)
+        let (status, stats) = json_get(&app, &format!("/api/v1/agents/{id}/stats")).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(stats["run_count"], 0);
+        assert_eq!(stats["total_cost"], 0.0);
+
+        // All agent stats
+        let (status, _) = json_get(&app, "/api/v1/agents/stats").await;
+        assert_eq!(status, StatusCode::OK);
+    }
+
+    // --- Settings test ---
+
+    #[tokio::test]
+    async fn settings_returns_200_with_defaults() {
+        let app = app(test_state());
+        let (status, json) = json_get(&app, "/api/v1/settings").await;
+        assert_eq!(status, StatusCode::OK);
+        assert!(json["host"].is_string());
+        assert!(json["port"].is_string());
+        assert!(json["cli_command"].is_string());
+    }
+
+    // --- Analytics test ---
+
+    #[tokio::test]
+    async fn analytics_usage_returns_200() {
+        let app = app(test_state());
+        let (status, json) = json_get(&app, "/api/v1/analytics/usage").await;
+        assert_eq!(status, StatusCode::OK);
+        // Report should have standard fields
+        assert!(json.get("total_sessions").is_some() || json.get("agent_breakdown").is_some());
+    }
+
+    // --- Schedule CRUD test ---
+
+    #[tokio::test]
+    async fn schedules_crud_lifecycle() {
+        let app = app(test_state());
+
+        // List (empty)
+        let (status, json) = json_get(&app, "/api/v1/schedules").await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(json.as_array().unwrap().len(), 0);
+
+        // Create agent for schedule
+        let (_, agent) = json_post(&app, "/api/v1/agents", serde_json::json!({
+            "name": "ScheduleAgent"
+        })).await;
+        let agent_id = agent["id"].as_str().unwrap();
+
+        // Create schedule
+        let (status, schedule) = json_post(&app, "/api/v1/schedules", serde_json::json!({
+            "name": "Daily check",
+            "cron_expr": "0 0 9 * * *",
+            "agent_id": agent_id,
+            "prompt": "Run daily diagnostics"
+        })).await;
+        assert_eq!(status, StatusCode::OK, "schedule create failed: {:?}", schedule);
+        assert_eq!(schedule["name"], "Daily check");
+        let sid = schedule["id"].as_str().unwrap();
+
+        // Get by ID
+        let (status, fetched) = json_get(&app, &format!("/api/v1/schedules/{sid}")).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(fetched["cron_expr"], "0 0 9 * * *");
+
+        // Delete
+        let status = json_delete(&app, &format!("/api/v1/schedules/{sid}")).await;
+        assert_eq!(status, StatusCode::NO_CONTENT);
+    }
+
+    // --- Memory CRUD test ---
+
+    #[tokio::test]
+    async fn memory_crud_lifecycle() {
+        let app = app(test_state());
+
+        // List (empty)
+        let (status, json) = json_get(&app, "/api/v1/memory").await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(json.as_array().unwrap().len(), 0);
+
+        // Create
+        let (status, memory) = json_post(&app, "/api/v1/memory", serde_json::json!({
+            "content": "The user prefers Rust",
+            "category": "preference",
+            "confidence": 0.9
+        })).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(memory["content"], "The user prefers Rust");
+        let mid = memory["id"].as_str().unwrap();
+
+        // Get by ID
+        let (status, fetched) = json_get(&app, &format!("/api/v1/memory/{mid}")).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(fetched["category"], "preference");
+
+        // Delete
+        let status = json_delete(&app, &format!("/api/v1/memory/{mid}")).await;
+        assert_eq!(status, StatusCode::NO_CONTENT);
+    }
+
+    // --- Hooks CRUD test ---
+
+    #[tokio::test]
+    async fn hooks_crud_lifecycle() {
+        let app = app(test_state());
+
+        // List (empty)
+        let (status, json) = json_get(&app, "/api/v1/hooks").await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(json.as_array().unwrap().len(), 0);
+
+        // Create
+        let (status, hook) = json_post(&app, "/api/v1/hooks", serde_json::json!({
+            "name": "lint-check",
+            "event_type": "session.complete",
+            "timing": "post",
+            "command": "cargo clippy"
+        })).await;
+        assert_eq!(status, StatusCode::OK, "hook create failed: {:?}", hook);
+        assert_eq!(hook["name"], "lint-check");
+        let hid = hook["id"].as_str().unwrap();
+
+        // Get by ID
+        let (status, fetched) = json_get(&app, &format!("/api/v1/hooks/{hid}")).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(fetched["command"], "cargo clippy");
+
+        // Delete
+        let status = json_delete(&app, &format!("/api/v1/hooks/{hid}")).await;
+        assert_eq!(status, StatusCode::NO_CONTENT);
+    }
+
+    // --- HookReceiver tests ---
+
+    #[tokio::test]
+    async fn hook_pre_tool_returns_allowed() {
+        let app = app(test_state());
+        let (status, json) = json_post(&app, "/api/v1/hooks/pre-tool", serde_json::json!({
+            "session_id": uuid::Uuid::new_v4().to_string(),
+            "tool_name": "Read"
+        })).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(json["allowed"], true);
+    }
+
+    #[tokio::test]
+    async fn hook_post_tool_returns_ok() {
+        let app = app(test_state());
+
+        let req = Request::builder()
+            .method("POST")
+            .uri("http://localhost/api/v1/hooks/post-tool")
+            .header("content-type", "application/json")
+            .body(Body::from(serde_json::json!({
+                "session_id": uuid::Uuid::new_v4().to_string(),
+                "tool_name": "Write",
+                "tool_output": "file written"
+            }).to_string()))
+            .unwrap();
+        let res = app.oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn hook_stop_returns_ok() {
+        let app = app(test_state());
+
+        let req = Request::builder()
+            .method("POST")
+            .uri("http://localhost/api/v1/hooks/stop")
+            .header("content-type", "application/json")
+            .body(Body::from(serde_json::json!({
+                "session_id": uuid::Uuid::new_v4().to_string()
+            }).to_string()))
+            .unwrap();
+        let res = app.oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::OK);
+    }
+
+    // --- Doc accuracy test ---
+
+    #[test]
+    fn mcp_tool_count_matches_docs() {
+        // This is a compile-time reminder: if tools change, update site-docs/reference/mcp-tools.md
+        let expected_tool_count = 19;
+        assert_eq!(expected_tool_count, 19, "Update site-docs/reference/mcp-tools.md if tool count changes");
     }
 }

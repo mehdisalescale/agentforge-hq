@@ -4,6 +4,10 @@
   import { goto } from '$app/navigation';
   import { marked } from 'marked';
   import DOMPurify from 'dompurify';
+  import Skeleton from '$lib/components/Skeleton.svelte';
+  import ErrorMessage from '$lib/components/ErrorMessage.svelte';
+  import EmptyState from '$lib/components/EmptyState.svelte';
+  import { History } from 'lucide-svelte';
   import {
     listSessions,
     getSession,
@@ -151,8 +155,13 @@
     </div>
   </div>
   {#if sessionsError}
-    <p class="error">{sessionsError}</p>
-    <p class="muted">Session API may not be available yet (Agent C). You can still use Run on the Dashboard.</p>
+    <ErrorMessage message={sessionsError} onretry={loadSessions} />
+  {:else if sessions.length === 0 && viewMode === 'list'}
+    <EmptyState
+      icon={History}
+      title="No sessions yet"
+      description="Run an agent from the Dashboard to create sessions."
+    />
   {:else if viewMode === 'kanban'}
     <div class="kanban-board">
       {#each kanbanColumns as col (col.status)}

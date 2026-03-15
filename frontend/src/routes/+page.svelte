@@ -8,12 +8,14 @@
   import {
     listAgents,
     runAgent,
+    getUsageAnalytics,
     wsUrl,
     isProcessOutputEvent,
     isProcessLifecycleEvent,
     type Agent,
     type ForgeEventWire,
   } from '$lib/api';
+  import Onboarding from '$lib/components/Onboarding.svelte';
   import {
     Building2, Users, Bot,
     Rocket, ArrowRight, Sparkles, MessageSquare, Wrench,
@@ -77,10 +79,12 @@
     pending: '#6b7280',
   };
 
-  setContext('pageTitle', 'Dashboard');
+  setContext('pageTitle', 'Home');
 
   // --- Svelte 5 rune state ---
   let agents = $state<Agent[]>([]);
+  let dashSessionCount = $state(0);
+  let dashTotalCost = $state(0);
   let agentsError = $state('');
   let selectedAgentId = $state('');
   let prompt = $state('');
@@ -357,8 +361,19 @@
     }
   });
 
+  async function loadDashStats() {
+    try {
+      const report = await getUsageAnalytics();
+      dashSessionCount = report.stats.total;
+      dashTotalCost = report.total_cost;
+    } catch {
+      // analytics not critical for dashboard
+    }
+  }
+
   onMount(() => {
     loadAgents();
+    loadDashStats();
     connectWs();
     return () => {
       if (wsReconnectTimer) clearTimeout(wsReconnectTimer);
@@ -368,17 +383,32 @@
 </script>
 
 <svelte:head>
-  <title>Dashboard - AgentForge</title>
+  <title>Home - AgentForge</title>
 </svelte:head>
 
 <div class="page dashboard">
-  {#if agents.length === 0 && !agentsError && streamStatus === 'idle'}
-  <section class="empty-state">
-    <div class="empty-icon"><Bot size={28} /></div>
-    <h2>No agents yet</h2>
-    <p>Create a <a href="/companies">company</a>, <a href="/personas">hire personas</a>, then come back here to run them.</p>
+  <section class="orientation">
+    <div class="orientation-text">
+      <h1 class="orientation-title">AgentForge</h1>
+      <p class="orientation-desc">AI workforce management with budgets, personas, and audit trails.</p>
+    </div>
+    <div class="stat-cards">
+      <div class="stat-card">
+        <span class="stat-value">{agents.length}</span>
+        <span class="stat-label">Agents</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-value">{dashSessionCount}</span>
+        <span class="stat-label">Runs</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-value">${dashTotalCost.toFixed(2)}</span>
+        <span class="stat-label">Spent</span>
+      </div>
+    </div>
   </section>
-  {/if}
+
+  <Onboarding agentCount={agents.length} sessionCount={dashSessionCount} totalCost={dashTotalCost} />
 
   <section class="run-section">
     <h2>Run</h2>
@@ -564,40 +594,53 @@
 </div>
 
 <style>
-  /* --- Empty state --- */
-  .empty-state {
-    text-align: center;
-    padding: 3rem 1rem;
-    margin-bottom: 2rem;
+  /* --- Orientation panel --- */
+  .orientation {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.25rem;
     border-bottom: 1px solid var(--border);
   }
-  .empty-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 3rem;
-    height: 3rem;
-    border-radius: 12px;
-    background: var(--accent-muted);
-    color: var(--accent);
-    margin-bottom: 0.75rem;
-  }
-  .empty-state h2 {
-    margin: 0 0 0.4rem;
-    font-size: 1.1rem;
-  }
-  .empty-state p {
+  .orientation-title {
     margin: 0;
-    font-size: 0.9rem;
+    font-size: 1.35rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  .orientation-desc {
+    margin: 0.2rem 0 0;
+    font-size: 0.85rem;
     color: var(--muted);
   }
-  .empty-state a {
-    color: var(--accent);
-    text-decoration: none;
-    font-weight: 500;
+  .stat-cards {
+    display: flex;
+    gap: 0.6rem;
+    flex-shrink: 0;
   }
-  .empty-state a:hover {
-    text-decoration: underline;
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.6rem 1rem;
+    text-align: center;
+    min-width: 5rem;
+  }
+  .stat-value {
+    display: block;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .stat-label {
+    display: block;
+    font-size: 0.7rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-top: 0.15rem;
   }
 
   .page {

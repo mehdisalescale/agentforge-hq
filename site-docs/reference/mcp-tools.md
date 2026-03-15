@@ -54,13 +54,17 @@ Hire a persona into a company.
 | `company_id` | string | UUID of the company |
 | `department_id` | string? | UUID of the department |
 
-## Sessions (4 tools)
+## Sessions (5 tools)
 
 ### session_list
 List all sessions.
 
 ### session_get
 Get a session by ID.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `id` | string | UUID of the session |
 
 ### session_create
 Create a new session for an agent.
@@ -71,8 +75,15 @@ Create a new session for an agent.
 | `directory` | string? | Working directory |
 | `claude_session_id` | string? | Claude session ID for resume |
 
+### session_delete
+Delete a session by ID.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `id` | string | UUID of the session |
+
 ### session_export
-Export a session with events.
+Export a session with events as JSON or Markdown.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
@@ -124,7 +135,7 @@ Classify a prompt into a task type with recommended skills.
 
 Returns: task type (BugFix, Feature, Refactor, Test, Review, etc.), recommended skills, confidence level.
 
-## Observability (1 tool)
+## Observability (2 tools)
 
 ### forge_get_analytics
 Get usage analytics.

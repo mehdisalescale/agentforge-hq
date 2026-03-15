@@ -131,7 +131,7 @@ async fn run_workflow(
         workflow_id: id.clone(),
         step_count: pipeline.steps.len(),
         timestamp: Utc::now(),
-    });
+    }).await;
 
     let runner = PipelineRunner::new(Arc::clone(&state.event_bus), 4);
     let step_results = runner
@@ -148,7 +148,7 @@ async fn run_workflow(
             step_index: sr.step_index,
             success: sr.success,
             timestamp: Utc::now(),
-        });
+        }).await;
     }
 
     // Emit PipelineCompleted event
@@ -157,7 +157,7 @@ async fn run_workflow(
         workflow_id: id.clone(),
         success,
         timestamp: Utc::now(),
-    });
+    }).await;
 
     Ok(Json(RunWorkflowResponse {
         workflow_id: id,

@@ -3,9 +3,18 @@
 
 pub mod scanner;
 
+use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicU32, AtomicU8, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
+
+/// Serializable snapshot of circuit breaker state for persistence.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CircuitBreakerState {
+    pub state: String,
+    pub failure_count: u32,
+    pub last_failure_epoch_ms: Option<u64>,
+}
 
 /// Circuit breaker error when the circuit is open (requests rejected).
 #[derive(Debug, Clone)]
@@ -117,6 +126,53 @@ impl CircuitBreaker {
             0 => CircuitState::Closed,
             1 => CircuitState::Open,
             _ => CircuitState::HalfOpen,
+        }
+    }
+
+    /// Export current state for persistence.
+    pub fn export_state(&self) -> CircuitBreakerState {
+        let state_name = match self.state() {
+            CircuitState::Closed => "Closed",
+            CircuitState::Open => "Open",
+            CircuitState::HalfOpen => "HalfOpen",
+        };
+        let last_failure_ms = self
+            .last_failure
+            .lock()
+            .unwrap()
+            .map(|i| i.elapsed().as_millis() as u64);
+        CircuitBreakerState {
+            state: state_name.to_string(),
+            failure_count: self.failure_count.load(Ordering::SeqCst),
+            last_failure_epoch_ms: last_failure_ms,
+        }
+    }
+
+    /// Restore state from persistence. Call on startup.
+    pub fn restore_state(&self, saved: &CircuitBreakerState) {
+        let state_val = match saved.state.as_str() {
+            "Open" => CircuitState::Open as u8,
+            "HalfOpen" => CircuitState::HalfOpen as u8,
+            _ => CircuitState::Closed as u8,
+        };
+        self.state.store(state_val, Ordering::SeqCst);
+        self.failure_count
+            .store(saved.failure_count, Ordering::SeqCst);
+
+        if state_val == CircuitState::Open as u8 {
+            if let Some(ms_ago) = saved.last_failure_epoch_ms {
+                let elapsed = Duration::from_millis(ms_ago);
+                if elapsed < self.timeout {
+                    // Still within timeout — keep Open
+                    *self.last_failure.lock().unwrap() =
+                        Some(Instant::now() - (self.timeout - elapsed));
+                } else {
+                    // Timeout has passed — transition to HalfOpen
+                    self.state
+                        .store(CircuitState::HalfOpen as u8, Ordering::SeqCst);
+                    self.success_count.store(0, Ordering::SeqCst);
+                }
+            }
         }
     }
 

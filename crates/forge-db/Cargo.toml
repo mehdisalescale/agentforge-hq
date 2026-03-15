@@ -8,6 +8,8 @@ forge-core = { path = "../forge-core" }
 forge-agent = { path = "../forge-agent" }
 forge-persona = { path = "../forge-persona" }
 rusqlite = { workspace = true }
+r2d2 = "0.8"
+r2d2_sqlite = "0.25"
 serde = { workspace = true }
 serde_json = { workspace = true }
 uuid = { workspace = true }

@@ -27,6 +27,8 @@ pub async fn ws_handler(
 
 async fn handle_socket(socket: WebSocket, state: AppState) {
     let (mut sender, mut receiver) = socket.split();
+    // Subscribe to the broadcast channel (best-effort delivery for UI).
+    // Events may be dropped under heavy load — this is acceptable for real-time UI streaming.
     let mut bus_rx = state.event_bus.subscribe();
 
     // Forward events from EventBus to the WebSocket client.

@@ -54,11 +54,11 @@ See [MCP Tools Reference](../reference/mcp-tools.md) for the full list.
 | Category | Tools | Purpose |
 |----------|-------|---------|
 | Workforce | 7 | Agent CRUD, persona listing, hiring |
-| Sessions | 4 | Session CRUD, export, events |
+| Sessions | 5 | Session CRUD, export |
 | Governance | 4 | Approvals, budget, goals |
 | Intelligence | 1 | Task classification |
-| Observability | 1 | Analytics |
+| Observability | 2 | Session events, analytics |
 
 ## Transport
 
-Currently stdio only. HTTP SSE transport is planned but deferred — rmcp v0.17 doesn't yet support it.
+Stdio only. The MCP server communicates over stdin/stdout using JSON-RPC.

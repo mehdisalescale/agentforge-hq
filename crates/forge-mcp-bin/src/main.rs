@@ -1,5 +1,5 @@
 //! Forge MCP server: stdio transport via rmcp, agent and session tools.
-//! Usage: FORGE_DB_PATH=~/.claude-forge/forge.db forge-mcp
+//! Usage: FORGE_DB_PATH=~/.agentforge/forge.db forge-mcp
 
 use forge_agent::model::{NewAgent, UpdateAgent};
 use forge_core::ids::{AgentId, SessionId};
@@ -22,7 +22,16 @@ use tracing_subscriber::EnvFilter;
 
 fn default_db_path() -> String {
     let home = env::var("HOME").unwrap_or_else(|_| "/tmp".into());
-    format!("{}/.claude-forge/forge.db", home)
+    let new_path = format!("{}/.agentforge/forge.db", home);
+    let legacy_path = format!("{}/.claude-forge/forge.db", home);
+
+    // Graceful migration: use legacy path if it exists and new path doesn't
+    if !std::path::Path::new(&new_path).exists() && std::path::Path::new(&legacy_path).exists() {
+        eprintln!("Note: Found database at legacy path ~/.claude-forge/forge.db");
+        eprintln!("      Consider moving to ~/.agentforge/forge.db");
+        return legacy_path;
+    }
+    new_path
 }
 
 #[derive(Clone)]

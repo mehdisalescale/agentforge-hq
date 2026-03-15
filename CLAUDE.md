@@ -25,7 +25,7 @@ forge-app          binary: DB setup, API server, embedded frontend, graceful shu
 ├── forge-process  spawn Claude CLI, stream-json parsing, ConcurrentRunner, LoopDetector
 ├── forge-agent    agent model, 10 presets (incl. Coordinator), validation
 ├── forge-db       SQLite WAL, 12 migrations, 16 repos, BatchWriter
-├── forge-core     ForgeEvent (35 variants), EventBus broadcast, shared types
+├── forge-core     ForgeEvent (43 variants), EventBus broadcast, shared types
 ├── forge-safety   CircuitBreaker, RateLimiter, CostTracker
 ├── forge-git      git worktree create/remove/list for multi-agent isolation
 ├── forge-org      Company, Department, OrgPosition models + org chart builder
@@ -71,7 +71,7 @@ cargo check             # should be zero warnings
 - **Frontend state:** Svelte 5 runes (`$state`, `$derived`) across all pages
 - **Error handling:** `ForgeError` hierarchy in forge-core, propagated via `ForgeResult<T>`
 - **IDs:** Newtype wrappers (`AgentId`, `SessionId`, `ScheduleId`) around `uuid::Uuid`
-- **Events:** All state changes emit `ForgeEvent` variants (35 types) through `EventBus` (broadcast channel)
+- **Events:** All state changes emit `ForgeEvent` variants (43 types) through `EventBus` (broadcast channel)
 - **Persistence:** `BatchWriter` batches events (50 or 2s flush) in transactions
 
 ## Documentation Map

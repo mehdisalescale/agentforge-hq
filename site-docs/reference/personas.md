@@ -1,26 +1,34 @@
 # Personas
 
-AgentForge includes 112 pre-built AI personas across 11 divisions.
+AgentForge includes 113 pre-built AI personas across 11 divisions.
+
+## Loading Pipeline
+
+Personas are markdown files in `personas/<division>/` directories. They are:
+
+1. **Parsed** by `forge-persona` at startup (frontmatter + body)
+2. **Seeded** into SQLite via database migration
+3. **Served** via the REST API (`GET /api/v1/personas`) and MCP (`forge_list_personas`)
 
 ## Divisions
 
-| Division | Count | Examples |
-|----------|-------|---------|
-| Engineering | ~20 | Senior Software Engineer, Backend Developer, Frontend Engineer, Systems Architect |
-| Security | ~10 | Security Auditor, Penetration Tester, Security Architect |
-| Testing | ~10 | QA Engineer, Test Automation Engineer, Performance Tester |
-| DevOps | ~10 | DevOps Engineer, SRE, Cloud Architect, CI/CD Specialist |
-| Product | ~10 | Product Manager, Product Owner, Business Analyst |
-| Design | ~8 | UX Designer, UI Designer, Design System Engineer |
-| Marketing | ~8 | Content Strategist, SEO Specialist, Growth Engineer |
-| Data | ~10 | Data Engineer, Data Scientist, ML Engineer, Analytics Engineer |
-| Support | ~6 | Technical Support Engineer, Customer Success, Documentation |
-| Legal | ~5 | Compliance Officer, Legal Analyst, Privacy Engineer |
-| Executive | ~5 | CTO, VP Engineering, Engineering Manager |
+| Division | Examples |
+|----------|---------|
+| Engineering | AI Engineer, Backend Architect, Frontend Engineer, Systems Architect |
+| Security | Security Auditor, Penetration Tester, Security Architect |
+| Testing | QA Engineer, Test Automation Engineer, Performance Tester |
+| DevOps | DevOps Engineer, SRE, Cloud Architect, CI/CD Specialist |
+| Product | Product Manager, Product Owner, Business Analyst |
+| Design | UX Architect, UX Researcher, Whimsy Injector |
+| Marketing | Content Strategist, SEO Specialist, Growth Engineer |
+| Data | Data Engineer, Data Scientist, ML Engineer, Analytics Engineer |
+| Game Development | Game designers and developers |
+| Paid Media | Paid media specialists |
+| Support | Technical Support Engineer, Customer Success, Documentation |
 
 ## Persona Structure
 
-Each persona is a markdown file in `personas/` with:
+Each persona is a markdown file in `personas/<division>/` with:
 
 - **Name** and **title**
 - **Division** classification

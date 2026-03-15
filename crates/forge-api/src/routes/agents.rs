@@ -46,7 +46,7 @@ async fn create_agent(
         agent_id: agent.id.clone(),
         name: agent.name.clone(),
         timestamp: Utc::now(),
-    }) {
+    }).await {
         tracing::warn!(error = %e, "failed to emit AgentCreated event");
     }
     Ok(Json(agent))
@@ -63,7 +63,7 @@ async fn update_agent(
         agent_id: agent.id.clone(),
         name: agent.name.clone(),
         timestamp: Utc::now(),
-    }) {
+    }).await {
         tracing::warn!(error = %e, "failed to emit AgentUpdated event");
     }
     Ok(Json(agent))
@@ -78,7 +78,7 @@ async fn delete_agent(
     if let Err(e) = state.event_bus.emit(ForgeEvent::AgentDeleted {
         agent_id,
         timestamp: Utc::now(),
-    }) {
+    }).await {
         tracing::warn!(error = %e, "failed to emit AgentDeleted event");
     }
     Ok(axum::http::StatusCode::NO_CONTENT)

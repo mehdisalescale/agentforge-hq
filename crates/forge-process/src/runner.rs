@@ -75,7 +75,7 @@ impl ProcessRunner {
 
     /// Emit a single ForgeEvent to the bus.
     pub fn emit(&self, event: ForgeEvent) -> ForgeResult<()> {
-        self.event_bus.emit(event)
+        self.event_bus.emit_sync(event)
     }
 
     /// Run a stub sequence: ProcessStarted, two ProcessOutput, ProcessCompleted.
@@ -86,24 +86,24 @@ impl ProcessRunner {
         agent_id: AgentId,
     ) -> ForgeResult<()> {
         let now = Utc::now();
-        self.event_bus.emit(ForgeEvent::ProcessStarted {
+        self.event_bus.emit_sync(ForgeEvent::ProcessStarted {
             session_id: session_id.clone(),
             agent_id: agent_id.clone(),
             timestamp: now,
         })?;
-        self.event_bus.emit(ForgeEvent::ProcessOutput {
+        self.event_bus.emit_sync(ForgeEvent::ProcessOutput {
             session_id: session_id.clone(),
             kind: OutputKind::Assistant,
             content: "Stub output line 1.".into(),
             timestamp: Utc::now(),
         })?;
-        self.event_bus.emit(ForgeEvent::ProcessOutput {
+        self.event_bus.emit_sync(ForgeEvent::ProcessOutput {
             session_id: session_id.clone(),
             kind: OutputKind::Assistant,
             content: "Stub output line 2.".into(),
             timestamp: Utc::now(),
         })?;
-        self.event_bus.emit(ForgeEvent::ProcessCompleted {
+        self.event_bus.emit_sync(ForgeEvent::ProcessCompleted {
             session_id,
             exit_code: 0,
             timestamp: Utc::now(),
@@ -143,7 +143,7 @@ impl ProcessRunner {
                 timestamp: now,
             },
         };
-        self.event_bus.emit(forge_event)
+        self.event_bus.emit_sync(forge_event)
     }
 
     /// Emit a sequence of stream-json events (e.g. from Agent A's parser).
@@ -176,7 +176,7 @@ impl ProcessRunner {
                 if let Some(ref msg) = p.message {
                     for block in &msg.content {
                         if let Some((kind, content)) = content_block_output(block) {
-                            self.event_bus.emit(ForgeEvent::ProcessOutput {
+                            self.event_bus.emit_sync(ForgeEvent::ProcessOutput {
                                 session_id: session_id.clone(),
                                 kind,
                                 content,
@@ -188,12 +188,12 @@ impl ProcessRunner {
                 Ok(())
             }
             ParsedEvent::User(_) => Ok(()),
-            ParsedEvent::Result(_) => self.event_bus.emit(ForgeEvent::ProcessCompleted {
+            ParsedEvent::Result(_) => self.event_bus.emit_sync(ForgeEvent::ProcessCompleted {
                 session_id: session_id.clone(),
                 exit_code: 0,
                 timestamp: Utc::now(),
             }),
-            ParsedEvent::Error(p) => self.event_bus.emit(ForgeEvent::ProcessFailed {
+            ParsedEvent::Error(p) => self.event_bus.emit_sync(ForgeEvent::ProcessFailed {
                 session_id: session_id.clone(),
                 error: p.message.clone().unwrap_or_else(|| "unknown error".into()),
                 timestamp: Utc::now(),
@@ -235,7 +235,8 @@ mod tests {
 
     #[tokio::test]
     async fn stub_run_emits_process_events_in_order() {
-        let bus = Arc::new(EventBus::new(32));
+        let (bus, _persist_rx) = EventBus::new(32, 32);
+        let bus = Arc::new(bus);
         let mut rx = bus.subscribe();
         let runner = ProcessRunner::new(Arc::clone(&bus));
 
@@ -259,7 +260,8 @@ mod tests {
 
     #[tokio::test]
     async fn emit_from_stream_emits_mapped_events() {
-        let bus = Arc::new(EventBus::new(32));
+        let (bus, _persist_rx) = EventBus::new(32, 32);
+        let bus = Arc::new(bus);
         let mut rx = bus.subscribe();
         let runner = ProcessRunner::new(Arc::clone(&bus));
 
@@ -290,7 +292,8 @@ mod tests {
 
     #[tokio::test]
     async fn emit_stream_event_failed_emits_process_failed() {
-        let bus = Arc::new(EventBus::new(32));
+        let (bus, _persist_rx) = EventBus::new(32, 32);
+        let bus = Arc::new(bus);
         let mut rx = bus.subscribe();
         let runner = ProcessRunner::new(Arc::clone(&bus));
 

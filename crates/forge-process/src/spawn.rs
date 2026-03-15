@@ -2,6 +2,7 @@
 
 use std::path::Path;
 use std::process::Stdio;
+use std::sync::Arc;
 use std::time::Duration;
 use thiserror::Error;
 use tokio::process::{Child, Command};
@@ -30,6 +31,10 @@ pub struct SpawnConfig {
     pub env_set: Vec<(String, String)>,
     /// Maximum time the process may run before being killed. Default: 5 minutes.
     pub timeout: Option<Duration>,
+    /// Maximum concurrent agent processes. Default: 4.
+    pub max_concurrent: usize,
+    /// Maximum stdout bytes before truncation. Default: 10MB.
+    pub max_output_bytes: usize,
 }
 
 impl Default for SpawnConfig {
@@ -45,6 +50,8 @@ impl Default for SpawnConfig {
             env_remove: vec!["CLAUDECODE".to_string()],
             env_set: vec![],
             timeout: Some(Duration::from_secs(300)),
+            max_concurrent: 4,
+            max_output_bytes: 10 * 1024 * 1024,
         }
     }
 }
@@ -75,6 +82,11 @@ impl SpawnConfig {
                 .collect();
             if !parsed.is_empty() {
                 config.args_before_prompt = parsed;
+            }
+        }
+        if let Ok(max) = std::env::var("FORGE_MAX_CONCURRENT") {
+            if let Ok(n) = max.parse::<usize>() {
+                config.max_concurrent = n;
             }
         }
         config
@@ -157,6 +169,42 @@ pub async fn spawn(
 
     let child = cmd.spawn()?;
     Ok(ProcessHandle { child })
+}
+
+/// Enforces max concurrent process spawns.
+pub struct SpawnLimiter {
+    semaphore: Arc<tokio::sync::Semaphore>,
+    pub config: SpawnConfig,
+}
+
+impl SpawnLimiter {
+    pub fn new(config: SpawnConfig, max_concurrent: usize) -> Self {
+        Self {
+            semaphore: Arc::new(tokio::sync::Semaphore::new(max_concurrent)),
+            config,
+        }
+    }
+
+    /// Spawn with concurrency control. Waits for a permit if at max.
+    pub async fn spawn_limited(
+        &self,
+        prompt: &str,
+        session_id: Option<&str>,
+    ) -> Result<(ProcessHandle, tokio::sync::OwnedSemaphorePermit), SpawnError> {
+        let permit = self
+            .semaphore
+            .clone()
+            .acquire_owned()
+            .await
+            .map_err(|_| SpawnError::CommandMissing)?;
+        let handle = spawn(&self.config, prompt, session_id).await?;
+        Ok((handle, permit))
+    }
+
+    /// Number of available permits (inverse of active count).
+    pub fn available_permits(&self) -> usize {
+        self.semaphore.available_permits()
+    }
 }
 
 #[cfg(test)]

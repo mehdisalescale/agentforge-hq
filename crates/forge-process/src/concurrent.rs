@@ -79,7 +79,7 @@ impl ConcurrentRunner {
             };
 
             // Emit request before scheduling
-            let _ = event_bus.emit(ForgeEvent::SubAgentRequested {
+            let _ = event_bus.emit_sync(ForgeEvent::SubAgentRequested {
                 parent_session_id: parent_sid.clone(),
                 sub_agent_id: task.agent_id.clone(),
                 prompt: task.prompt.clone(),
@@ -92,7 +92,7 @@ impl ConcurrentRunner {
 
                 let session_id = SessionId::new();
 
-                let _ = event_bus.emit(ForgeEvent::SubAgentStarted {
+                let _ = event_bus.emit_sync(ForgeEvent::SubAgentStarted {
                     parent_session_id: parent_sid.clone(),
                     sub_agent_id: task.agent_id.clone(),
                     session_id: session_id.clone(),
@@ -109,14 +109,14 @@ impl ConcurrentRunner {
                         let success = exit_code == 0;
 
                         if success {
-                            let _ = event_bus.emit(ForgeEvent::SubAgentCompleted {
+                            let _ = event_bus.emit_sync(ForgeEvent::SubAgentCompleted {
                                 parent_session_id: parent_sid,
                                 sub_agent_id: task.agent_id.clone(),
                                 session_id: session_id.clone(),
                                 timestamp: chrono::Utc::now(),
                             });
                         } else {
-                            let _ = event_bus.emit(ForgeEvent::SubAgentFailed {
+                            let _ = event_bus.emit_sync(ForgeEvent::SubAgentFailed {
                                 parent_session_id: parent_sid,
                                 sub_agent_id: task.agent_id.clone(),
                                 error: format!("exit code {}", exit_code),
@@ -133,7 +133,7 @@ impl ConcurrentRunner {
                         }
                     }
                     Err(e) => {
-                        let _ = event_bus.emit(ForgeEvent::SubAgentFailed {
+                        let _ = event_bus.emit_sync(ForgeEvent::SubAgentFailed {
                             parent_session_id: parent_sid,
                             sub_agent_id: task.agent_id.clone(),
                             error: e.to_string(),
@@ -215,12 +215,15 @@ mod tests {
             env_remove: vec![],
             env_set: vec![],
             timeout: Some(Duration::from_secs(5)),
+            max_concurrent: 4,
+            max_output_bytes: 10 * 1024 * 1024,
         }
     }
 
     #[tokio::test]
     async fn concurrent_runner_respects_semaphore() {
-        let bus = Arc::new(EventBus::new(64));
+        let (bus, _persist_rx) = EventBus::new(64, 64);
+        let bus = Arc::new(bus);
         let runner = ConcurrentRunner::with_spawn_config(
             Arc::clone(&bus),
             1, // max_concurrent = 1 forces sequential execution

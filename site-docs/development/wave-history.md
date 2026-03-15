@@ -50,4 +50,4 @@ Made the product observable and expanded MCP surface. 3 parallel agents.
 - **Total parallel agents**: ~17
 - **MCP tools**: 0 → 19
 - **Middleware chain**: 9 → 7
-- **Frontend pages**: 16 → 12 (removed 4 shells, all remaining functional)
+- **Frontend pages**: 15 (root + 14 feature pages, all functional)

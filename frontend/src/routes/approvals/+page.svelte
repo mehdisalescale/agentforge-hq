@@ -9,6 +9,10 @@
     type Approval,
     type ApprovalStatus,
   } from '$lib/api';
+  import { ShieldCheck } from 'lucide-svelte';
+  import Skeleton from '$lib/components/Skeleton.svelte';
+  import ErrorMessage from '$lib/components/ErrorMessage.svelte';
+  import EmptyState from '$lib/components/EmptyState.svelte';
 
   setContext('pageTitle', 'Approvals');
 
@@ -118,15 +122,19 @@
   </header>
 
   {#if error}
-    <div class="message error" role="alert">{error}</div>
+    <ErrorMessage message={error} onretry={loadInitial} />
   {/if}
 
   {#if loading}
-    <p class="muted">Loading approvals…</p>
+    <Skeleton type="table" lines={4} />
   {:else if !selectedCompanyId}
     <p class="muted">Select a company to see its approvals.</p>
   {:else if approvals.length === 0}
-    <p class="muted">No approvals found for this company.</p>
+    <EmptyState
+      icon={ShieldCheck}
+      title="No pending approvals"
+      description="Approval requests from agents will appear here for review."
+    />
   {:else}
     <table class="table">
       <thead>

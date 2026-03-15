@@ -451,7 +451,7 @@ impl Middleware for SecurityScanMiddleware {
                     let _ = self.event_bus.emit(ForgeEvent::SecurityScanPassed {
                         session_id: ctx.session_id_typed.clone(),
                         timestamp: chrono::Utc::now(),
-                    });
+                    }).await;
                     ctx.metadata.insert("security_scan".into(), "passed".into());
                 } else {
                     let finding_strs: Vec<String> = all_findings.iter().map(|f| {
@@ -462,7 +462,7 @@ impl Middleware for SecurityScanMiddleware {
                         session_id: ctx.session_id_typed.clone(),
                         findings: finding_strs.clone(),
                         timestamp: chrono::Utc::now(),
-                    });
+                    }).await;
                     ctx.metadata.insert("security_scan".into(), "failed".into());
                     ctx.metadata.insert("security_findings".into(), finding_strs.join("\n"));
                 }
@@ -524,7 +524,7 @@ impl Middleware for PersistMiddleware {
                 session_id: ctx.session_id_typed.clone(),
                 agent_id: ctx.agent_id_typed.clone(),
                 timestamp: chrono::Utc::now(),
-            });
+            }).await;
             if self
                 .session_repo
                 .update_status(&ctx.session_id_typed, "running")
@@ -548,7 +548,7 @@ impl Middleware for PersistMiddleware {
                         session_id: ctx.session_id_typed.clone(),
                         error: error_msg,
                         timestamp: chrono::Utc::now(),
-                    });
+                    }).await;
                     Err(e)
                 }
             }
@@ -1111,7 +1111,8 @@ mod tests {
     #[tokio::test]
     async fn persist_sets_running_and_propagates_ok() {
         let (agent_repo, session_repo, _db) = setup_db();
-        let event_bus = Arc::new(EventBus::new(32));
+        let (bus, _persist_rx) = EventBus::new(32, 32);
+        let event_bus = Arc::new(bus);
 
         let session = create_test_session(&agent_repo, &session_repo);
 
@@ -1133,7 +1134,8 @@ mod tests {
     #[tokio::test]
     async fn persist_marks_failed_on_error() {
         let (agent_repo, session_repo, _db) = setup_db();
-        let event_bus = Arc::new(EventBus::new(32));
+        let (bus, _persist_rx) = EventBus::new(32, 32);
+        let event_bus = Arc::new(bus);
 
         let session = create_test_session(&agent_repo, &session_repo);
 
@@ -1258,7 +1260,8 @@ mod tests {
 
     #[tokio::test]
     async fn security_scan_passes_clean_output() {
-        let event_bus = Arc::new(EventBus::new(32));
+        let (bus, _persist_rx) = EventBus::new(32, 32);
+        let event_bus = Arc::new(bus);
         let mw = SecurityScanMiddleware { event_bus };
         let mut chain = MiddlewareChain::new();
         chain.add(mw);
@@ -1271,7 +1274,8 @@ mod tests {
 
     #[tokio::test]
     async fn security_scan_detects_eval_injection() {
-        let event_bus = Arc::new(EventBus::new(32));
+        let (bus, _persist_rx) = EventBus::new(32, 32);
+        let event_bus = Arc::new(bus);
         let mw = SecurityScanMiddleware { event_bus };
         let mut chain = MiddlewareChain::new();
         chain.add(mw);
@@ -1285,7 +1289,8 @@ mod tests {
 
     #[tokio::test]
     async fn security_scan_skips_when_no_output() {
-        let event_bus = Arc::new(EventBus::new(32));
+        let (bus, _persist_rx) = EventBus::new(32, 32);
+        let event_bus = Arc::new(bus);
         let mw = SecurityScanMiddleware { event_bus };
         let mut chain = MiddlewareChain::new();
         chain.add(mw);

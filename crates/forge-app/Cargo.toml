@@ -17,7 +17,7 @@ forge-persona = { path = "../forge-persona" }
 tokio = { version = "1", features = ["full"] }
 chrono = { workspace = true }
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 tokio-util = { workspace = true }
 serde_json = { workspace = true }
 

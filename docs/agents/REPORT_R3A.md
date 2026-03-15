@@ -1,0 +1,27 @@
+STATUS: COMPLETE
+TEST_COUNT: 16 new test functions (total 28 integration tests in forge-api/src/lib.rs)
+ROUTE_COVERAGE:
+  - health (1 test)
+  - agents CRUD + stats (4 tests: list, lifecycle, nonexistent, stats)
+  - companies CRUD (3 tests: crud, detail+update, delete)
+  - departments CRUD (2 tests: create+org-positions, detail+update+delete)
+  - org-chart (covered in departments test)
+  - goals lifecycle (1 test: create, list, status transitions, invalid status)
+  - approvals lifecycle (1 test: create, list, filter, approve)
+  - personas + divisions (2 tests)
+  - sessions CRUD + export (1 test)
+  - skills list (1 test)
+  - workflows list (1 test)
+  - settings (1 test)
+  - analytics usage (1 test)
+  - schedules CRUD (1 test: list, create, get, delete)
+  - memory CRUD (1 test: list, create, get, delete)
+  - hooks CRUD (1 test: list, create, get, delete)
+  - hook receiver pre-tool (1 test)
+  - hook receiver post-tool (1 test)
+  - hook receiver stop (1 test)
+  - doc accuracy (1 test: MCP tool count)
+UNCOVERED_ROUTES:
+  - WebSocket (ws) — requires persistent connection, not testable via oneshot
+  - POST /api/v1/run — requires `claude` CLI (test exists but is #[ignore])
+CARGO_TEST: pass (284 total tests across workspace, 0 failures)

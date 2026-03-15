@@ -1,5 +1,9 @@
 <script lang="ts">
   import { setContext } from 'svelte';
+  import Skeleton from '$lib/components/Skeleton.svelte';
+  import ErrorMessage from '$lib/components/ErrorMessage.svelte';
+  import EmptyState from '$lib/components/EmptyState.svelte';
+  import { Bot } from 'lucide-svelte';
   import {
     listAgents,
     createAgent,
@@ -180,16 +184,19 @@
   </header>
 
   {#if error}
-    <div class="message error" role="alert">{error}</div>
+    <ErrorMessage message={error} onretry={loadAgents} />
   {/if}
 
   {#if loading}
-    <p class="muted">Loading agents…</p>
+    <Skeleton type="card" lines={3} />
   {:else if agents.length === 0}
-    <div class="empty-state">
-      <p class="muted">No agents yet. Create one to get started.</p>
-      <button class="btn btn-primary" onclick={openCreate}>Create agent</button>
-    </div>
+    <EmptyState
+      icon={Bot}
+      title="No agents yet"
+      description="Create or hire agents to get started with your AI workforce."
+      actionLabel="Create agent"
+      onaction={openCreate}
+    />
   {:else}
     <div class="agent-cards">
       {#each agents as agent (agent.id)}

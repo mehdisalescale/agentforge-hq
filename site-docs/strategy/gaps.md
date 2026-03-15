@@ -27,13 +27,16 @@
 - **Result**: Goals page is a standalone notepad
 - **Fix**: Inject active goals into agent context so they know what the company is trying to achieve
 
-### 4. Six sidebar pages lead to nothing
-- Skills, Memory, Hooks, Schedules, Analytics, Settings — all show empty pages
-- **Result**: User clicks around, sees nothing, loses trust
-- **Options**:
-  - Build them out (expensive)
-  - Remove from sidebar until functional (cheap, honest)
-  - Show "coming soon" state (middle ground)
+### 4. Sidebar page status
+Resolution status as of Wave 5:
+
+- **Skills**: RESOLVED — has category filter + content display
+- **Memory**: RESOLVED — functional CRUD UI
+- **Workflows**: PARTIAL — has UI, execution works
+- **Hooks**: STUB — CRUD exists, HookReceiver functional
+- **Schedules**: STUB — CRUD exists, scheduler runs
+- **Settings**: RESOLVED — displays runtime configuration
+- **Analytics**: RESOLVED — summary cards, agent breakdown, company filter
 
 ---
 
