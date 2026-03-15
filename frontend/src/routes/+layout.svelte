@@ -3,9 +3,9 @@
   import { page } from '$app/stores';
   import Onboarding from '$lib/components/Onboarding.svelte';
   import {
-    Zap, Bot, History, GitBranch,
+    Zap, Bot, History,
     Building2, Users, Network, Target, ShieldCheck,
-    Puzzle, Brain, Webhook, Clock,
+    Puzzle,
     BarChart3, Settings
   } from 'lucide-svelte';
 
@@ -16,7 +16,6 @@
         { href: '/', text: 'Run', icon: Zap },
         { href: '/agents', text: 'Agents', icon: Bot },
         { href: '/sessions', text: 'Sessions', icon: History },
-        { href: '/workflows', text: 'Workflows', icon: GitBranch },
       ]
     },
     {
@@ -33,9 +32,6 @@
       label: 'Configuration',
       links: [
         { href: '/skills', text: 'Skills', icon: Puzzle },
-        { href: '/memory', text: 'Memory', icon: Brain },
-        { href: '/hooks', text: 'Hooks', icon: Webhook },
-        { href: '/schedules', text: 'Schedules', icon: Clock },
       ]
     },
     {

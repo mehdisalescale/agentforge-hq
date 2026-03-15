@@ -200,6 +200,9 @@
             {#if domain}
               <span class="domain-badge" style="--domain-color: {domain.color}">{domain.label}</span>
             {/if}
+            {#if agent.persona_id}
+              <span class="hired-badge">Hired from catalog</span>
+            {/if}
           </div>
           {#if agent.system_prompt}
             <p class="card-prompt">{agent.system_prompt.slice(0, 120)}{agent.system_prompt.length > 120 ? '…' : ''}</p>
@@ -293,5 +296,16 @@
     background: color-mix(in srgb, var(--domain-color) 18%, transparent);
     color: var(--domain-color);
     border: 1px solid color-mix(in srgb, var(--domain-color) 30%, transparent);
+  }
+  .hired-badge {
+    font-size: 0.65rem;
+    padding: 0.15rem 0.45rem;
+    border-radius: 4px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    background: rgba(134, 239, 172, 0.12);
+    color: #86efac;
+    border: 1px solid rgba(134, 239, 172, 0.25);
   }
 </style>

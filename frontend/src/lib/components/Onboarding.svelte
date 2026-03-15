@@ -3,8 +3,8 @@
   import { goto } from '$app/navigation';
   import {
     Building2, Users, Zap, ArrowRight, X, Sparkles,
-    Network, Target, ShieldCheck, Bot, History, GitBranch,
-    Puzzle, Brain, Webhook, Clock, BarChart3, Settings
+    Network, Target, ShieldCheck, Bot, History,
+    Puzzle, BarChart3, Settings
   } from 'lucide-svelte';
 
   const STORAGE_KEY = 'agentforge_onboarding_done';
@@ -56,14 +56,10 @@
   const extras = [
     { icon: Bot, name: 'Agents', href: '/agents' },
     { icon: History, name: 'Sessions', href: '/sessions' },
-    { icon: GitBranch, name: 'Workflows', href: '/workflows' },
     { icon: Network, name: 'Org Chart', href: '/org-chart' },
     { icon: Target, name: 'Goals', href: '/goals' },
     { icon: ShieldCheck, name: 'Approvals', href: '/approvals' },
     { icon: Puzzle, name: 'Skills', href: '/skills' },
-    { icon: Brain, name: 'Memory', href: '/memory' },
-    { icon: Webhook, name: 'Hooks', href: '/hooks' },
-    { icon: Clock, name: 'Schedules', href: '/schedules' },
     { icon: BarChart3, name: 'Analytics', href: '/analytics' },
     { icon: Settings, name: 'Settings', href: '/settings' },
   ];

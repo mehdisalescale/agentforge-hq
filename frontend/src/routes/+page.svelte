@@ -98,6 +98,7 @@
   let swimLaneColumns = $state<Record<string, SwimLaneColumn>>({});
   let swimLaneMode = $derived(Object.keys(swimLaneColumns).length > 0);
   let swimLanePinned = $state(true);
+  let runMeta = $state<{ taskType?: string; skillsInjected?: string; securityScan?: string }>({});
   const WS_MAX_RECONNECT_DELAY = 30000;
 
   /** Session ID from ?resume= (Sessions page "Resume"). Only in browser (prerender-safe). */
@@ -142,6 +143,21 @@
             if (ev.type === 'ProcessCompleted') {
               streamStatus = 'completed';
               streamStatusDetail = `Done (exit ${ev.data?.exit_code ?? 0})`;
+              // Fetch session metadata for the run metadata panel
+              if (currentSessionId) {
+                fetch(`/api/v1/sessions/${currentSessionId}`)
+                  .then(r => r.ok ? r.json() : null)
+                  .then(session => {
+                    if (session?.metadata) {
+                      runMeta = {
+                        taskType: session.metadata.task_type,
+                        skillsInjected: session.metadata.injected_skills ? 'Yes' : 'None',
+                        securityScan: session.metadata.security_scan,
+                      };
+                    }
+                  })
+                  .catch(() => { /* ignore metadata fetch errors */ });
+              }
             }
             if (ev.type === 'ProcessFailed') {
               streamStatus = 'failed';
@@ -317,6 +333,7 @@
     subAgents = [];
     swimLaneColumns = {};
     swimLanePinned = true;
+    runMeta = {};
     streamStatus = 'idle';
     streamStatusDetail = '';
     currentSessionId = null;
@@ -408,6 +425,26 @@
       <p class="error">{runError}</p>
     {/if}
   </section>
+
+  {#if streamStatus === 'completed' || streamStatus === 'failed'}
+  <div class="run-meta">
+    {#if runMeta.taskType}
+      <span class="meta-chip">
+        <strong>Task:</strong> {runMeta.taskType}
+      </span>
+    {/if}
+    {#if runMeta.skillsInjected}
+      <span class="meta-chip">
+        <strong>Skills:</strong> {runMeta.skillsInjected}
+      </span>
+    {/if}
+    {#if runMeta.securityScan}
+      <span class="meta-chip" class:passed={runMeta.securityScan === 'passed'} class:failed={runMeta.securityScan === 'failed'}>
+        <strong>Security:</strong> {runMeta.securityScan}
+      </span>
+    {/if}
+  </div>
+  {/if}
 
   <section class="stream-section">
     <h2>Output</h2>
@@ -723,6 +760,34 @@
     padding: 0.15rem 0.4rem;
     border-radius: 4px;
   }
+
+  /* --- Run metadata panel --- */
+  .run-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 0.75rem 0;
+    padding: 0.6rem 0.8rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 0.8rem;
+  }
+  .meta-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    background: var(--bg);
+    color: var(--text-secondary);
+  }
+  .meta-chip strong {
+    color: var(--muted);
+    font-weight: 500;
+  }
+  .meta-chip.passed { color: #86efac; }
+  .meta-chip.failed { color: #f87171; }
 
   /* --- Sub-agent progress panel --- */
   .subagents-section {
