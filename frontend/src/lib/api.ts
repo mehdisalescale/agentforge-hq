@@ -117,6 +117,25 @@ export async function deleteAgent(id: string): Promise<void> {
   await handleResponse<void>(res);
 }
 
+// --- Agent Stats ---
+
+export interface AgentStats {
+  run_count: number;
+  last_run: string | null;
+  total_cost: number;
+  success_rate: number;
+}
+
+export async function getAllAgentStats(): Promise<Record<string, AgentStats>> {
+  const res = await fetch(`${API_BASE}/api/v1/agents/stats`);
+  return handleResponse<Record<string, AgentStats>>(res);
+}
+
+export async function getAgentStats(id: string): Promise<AgentStats> {
+  const res = await fetch(`${API_BASE}/api/v1/agents/${encodeURIComponent(id)}/stats`);
+  return handleResponse<AgentStats>(res);
+}
+
 // --- Run (Phase 1) ---
 
 export interface RunRequest {
@@ -538,10 +557,11 @@ export interface UsageReport {
   projected_monthly_cost: number;
 }
 
-export async function getUsageAnalytics(start?: string, end?: string): Promise<UsageReport> {
+export async function getUsageAnalytics(start?: string, end?: string, company_id?: string): Promise<UsageReport> {
   const params = new URLSearchParams();
   if (start) params.set('start', start);
   if (end) params.set('end', end);
+  if (company_id) params.set('company_id', company_id);
   const qs = params.toString();
   const res = await fetch(`${API_BASE}/api/v1/analytics/usage${qs ? '?' + qs : ''}`);
   return handleResponse<UsageReport>(res);

@@ -1,5 +1,6 @@
 <script lang="ts">
   import '../app.css';
+  import { onMount } from 'svelte';
   import { page } from '$app/stores';
   import Onboarding from '$lib/components/Onboarding.svelte';
   import {
@@ -8,6 +9,20 @@
     Puzzle,
     BarChart3, Settings
   } from 'lucide-svelte';
+
+  let healthWarning = $state<string | null>(null);
+
+  onMount(async () => {
+    try {
+      const res = await fetch('/api/v1/health');
+      if (res.ok) {
+        const health = await res.json();
+        if (!health.cli_available) {
+          healthWarning = `CLI "${health.cli_command}" not found. Agent runs will fail. Install it or set FORGE_CLI_COMMAND.`;
+        }
+      }
+    } catch { /* server not reachable */ }
+  });
 
   const navGroups = [
     {
@@ -51,6 +66,13 @@
 
 <Onboarding />
 
+{#if healthWarning}
+  <div class="health-banner">
+    <span>Warning: {healthWarning}</span>
+    <button onclick={() => healthWarning = null}>Dismiss</button>
+  </div>
+{/if}
+
 <div class="app">
   <aside class="sidebar">
     <nav class="nav">
@@ -85,3 +107,27 @@
     <span class="statusbar-note">AI workforce platform</span>
   </footer>
 </div>
+
+<style>
+  .health-banner {
+    background: #7c2d12;
+    color: #fed7aa;
+    padding: 0.5rem 1rem;
+    font-size: 0.8rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .health-banner button {
+    background: transparent;
+    border: 1px solid #fed7aa;
+    color: #fed7aa;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.75rem;
+  }
+  .health-banner button:hover {
+    background: rgba(254, 215, 170, 0.15);
+  }
+</style>

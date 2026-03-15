@@ -6,7 +6,9 @@
     updateAgent,
     deleteAgent,
     getAgent,
+    getAllAgentStats,
     type Agent,
+    type AgentStats,
     type NewAgent,
     type UpdateAgent,
     PRESETS,
@@ -37,6 +39,7 @@
   }
 
   let agents = $state<Agent[]>([]);
+  let agentStats = $state<Record<string, AgentStats>>({});
   let loading = $state(true);
   let error = $state<string | null>(null);
   let formOpen = $state<'create' | 'edit' | null>(null);
@@ -58,6 +61,7 @@
     error = null;
     try {
       agents = await listAgents();
+      getAllAgentStats().then((stats) => { agentStats = stats; }).catch(() => {});
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
     } finally {
@@ -207,6 +211,19 @@
           {#if agent.system_prompt}
             <p class="card-prompt">{agent.system_prompt.slice(0, 120)}{agent.system_prompt.length > 120 ? '…' : ''}</p>
           {/if}
+          {#if agentStats[agent.id]}
+            {@const stats = agentStats[agent.id]}
+            <div class="agent-stats">
+              <span class="stat"><strong>{stats.run_count}</strong> runs</span>
+              <span class="stat"><strong>${stats.total_cost.toFixed(4)}</strong> cost</span>
+              {#if stats.success_rate > 0}
+                <span class="stat"><strong>{stats.success_rate.toFixed(0)}%</strong> success</span>
+              {/if}
+              {#if stats.last_run}
+                <span class="stat">Last: {new Date(stats.last_run).toLocaleDateString()}</span>
+              {/if}
+            </div>
+          {/if}
           <div class="card-actions">
             <button class="btn btn-ghost" onclick={() => openEdit(agent.id)}>Edit</button>
             <button
@@ -296,6 +313,24 @@
     background: color-mix(in srgb, var(--domain-color) 18%, transparent);
     color: var(--domain-color);
     border: 1px solid color-mix(in srgb, var(--domain-color) 30%, transparent);
+  }
+  .agent-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.4rem 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    margin-top: 0.25rem;
+  }
+  .agent-stats .stat {
+    font-size: 0.7rem;
+    color: #94a3b8;
+    background: rgba(255, 255, 255, 0.04);
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+  }
+  .agent-stats .stat strong {
+    color: #e2e8f0;
   }
   .hired-badge {
     font-size: 0.65rem;
