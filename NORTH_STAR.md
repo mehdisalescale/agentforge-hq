@@ -1,7 +1,7 @@
 # AgentForge HQ — North Star
 
 > **Read this first in every session.** This is the single source of truth for the core app.
-> Last updated: 2026-03-14
+> Last updated: 2026-03-15
 >
 > **Repo:** [mehdisalescale/agentforge-hq](https://github.com/mehdisalescale/agentforge-hq)
 
@@ -16,7 +16,7 @@ Unifies 8 open-source repos into one product. The only Rust-native tool in the s
 
 ---
 
-## Current State (2026-03-14)
+## Current State (2026-03-15)
 
 ### What's Implemented
 
@@ -29,11 +29,11 @@ Unifies 8 open-source repos into one product. The only Rust-native tool in the s
 | forge-db | SQLite WAL, 12 migrations, 16 repos, BatchWriter (50/2s) |
 | forge-process | Claude CLI spawn, stream-json, ConcurrentRunner, LoopDetector |
 | forge-safety | CircuitBreaker (3-state FSM), RateLimiter (token bucket), CostTracker |
-| forge-api | Full HTTP API + WebSocket, CORS, TraceLayer, rust-embed SPA, 8-middleware chain |
+| forge-api | Full HTTP API + WebSocket, CORS, TraceLayer, rust-embed SPA, middleware chain |
 | forge-app | Binary wiring, graceful shutdown, env config, skill loading, cron scheduler |
 | forge-git | Worktree create/remove/list for multi-agent isolation |
 | forge-mcp | MCP protocol stubs |
-| forge-mcp-bin | MCP stdio server (rmcp, 10 tools) |
+| forge-mcp-bin | MCP stdio server (rmcp, 13 tools) |
 | **forge-org** | Company, Department, OrgPosition models + org chart builder |
 | **forge-persona** | Persona catalog (100+ personas, 11 divisions), parser, hire flow |
 | **forge-governance** | Goal and Approval models |
@@ -51,6 +51,18 @@ Unifies 8 open-source repos into one product. The only Rust-native tool in the s
 - DB: migrations 0009 (personas), 0011 (org charts), 0012 (agents.persona_id)
 - Full frontend pages for the complete flow
 
+**Wave 3 (completed 2026-03-14):**
+- Sidebar cleanup (removed non-functional pages: Workflows, Memory, Hooks, Schedules)
+- Governance wiring (budget enforcement, goal injection, approval visibility)
+- Session output viewing for past sessions
+- Page verification (Skills, Analytics, Settings pages verified functional)
+
+**Wave 4 (in progress 2026-03-15):**
+- Architecture direction: configure → execute → observe loop
+- MCP tools expanded from 10 to 13 (forge_classify_task, forge_list_personas, forge_get_budget)
+- AgentConfigurator concept (generate CLAUDE.md + hooks.json per persona)
+- HookReceiver endpoints (Claude Code hooks POST events back)
+
 **Infrastructure:**
 - GitHub Actions CI (test + clippy + build)
 - GitHub Release workflow (tag → binaries)
@@ -63,6 +75,8 @@ Unifies 8 open-source repos into one product. The only Rust-native tool in the s
 - **v0.4.0**: 6-middleware chain, skill system, memory, git worktree isolation, sub-agent parallelism, 118 tests
 - **v0.5.0**: Cron scheduler, usage analytics, loop detection, quality/exit gates, 150 tests
 - **Epic 1**: Org structure, persona catalog, governance layer, 4 new crates, 5 new frontend pages
+- **Wave 3**: Sidebar cleanup, governance wiring, session output, page verification
+- **Wave 4**: MCP expansion (13 tools), AgentConfigurator, HookReceiver, middleware simplification
 
 ---
 

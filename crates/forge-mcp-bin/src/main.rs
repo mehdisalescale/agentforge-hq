@@ -3,7 +3,7 @@
 
 use forge_agent::model::{NewAgent, UpdateAgent};
 use forge_core::ids::{AgentId, SessionId};
-use forge_db::{AgentRepo, EventRepo, Migrator, NewSession, SessionRepo, StoredEvent};
+use forge_db::{AgentRepo, CompanyRepo, EventRepo, Migrator, NewSession, PersonaRepo, SessionRepo, StoredEvent};
 use rmcp::handler::server::tool::ToolRouter;
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::model::*;
@@ -25,6 +25,8 @@ pub struct ForgeMcp {
     agent_repo: Arc<AgentRepo>,
     session_repo: Arc<SessionRepo>,
     event_repo: Arc<EventRepo>,
+    persona_repo: Arc<PersonaRepo>,
+    company_repo: Arc<CompanyRepo>,
     tool_router: ToolRouter<Self>,
 }
 
@@ -78,6 +80,26 @@ pub struct SessionExportParam {
     format: Option<String>,
 }
 
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ClassifyTaskParam {
+    #[schemars(description = "The prompt or task description to classify")]
+    prompt: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ListPersonasParam {
+    #[schemars(description = "Optional division filter (e.g. 'engineering', 'security', 'product')")]
+    division: Option<String>,
+    #[schemars(description = "Optional search term to filter by name or description")]
+    search: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetBudgetParam {
+    #[schemars(description = "UUID of the company")]
+    company_id: String,
+}
+
 // --- Helper ---
 
 fn parse_uuid(s: &str) -> Result<uuid::Uuid, ErrorData> {
@@ -102,11 +124,15 @@ impl ForgeMcp {
         agent_repo: Arc<AgentRepo>,
         session_repo: Arc<SessionRepo>,
         event_repo: Arc<EventRepo>,
+        persona_repo: Arc<PersonaRepo>,
+        company_repo: Arc<CompanyRepo>,
     ) -> Self {
         Self {
             agent_repo,
             session_repo,
             event_repo,
+            persona_repo,
+            company_repo,
             tool_router: Self::tool_router(),
         }
     }
@@ -267,6 +293,93 @@ impl ForgeMcp {
             to_json_content(&Export { session, events: events_export })
         }
     }
+
+    #[tool(
+        name = "forge_classify_task",
+        description = "Classify a task/prompt into a type (NewFeature, BugFix, CodeReview, Refactor, Research, General) and get recommended skills"
+    )]
+    async fn classify_task(
+        &self,
+        Parameters(p): Parameters<ClassifyTaskParam>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let detector = forge_process::task_type::TaskTypeDetector::new();
+        let task_type = detector.classify(&p.prompt);
+
+        let router = forge_process::skill_router::SkillRouter::new();
+        let skills = router.skills_for(task_type);
+
+        let result = serde_json::json!({
+            "task_type": format!("{:?}", task_type),
+            "recommended_skills": skills,
+            "confidence": "keyword-based"
+        });
+
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&result).unwrap_or_default(),
+        )]))
+    }
+
+    #[tool(
+        name = "forge_list_personas",
+        description = "List available AI personas from the catalog. Filter by division or search term."
+    )]
+    async fn list_personas(
+        &self,
+        Parameters(p): Parameters<ListPersonasParam>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let personas = self
+            .persona_repo
+            .list(p.division.as_deref(), p.search.as_deref())
+            .map_err(|e| ErrorData::internal_error(format!("Failed to list personas: {}", e), None))?;
+
+        let result: Vec<_> = personas
+            .iter()
+            .map(|item| {
+                serde_json::json!({
+                    "id": item.id.0.to_string(),
+                    "name": item.name,
+                    "short_description": item.short_description,
+                    "division": item.division_slug,
+                })
+            })
+            .collect();
+
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&result).unwrap_or_default(),
+        )]))
+    }
+
+    #[tool(
+        name = "forge_get_budget",
+        description = "Get budget status for a company — remaining, used, and limit"
+    )]
+    async fn get_budget(
+        &self,
+        Parameters(p): Parameters<GetBudgetParam>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let company = self
+            .company_repo
+            .get(&p.company_id)
+            .map_err(|e| ErrorData::internal_error(format!("Company not found: {}", e), None))?;
+
+        let result = serde_json::json!({
+            "company": company.name,
+            "budget_limit": company.budget_limit,
+            "budget_used": company.budget_used,
+            "budget_remaining": company.budget_limit.map(|l| l - company.budget_used),
+            "status": if company.budget_limit.map(|l| company.budget_used >= l).unwrap_or(false) {
+                "exhausted"
+            } else if company.budget_limit.map(|l| company.budget_used >= l * 0.9).unwrap_or(false) {
+                "warning"
+            } else {
+                "ok"
+            }
+        });
+
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&result).unwrap_or_default(),
+        )]))
+    }
 }
 
 #[tool_handler]
@@ -274,9 +387,10 @@ impl ServerHandler for ForgeMcp {
     fn get_info(&self) -> ServerInfo {
         ServerInfo {
             instructions: Some(
-                "Forge MCP server: manage Claude Code agents and sessions. \
+                "Forge MCP server: manage Claude Code agents, sessions, personas, and budgets. \
                  Tools: agent_list, agent_get, agent_create, agent_update, agent_delete, \
-                 session_list, session_get, session_create, session_delete, session_export."
+                 session_list, session_get, session_create, session_delete, session_export, \
+                 forge_classify_task, forge_list_personas, forge_get_budget."
                     .into(),
             ),
             capabilities: ServerCapabilities::builder().enable_tools().build(),
@@ -331,9 +445,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let agent_repo = Arc::new(AgentRepo::new(Arc::clone(&conn)));
     let session_repo = Arc::new(SessionRepo::new(Arc::clone(&conn)));
     let event_repo = Arc::new(EventRepo::new(Arc::clone(&conn)));
+    let persona_repo = Arc::new(PersonaRepo::new(Arc::clone(&conn)));
+    let company_repo = Arc::new(CompanyRepo::new(Arc::clone(&conn)));
 
     tracing::info!("starting Forge MCP server (stdio)");
-    let server = ForgeMcp::new(agent_repo, session_repo, event_repo);
+    let server = ForgeMcp::new(agent_repo, session_repo, event_repo, persona_repo, company_repo);
     let service = server.serve(rmcp::transport::stdio()).await?;
     service.waiting().await?;
 

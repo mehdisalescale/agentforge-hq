@@ -32,7 +32,7 @@ forge-app          binary: DB setup, API server, embedded frontend, graceful shu
 ├── forge-persona  100+ persona catalog, division taxonomy, parser, hire flow
 ├── forge-governance  Goal and Approval models
 ├── forge-mcp      MCP protocol stubs
-└── forge-mcp-bin  MCP stdio server (rmcp, 10 tools)
+└── forge-mcp-bin  MCP stdio server (rmcp, 13 tools)
 ```
 
 ## Build & Test
@@ -122,6 +122,23 @@ A typical Epic 1 flow is:
 3. Inspect hierarchy in `/org-chart`.
 4. Capture intent in `/goals` and keep status updated.
 5. Use `/approvals` as the thin governance layer for decisions that need an explicit yes/no.
+
+## MCP Tools (forge-mcp-bin, 13 tools)
+
+The MCP server exposes these tools over stdio transport:
+
+- **Agent CRUD:** `agent_list`, `agent_get`, `agent_create`, `agent_update`, `agent_delete`
+- **Session CRUD:** `session_list`, `session_get`, `session_create`, `session_delete`, `session_export`
+- **Intelligence:** `forge_classify_task` — classify a prompt into task type + recommended skills
+- **Workforce:** `forge_list_personas` — list personas with optional division/search filter
+- **Governance:** `forge_get_budget` — get budget status (remaining, used, limit) for a company
+
+## Wave 4 Architecture (in progress)
+
+- **AgentConfigurator:** Generates per-persona CLAUDE.md + hooks.json for Claude Code instances
+- **HookReceiver:** HTTP endpoints (`POST /api/v1/hooks/pre-tool`, `post-tool`, `stop`) for Claude Code hooks to POST events back
+- **Middleware simplification:** Moving from 8-middleware chain toward governance-only (RateLimit → BudgetGate → Persist → ConfiguredSpawn)
+- **Configure → Execute → Observe loop:** AgentForge configures Claude Code instances, observes via hooks, reacts to events
 
 ## Don't
 
