@@ -11,6 +11,7 @@ mod governance;
 mod run;
 mod schedules;
 mod sessions;
+mod settings;
 mod skills;
 mod workflows;
 mod ws;
@@ -32,6 +33,7 @@ pub fn router() -> Router<AppState> {
         .merge(hooks::routes())
         .merge(schedules::routes())
         .merge(analytics::routes())
+        .merge(settings::routes())
         .merge(org::routes())
         .merge(personas::routes())
         .merge(governance::routes())

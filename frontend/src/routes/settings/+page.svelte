@@ -1,6 +1,7 @@
 <script lang="ts">
   import { setContext } from 'svelte';
   import { onMount } from 'svelte';
+  import { getSettings, type RuntimeSettings } from '$lib/api';
 
   setContext('pageTitle', 'Settings');
 
@@ -15,19 +16,20 @@
   }
 
   let health = $state<HealthData | null>(null);
+  let settings = $state<RuntimeSettings | null>(null);
   let loading = $state(true);
   let error = $state<string | null>(null);
 
-  const envVars: { name: string; default_val: string; description: string }[] = [
-    { name: 'FORGE_DB_PATH', default_val: '~/.claude-forge/forge.db', description: 'SQLite database file path' },
-    { name: 'FORGE_PORT', default_val: '4173', description: 'Server listen port' },
-    { name: 'FORGE_HOST', default_val: '127.0.0.1', description: 'Server bind address' },
-    { name: 'FORGE_CLI_COMMAND', default_val: 'claude', description: 'CLI executable to spawn for agent processes' },
-    { name: 'FORGE_CORS_ORIGIN', default_val: '*', description: 'CORS allowed origin header' },
-    { name: 'FORGE_RATE_LIMIT_MAX', default_val: '10', description: 'Rate limiter max tokens (requests per window)' },
-    { name: 'FORGE_RATE_LIMIT_REFILL_MS', default_val: '1000', description: 'Rate limiter token refill interval in milliseconds' },
-    { name: 'FORGE_BUDGET_WARN', default_val: '(none)', description: 'Cost warning threshold in USD' },
-    { name: 'FORGE_BUDGET_LIMIT', default_val: '(none)', description: 'Hard budget limit in USD (blocks further runs)' },
+  const envVarMeta: { key: keyof RuntimeSettings; env: string; description: string }[] = [
+    { key: 'db_path', env: 'FORGE_DB_PATH', description: 'SQLite database file path' },
+    { key: 'port', env: 'FORGE_PORT', description: 'Server listen port' },
+    { key: 'host', env: 'FORGE_HOST', description: 'Server bind address' },
+    { key: 'cli_command', env: 'FORGE_CLI_COMMAND', description: 'CLI executable to spawn for agent processes' },
+    { key: 'cors_origin', env: 'FORGE_CORS_ORIGIN', description: 'CORS allowed origin header' },
+    { key: 'rate_limit_max', env: 'FORGE_RATE_LIMIT_MAX', description: 'Rate limiter max tokens (requests per window)' },
+    { key: 'rate_limit_refill_ms', env: 'FORGE_RATE_LIMIT_REFILL_MS', description: 'Rate limiter token refill interval in milliseconds' },
+    { key: 'budget_warn', env: 'FORGE_BUDGET_WARN', description: 'Cost warning threshold in USD' },
+    { key: 'budget_limit', env: 'FORGE_BUDGET_LIMIT', description: 'Hard budget limit in USD (blocks further runs)' },
   ];
 
   function formatUptime(secs: number): string {
@@ -43,23 +45,33 @@
     return `${d}d ${rh}h ${rm}m`;
   }
 
-  async function fetchHealth() {
+  async function fetchAll() {
     loading = true;
     error = null;
     try {
-      const res = await fetch(`${API_BASE}/api/v1/health`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      health = await res.json();
+      const [healthRes, settingsRes] = await Promise.allSettled([
+        fetch(`${API_BASE}/api/v1/health`).then(async (res) => {
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          return res.json() as Promise<HealthData>;
+        }),
+        getSettings(),
+      ]);
+      health = healthRes.status === 'fulfilled' ? healthRes.value : null;
+      settings = settingsRes.status === 'fulfilled' ? settingsRes.value : null;
+      if (healthRes.status === 'rejected') {
+        error = healthRes.reason instanceof Error ? healthRes.reason.message : String(healthRes.reason);
+      }
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
       health = null;
+      settings = null;
     } finally {
       loading = false;
     }
   }
 
   onMount(() => {
-    fetchHealth();
+    fetchAll();
   });
 </script>
 
@@ -70,7 +82,7 @@
 <div class="settings-page">
   <header class="page-header">
     <h1>Settings</h1>
-    <button class="btn" onclick={fetchHealth} disabled={loading}>
+    <button class="btn" onclick={fetchAll} disabled={loading}>
       {loading ? 'Reloading...' : 'Reload'}
     </button>
   </header>
@@ -99,7 +111,7 @@
       </div>
       <div class="info-card">
         <span class="info-label">Database</span>
-        <span class="info-value mono">~/.claude-forge/forge.db</span>
+        <span class="info-value mono">{settings?.db_path ?? '~/.agentforge/forge.db'}</span>
       </div>
     </div>
   </section>
@@ -119,15 +131,15 @@
         <thead>
           <tr>
             <th>Variable</th>
-            <th>Default</th>
+            <th>Current Value</th>
             <th>Description</th>
           </tr>
         </thead>
         <tbody>
-          {#each envVars as ev}
+          {#each envVarMeta as ev}
             <tr>
-              <td class="mono env-name">{ev.name}</td>
-              <td class="mono env-default">{ev.default_val}</td>
+              <td class="mono env-name">{ev.env}</td>
+              <td class="mono env-default">{settings ? (settings[ev.key] ?? '(not set)') : '--'}</td>
               <td class="env-desc">{ev.description}</td>
             </tr>
           {/each}

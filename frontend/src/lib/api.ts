@@ -547,6 +547,25 @@ export async function getUsageAnalytics(start?: string, end?: string): Promise<U
   return handleResponse<UsageReport>(res);
 }
 
+// --- Settings ---
+
+export interface RuntimeSettings {
+  host: string;
+  port: string;
+  cli_command: string;
+  db_path: string;
+  rate_limit_max: string;
+  rate_limit_refill_ms: string;
+  budget_warn: string | null;
+  budget_limit: string | null;
+  cors_origin: string;
+}
+
+export async function getSettings(): Promise<RuntimeSettings> {
+  const res = await fetch(`${API_BASE}/api/v1/settings`);
+  return handleResponse<RuntimeSettings>(res);
+}
+
 /** Export session as JSON, Markdown, or HTML; returns URL to open. */
 export function exportSessionHtmlUrl(id: string): string {
   return `${API_BASE}/api/v1/sessions/${encodeURIComponent(id)}/export?format=html`;
