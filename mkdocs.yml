@@ -1,0 +1,84 @@
+site_name: AgentForge HQ
+site_description: Rust-native AI workforce and governance layer on top of Claude Code and MCP
+site_url: https://mehdisalescale.github.io/agentforge-hq/
+repo_url: https://github.com/mehdisalescale/agentforge-hq
+repo_name: mehdisalescale/agentforge-hq
+
+docs_dir: site-docs
+
+theme:
+  name: material
+  palette:
+    - scheme: slate
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+    - scheme: default
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - toc.follow
+  icon:
+    repo: fontawesome/brands/github
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - Quick Start: getting-started/quickstart.md
+    - Configuration: getting-started/configuration.md
+    - First Workflow: getting-started/first-workflow.md
+  - Architecture:
+    - Overview: architecture/overview.md
+    - Crate Map: architecture/crates.md
+    - Middleware Pipeline: architecture/middleware.md
+    - MCP Server: architecture/mcp.md
+    - Event System: architecture/events.md
+  - Strategy:
+    - Executive Summary: strategy/executive-summary.md
+    - Architecture Rethink: strategy/architecture-rethink.md
+    - MCP Vision: strategy/mcp-vision.md
+    - Revised Plan: strategy/revised-plan.md
+    - Gap Analysis: strategy/gaps.md
+    - Research Findings: strategy/research-findings.md
+  - Development:
+    - Building from Source: development/building.md
+    - Multi-Agent Development: development/multi-agent.md
+    - Wave History: development/wave-history.md
+  - Reference:
+    - API Endpoints: reference/api.md
+    - MCP Tools: reference/mcp-tools.md
+    - Environment Variables: reference/env-vars.md
+    - Personas: reference/personas.md

@@ -17,3 +17,6 @@ Thumbs.db
 node_modules/
 dist/
 .svelte-kit/
+
+# MkDocs build output
+site/
