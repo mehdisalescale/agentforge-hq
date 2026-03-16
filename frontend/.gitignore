@@ -3,3 +3,6 @@ node_modules
 build
 .DS_Store
 *.log
+
+# Generated from OpenAPI spec (run `pnpm generate-types` to regenerate)
+src/lib/api-types.generated.ts

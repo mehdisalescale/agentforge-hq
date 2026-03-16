@@ -37,7 +37,7 @@ impl SessionRepo {
     }
 
     pub fn create(&self, input: &NewSession) -> ForgeResult<Session> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let id = SessionId::new();
         let now = Utc::now();
         conn.execute(
@@ -58,7 +58,7 @@ impl SessionRepo {
     }
 
     pub fn get(&self, id: &SessionId) -> ForgeResult<Session> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let mut stmt = conn
             .prepare(
                 "SELECT id, agent_id, claude_session_id, directory, status, cost_usd, created_at, updated_at
@@ -73,7 +73,7 @@ impl SessionRepo {
     }
 
     pub fn list(&self) -> ForgeResult<Vec<Session>> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let mut stmt = conn
             .prepare(
                 "SELECT id, agent_id, claude_session_id, directory, status, cost_usd, created_at, updated_at
@@ -89,7 +89,7 @@ impl SessionRepo {
     }
 
     pub fn update_status(&self, id: &SessionId, status: &str) -> ForgeResult<Session> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let now = Utc::now();
         let rows = conn
             .execute(
@@ -105,7 +105,7 @@ impl SessionRepo {
     }
 
     pub fn update_cost(&self, id: &SessionId, cost_usd: f64) -> ForgeResult<Session> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let now = Utc::now();
         let rows = conn
             .execute(
@@ -125,7 +125,7 @@ impl SessionRepo {
         id: &SessionId,
         claude_session_id: &str,
     ) -> ForgeResult<Session> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let now = Utc::now();
         let rows = conn
             .execute(
@@ -141,7 +141,7 @@ impl SessionRepo {
     }
 
     pub fn delete(&self, id: &SessionId) -> ForgeResult<()> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let rows = conn
             .execute("DELETE FROM sessions WHERE id = ?1", rusqlite::params![id.0.to_string()])
             .map_err(|e| ForgeError::Database(Box::new(e)))?;

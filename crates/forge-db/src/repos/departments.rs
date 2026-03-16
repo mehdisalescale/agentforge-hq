@@ -34,7 +34,7 @@ impl DepartmentRepo {
             return Err(ForgeError::Validation("department name is required".into()));
         }
 
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let id = uuid::Uuid::new_v4().to_string();
         let now = Utc::now().to_rfc3339();
 
@@ -55,7 +55,7 @@ impl DepartmentRepo {
     }
 
     pub fn get(&self, id: &str) -> ForgeResult<Department> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let mut stmt = conn
             .prepare(
                 "SELECT id, company_id, name, description, created_at, updated_at
@@ -78,7 +78,7 @@ impl DepartmentRepo {
         name: Option<&str>,
         description: Option<&str>,
     ) -> ForgeResult<Department> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let now = Utc::now().to_rfc3339();
 
         let mut sets = vec!["updated_at = ?1".to_string()];
@@ -115,7 +115,7 @@ impl DepartmentRepo {
     }
 
     pub fn delete(&self, id: &str) -> ForgeResult<()> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let affected = conn
             .execute("DELETE FROM departments WHERE id = ?1", rusqlite::params![id])
             .map_err(|e| ForgeError::Database(Box::new(e)))?;
@@ -127,7 +127,7 @@ impl DepartmentRepo {
     }
 
     pub fn list_by_company(&self, company_id: &str) -> ForgeResult<Vec<Department>> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let mut stmt = conn
             .prepare(
                 "SELECT id, company_id, name, description, created_at, updated_at

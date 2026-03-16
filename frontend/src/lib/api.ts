@@ -1,4 +1,17 @@
 /**
+ * AgentForge REST API client.
+ *
+ * NOTE: The TypeScript interfaces below are maintained manually and must stay
+ * in sync with the Rust types in forge-api. To detect drift, run:
+ *
+ *   pnpm generate-types
+ *
+ * This generates `api-types.generated.ts` from the OpenAPI spec served by
+ * forge-app. Compare the generated types with the interfaces here to catch
+ * mismatches. A future migration should replace these manual types entirely.
+ */
+
+/**
  * API base URL. Empty = same origin. Set VITE_API_URL in .env for dev (e.g. http://localhost:3000).
  */
 const API_BASE = typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL != null
@@ -664,7 +677,7 @@ export async function deleteCompany(id: string): Promise<void> {
     method: 'DELETE',
   });
   if (!res.ok) {
-    const text = await res.text().catch(() => 'Delete failed');
+    const text = await res.text().catch((e) => { console.warn('failed to read delete response body:', e); return 'Delete failed'; });
     throw new Error(text);
   }
 }

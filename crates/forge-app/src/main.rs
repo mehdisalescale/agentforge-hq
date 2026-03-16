@@ -36,8 +36,7 @@ fn default_db_path() -> String {
 
     // Graceful migration: use legacy path if it exists and new path doesn't
     if !std::path::Path::new(&new_path).exists() && std::path::Path::new(&legacy_path).exists() {
-        eprintln!("Note: Found database at legacy path ~/.claude-forge/forge.db");
-        eprintln!("      Consider moving to ~/.agentforge/forge.db");
+        tracing::warn!("Found database at legacy path ~/.claude-forge/forge.db. Consider moving to ~/.agentforge/forge.db");
         return legacy_path;
     }
     new_path
@@ -69,7 +68,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     info!(path = %db_path, "opening database");
     let db = DbPool::new(path)?;
     {
-        let conn = db.connection();
+        let conn = db.connection()?;
         let migrator = Migrator::new(&conn);
         let applied = migrator.apply_pending()?;
         if applied > 0 {
@@ -101,7 +100,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     );
 
     // Persistence channel: guaranteed delivery via mpsc (no Lagged errors possible)
-    let conn_arc = db.conn_arc();
+    let conn_arc = db.conn_arc()?;
     let batch_writer = Arc::new(BatchWriter::spawn(Arc::clone(&conn_arc)));
     let bw = Arc::clone(&batch_writer);
     let mut persist_rx = persist_rx;

@@ -986,11 +986,11 @@ mod tests {
     fn setup_db() -> (Arc<forge_db::AgentRepo>, Arc<SessionRepo>, forge_db::DbPool) {
         let db = forge_db::DbPool::in_memory().unwrap();
         {
-            let c = db.connection();
+            let c = db.connection().unwrap();
             forge_db::Migrator::new(&c).apply_pending().unwrap();
         }
-        let agent_repo = Arc::new(forge_db::AgentRepo::new(db.conn_arc()));
-        let session_repo = Arc::new(SessionRepo::new(db.conn_arc()));
+        let agent_repo = Arc::new(forge_db::AgentRepo::new(db.conn_arc().unwrap()));
+        let session_repo = Arc::new(SessionRepo::new(db.conn_arc().unwrap()));
         (agent_repo, session_repo, db)
     }
 
@@ -1071,10 +1071,10 @@ mod tests {
     async fn skill_injection_adds_matching_skills() {
         let conn = forge_db::DbPool::in_memory().unwrap();
         {
-            let c = conn.connection();
+            let c = conn.connection().unwrap();
             forge_db::Migrator::new(&c).apply_pending().unwrap();
         }
-        let skill_repo = Arc::new(SkillRepo::new(conn.conn_arc()));
+        let skill_repo = Arc::new(SkillRepo::new(conn.conn_arc().unwrap()));
 
         // Insert a skill with matching tags
         skill_repo
@@ -1110,10 +1110,10 @@ mod tests {
     async fn skill_injection_no_match_no_metadata() {
         let conn = forge_db::DbPool::in_memory().unwrap();
         {
-            let c = conn.connection();
+            let c = conn.connection().unwrap();
             forge_db::Migrator::new(&c).apply_pending().unwrap();
         }
-        let skill_repo = Arc::new(SkillRepo::new(conn.conn_arc()));
+        let skill_repo = Arc::new(SkillRepo::new(conn.conn_arc().unwrap()));
 
         let mw = SkillInjectionMiddleware { skill_repo };
         let mut chain = MiddlewareChain::new();
@@ -1247,8 +1247,8 @@ mod tests {
     #[tokio::test]
     async fn task_type_detection_sets_metadata() {
         let conn = forge_db::DbPool::in_memory().unwrap();
-        { let c = conn.connection(); forge_db::Migrator::new(&c).apply_pending().unwrap(); }
-        let skill_repo = Arc::new(SkillRepo::new(conn.conn_arc()));
+        { let c = conn.connection().unwrap(); forge_db::Migrator::new(&c).apply_pending().unwrap(); }
+        let skill_repo = Arc::new(SkillRepo::new(conn.conn_arc().unwrap()));
         let mw = TaskTypeDetectionMiddleware { skill_repo };
         let mut chain = MiddlewareChain::new();
         chain.add(mw);
@@ -1262,8 +1262,8 @@ mod tests {
     #[tokio::test]
     async fn task_type_general_injects_no_methodology() {
         let conn = forge_db::DbPool::in_memory().unwrap();
-        { let c = conn.connection(); forge_db::Migrator::new(&c).apply_pending().unwrap(); }
-        let skill_repo = Arc::new(SkillRepo::new(conn.conn_arc()));
+        { let c = conn.connection().unwrap(); forge_db::Migrator::new(&c).apply_pending().unwrap(); }
+        let skill_repo = Arc::new(SkillRepo::new(conn.conn_arc().unwrap()));
         let mw = TaskTypeDetectionMiddleware { skill_repo };
         let mut chain = MiddlewareChain::new();
         chain.add(mw);
@@ -1357,14 +1357,14 @@ mod tests {
     ) {
         let db = forge_db::DbPool::in_memory().unwrap();
         {
-            let c = db.connection();
+            let c = db.connection().unwrap();
             forge_db::Migrator::new(&c).apply_pending().unwrap();
         }
-        let company_repo = Arc::new(CompanyRepo::new(db.conn_arc()));
-        let org_position_repo = Arc::new(OrgPositionRepo::new(db.conn_arc()));
-        let goal_repo = Arc::new(GoalRepo::new(db.conn_arc()));
-        let approval_repo = Arc::new(ApprovalRepo::new(db.conn_arc()));
-        let agent_repo = Arc::new(forge_db::AgentRepo::new(db.conn_arc()));
+        let company_repo = Arc::new(CompanyRepo::new(db.conn_arc().unwrap()));
+        let org_position_repo = Arc::new(OrgPositionRepo::new(db.conn_arc().unwrap()));
+        let goal_repo = Arc::new(GoalRepo::new(db.conn_arc().unwrap()));
+        let approval_repo = Arc::new(ApprovalRepo::new(db.conn_arc().unwrap()));
+        let agent_repo = Arc::new(forge_db::AgentRepo::new(db.conn_arc().unwrap()));
         (company_repo, org_position_repo, goal_repo, approval_repo, agent_repo, db)
     }
 
@@ -1386,7 +1386,7 @@ mod tests {
             .update(&company.id, None, None, None)
             .unwrap();
         {
-            let conn = _db.connection();
+            let conn = _db.connection().unwrap();
             conn.execute_batch(&format!(
                 "UPDATE companies SET budget_used = 100.0 WHERE id = '{}'",
                 company.id
@@ -1446,7 +1446,7 @@ mod tests {
             })
             .unwrap();
         {
-            let conn = _db.connection();
+            let conn = _db.connection().unwrap();
             conn.execute_batch(&format!(
                 "UPDATE companies SET budget_used = 91.0 WHERE id = '{}'",
                 company.id

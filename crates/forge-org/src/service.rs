@@ -2,6 +2,10 @@ use std::collections::HashMap;
 
 use crate::model::{Company, CompanyOrgChart, Department, OrgChartNode, OrgPosition};
 
+/// Maximum recursion depth for org chart tree building.
+/// Prevents stack overflow from circular `reports_to` references.
+const MAX_ORG_DEPTH: usize = 50;
+
 /// Build a hierarchical org chart from flat position rows.
 pub fn build_org_chart(
     company: Company,
@@ -47,11 +51,16 @@ pub fn build_org_chart(
         id: &str,
         by_id: &mut HashMap<String, OrgChartNode>,
         children_of: &HashMap<String, Vec<String>>,
+        depth: usize,
     ) -> Option<OrgChartNode> {
+        if depth >= MAX_ORG_DEPTH {
+            // Stop recursing to prevent stack overflow from circular reports_to chains.
+            return by_id.remove(id);
+        }
         let mut node = by_id.remove(id)?;
         if let Some(child_ids) = children_of.get(id) {
             for cid in child_ids {
-                if let Some(child) = build_subtree(cid, by_id, children_of) {
+                if let Some(child) = build_subtree(cid, by_id, children_of, depth + 1) {
                     node.children.push(child);
                 }
             }
@@ -61,7 +70,7 @@ pub fn build_org_chart(
 
     let mut roots = Vec::new();
     for rid in root_ids {
-        if let Some(tree) = build_subtree(&rid, &mut by_id, &children_of) {
+        if let Some(tree) = build_subtree(&rid, &mut by_id, &children_of, 0) {
             roots.push(tree);
         }
     }

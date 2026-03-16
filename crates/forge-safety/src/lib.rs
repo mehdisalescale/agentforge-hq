@@ -5,8 +5,17 @@ pub mod scanner;
 
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicU32, AtomicU8, Ordering};
-use std::sync::Mutex;
+use std::sync::{Mutex, MutexGuard};
 use std::time::{Duration, Instant};
+
+/// Lock a mutex, falling back to the poisoned inner value.
+/// This prevents panics while preserving the data inside.
+fn lock_or_recover<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
+    match mutex.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
+    }
+}
 
 /// Serializable snapshot of circuit breaker state for persistence.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -75,7 +84,7 @@ impl CircuitBreaker {
         match self.state() {
             CircuitState::Closed => Ok(()),
             CircuitState::Open => {
-                let mut last = self.last_failure.lock().unwrap();
+                let mut last = lock_or_recover(&self.last_failure);
                 if let Some(instant) = *last {
                     if instant.elapsed() >= self.timeout {
                         *last = None;
@@ -110,13 +119,13 @@ impl CircuitBreaker {
                 let prev = self.failure_count.fetch_add(1, Ordering::SeqCst) + 1;
                 if prev >= self.failure_threshold {
                     self.state.store(CircuitState::Open as u8, Ordering::SeqCst);
-                    *self.last_failure.lock().unwrap() = Some(Instant::now());
+                    *lock_or_recover(&self.last_failure) = Some(Instant::now());
                 }
             }
             CircuitState::Open => {}
             CircuitState::HalfOpen => {
                 self.state.store(CircuitState::Open as u8, Ordering::SeqCst);
-                *self.last_failure.lock().unwrap() = Some(Instant::now());
+                *lock_or_recover(&self.last_failure) = Some(Instant::now());
             }
         }
     }
@@ -136,10 +145,7 @@ impl CircuitBreaker {
             CircuitState::Open => "Open",
             CircuitState::HalfOpen => "HalfOpen",
         };
-        let last_failure_ms = self
-            .last_failure
-            .lock()
-            .unwrap()
+        let last_failure_ms = lock_or_recover(&self.last_failure)
             .map(|i| i.elapsed().as_millis() as u64);
         CircuitBreakerState {
             state: state_name.to_string(),
@@ -164,7 +170,7 @@ impl CircuitBreaker {
                 let elapsed = Duration::from_millis(ms_ago);
                 if elapsed < self.timeout {
                     // Still within timeout — keep Open
-                    *self.last_failure.lock().unwrap() =
+                    *lock_or_recover(&self.last_failure) =
                         Some(Instant::now() - (self.timeout - elapsed));
                 } else {
                     // Timeout has passed — transition to HalfOpen
@@ -180,7 +186,7 @@ impl CircuitBreaker {
         self.state.store(CircuitState::Closed as u8, Ordering::SeqCst);
         self.failure_count.store(0, Ordering::SeqCst);
         self.success_count.store(0, Ordering::SeqCst);
-        *self.last_failure.lock().unwrap() = None;
+        *lock_or_recover(&self.last_failure) = None;
     }
 }
 
@@ -205,7 +211,7 @@ impl RateLimiter {
 
     /// Refill tokens based on elapsed time, then try to take one token. Returns true if acquired.
     pub fn try_acquire(&self) -> bool {
-        let mut last = self.last_refill.lock().unwrap();
+        let mut last = lock_or_recover(&self.last_refill);
         let now = Instant::now();
         let elapsed = last.elapsed();
         if elapsed >= self.refill_interval && self.refill_interval.as_nanos() > 0 {

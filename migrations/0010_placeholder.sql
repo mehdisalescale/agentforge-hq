@@ -1,0 +1,3 @@
+-- Migration 0010: placeholder
+-- This migration was intentionally left empty to fix a numbering gap.
+-- (The sequence jumped from 0009 to 0011 during development.)

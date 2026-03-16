@@ -67,7 +67,7 @@
     error = null;
     try {
       agents = await listAgents();
-      getAllAgentStats().then((stats) => { agentStats = stats; }).catch(() => {});
+      getAllAgentStats().then((stats) => { agentStats = stats; }).catch((e) => console.warn('failed to load agent stats:', e));
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
     } finally {

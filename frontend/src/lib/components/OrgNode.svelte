@@ -2,10 +2,11 @@
   import type { OrgChartNode, Department } from '$lib/api';
   import OrgNode from '$lib/components/OrgNode.svelte';
 
-  let { node, departments, depth = 0 }: {
+  let { node, departments, depth = 0, maxDepth = 50 }: {
     node: OrgChartNode;
     departments: Department[];
     depth?: number;
+    maxDepth?: number;
   } = $props();
 
   function deptName(id: string | null | undefined): string {
@@ -37,9 +38,13 @@
 
   {#if hasChildren && !collapsed}
     <div class="children">
-      {#each node.children as child (child.position.id)}
-        <OrgNode node={child} {departments} depth={depth + 1} />
-      {/each}
+      {#if maxDepth <= 0}
+        <span class="depth-limit">...</span>
+      {:else}
+        {#each node.children as child (child.position.id)}
+          <OrgNode node={child} {departments} depth={depth + 1} maxDepth={maxDepth - 1} />
+        {/each}
+      {/if}
     </div>
   {/if}
 </div>
@@ -124,5 +129,12 @@
   .children {
     margin-left: 1.25rem;
     margin-top: 0.25rem;
+  }
+
+  .depth-limit {
+    display: block;
+    color: var(--muted);
+    font-size: 0.85rem;
+    padding: 0.25rem 0;
   }
 </style>

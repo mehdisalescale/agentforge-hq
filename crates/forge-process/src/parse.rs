@@ -1,39 +1,33 @@
 //! Parse stream-json lines (one JSON object per line) into StreamJsonEvent.
 
 use crate::stream_event::StreamJsonEvent;
-use thiserror::Error;
-
-#[derive(Debug, Error)]
-pub enum ParseError {
-    #[error("not valid UTF-8 or empty line")]
-    EmptyOrInvalidUtf8,
-
-    #[error("JSON parse error: {0}")]
-    Json(#[from] serde_json::Error),
-
-    #[error("unknown event type: {0}")]
-    UnknownType(String),
-}
+use forge_core::ForgeError;
 
 /// Parse a single line of stream-json output into a StreamJsonEvent.
 /// Returns Ok(None) for blank lines; Err for unknown type or invalid JSON.
-pub fn parse_line(line: &str) -> Result<Option<StreamJsonEvent>, ParseError> {
+pub fn parse_line(line: &str) -> Result<Option<StreamJsonEvent>, ForgeError> {
     let line = line.trim();
     if line.is_empty() {
         return Ok(None);
     }
-    let value: serde_json::Value = serde_json::from_str(line)?;
+    let value: serde_json::Value = serde_json::from_str(line)
+        .map_err(|e| ForgeError::Process(format!("JSON parse error: {e}")))?;
     let typ = value
         .get("type")
         .and_then(|t| t.as_str())
-        .ok_or_else(|| ParseError::UnknownType("missing type".into()))?;
+        .ok_or_else(|| ForgeError::Validation("missing type field in stream event".into()))?;
     match typ {
-        "system" => Ok(Some(serde_json::from_value(value).map_err(ParseError::Json)?)),
-        "assistant" => Ok(Some(serde_json::from_value(value).map_err(ParseError::Json)?)),
-        "user" => Ok(Some(serde_json::from_value(value).map_err(ParseError::Json)?)),
-        "result" => Ok(Some(serde_json::from_value(value).map_err(ParseError::Json)?)),
-        "error" => Ok(Some(serde_json::from_value(value).map_err(ParseError::Json)?)),
-        other => Err(ParseError::UnknownType(other.to_string())),
+        "system" => Ok(Some(serde_json::from_value(value)
+            .map_err(|e| ForgeError::Process(format!("JSON parse error: {e}")))?)),
+        "assistant" => Ok(Some(serde_json::from_value(value)
+            .map_err(|e| ForgeError::Process(format!("JSON parse error: {e}")))?)),
+        "user" => Ok(Some(serde_json::from_value(value)
+            .map_err(|e| ForgeError::Process(format!("JSON parse error: {e}")))?)),
+        "result" => Ok(Some(serde_json::from_value(value)
+            .map_err(|e| ForgeError::Process(format!("JSON parse error: {e}")))?)),
+        "error" => Ok(Some(serde_json::from_value(value)
+            .map_err(|e| ForgeError::Process(format!("JSON parse error: {e}")))?)),
+        other => Err(ForgeError::Validation(format!("unknown event type: {other}"))),
     }
 }
 
@@ -41,6 +35,7 @@ pub fn parse_line(line: &str) -> Result<Option<StreamJsonEvent>, ParseError> {
 mod tests {
     use super::*;
     use crate::stream_event::StreamJsonEvent;
+    use forge_core::ForgeError;
 
     #[test]
     fn parse_empty_line_returns_none() {
@@ -110,12 +105,14 @@ mod tests {
     #[test]
     fn parse_unknown_type_fails() {
         let line = r#"{"type":"unknown_kind"}"#;
-        assert!(matches!(parse_line(line), Err(ParseError::UnknownType(_))));
+        let err = parse_line(line).unwrap_err();
+        assert!(matches!(err, ForgeError::Validation(_)));
     }
 
     #[test]
     fn parse_invalid_json_fails() {
         let line = r#"not json"#;
-        assert!(parse_line(line).is_err());
+        let err = parse_line(line).unwrap_err();
+        assert!(matches!(err, ForgeError::Process(_)));
     }
 }

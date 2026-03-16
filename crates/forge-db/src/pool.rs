@@ -124,8 +124,8 @@ impl DbPool {
 
     /// Legacy: returns a MutexGuard on the shared connection.
     /// Used by Migrator and tests.
-    pub fn connection(&self) -> std::sync::MutexGuard<'_, Connection> {
-        self.conn.lock().expect("db mutex poisoned")
+    pub fn connection(&self) -> ForgeResult<std::sync::MutexGuard<'_, Connection>> {
+        lock_conn(&self.conn)
     }
 
     /// Legacy: shared Arc<Mutex<Connection>> for BatchWriter and repos.
@@ -134,14 +134,20 @@ impl DbPool {
     /// file (with busy_timeout), so BatchWriter no longer contends with repos
     /// on the same mutex.  For in-memory DBs it clones the original Arc so
     /// all callers share one database.
-    pub fn conn_arc(&self) -> Arc<Mutex<Connection>> {
+    pub fn conn_arc(&self) -> ForgeResult<Arc<Mutex<Connection>>> {
         match &self.path {
             Some(p) => {
-                let c = Connection::open(p).expect("db open for conn_arc");
+                let c = Connection::open(p).map_err(|e| ForgeError::Database(Box::new(e)))?;
                 c.execute_batch(FILE_PRAGMAS).ok();
-                Arc::new(Mutex::new(c))
+                Ok(Arc::new(Mutex::new(c)))
             }
-            None => Arc::clone(&self.conn),
+            None => Ok(Arc::clone(&self.conn)),
         }
     }
+}
+
+/// Lock a database connection mutex, returning ForgeError::Internal on poisoned mutex.
+/// Use this instead of `.lock().expect()` to avoid panics.
+pub fn lock_conn(conn: &std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>) -> ForgeResult<std::sync::MutexGuard<'_, rusqlite::Connection>> {
+    conn.lock().map_err(|_| ForgeError::Internal("database mutex poisoned".into()))
 }
