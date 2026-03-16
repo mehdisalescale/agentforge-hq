@@ -90,6 +90,21 @@ pub struct EventBus {
 ### Generic
 - `Error` — catch-all error with message and optional context
 
+## Event Normalization (Multi-Backend)
+
+When multiple backends (Claude, Hermes, OpenClaw) produce output, their raw stream-json events are normalized to `ForgeEvent` via `normalize_to_forge_event()` in `forge-process/src/stream_event.rs`.
+
+This ensures the UI, BatchWriter, and analytics work identically regardless of which backend produced the output. The `SpawnMiddleware` calls this function in its event processing loop rather than constructing events inline.
+
+```rust
+let forge_events = normalize_to_forge_event(backend_name, &raw_event, &session_id, &agent_id);
+for event in forge_events {
+    event_bus.emit_sync(event)?;
+}
+```
+
+Each backend must produce `ProcessHandle` instances whose stdout emits newline-delimited JSON parseable by `parse_line()`. The normalization layer then maps these to the appropriate `ForgeEvent` variants.
+
 ## BatchWriter
 
 Events are persisted to SQLite via BatchWriter:

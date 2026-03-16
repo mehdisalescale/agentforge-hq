@@ -1,6 +1,6 @@
 # MCP Tools Reference
 
-AgentForge exposes 19 MCP tools. All accessible via stdio transport.
+AgentForge exposes 21 MCP tools. All accessible via stdio transport.
 
 ## Workforce (7 tools)
 
@@ -154,3 +154,15 @@ Get all events for a session.
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `session_id` | string | UUID of the session |
+
+## Backend Discovery (2 tools)
+
+### forge_list_backends
+List available execution backends and their capabilities.
+
+Returns: array of backends with name, supported models, streaming and tool support.
+
+### forge_backend_health
+Check health status of all execution backends.
+
+Returns: array of backends with name, status (healthy/degraded/unavailable), and optional message.

@@ -36,6 +36,11 @@ pub struct BackendSpawnConfig {
 pub use crate::spawn::ProcessHandle;
 
 /// Trait that all execution backends must implement.
+///
+/// All backends MUST produce `ProcessHandle` instances whose stdout emits
+/// newline-delimited JSON parseable by `parse_line()`. Events are then
+/// normalized to `ForgeEvent` via `normalize_to_forge_event()`, ensuring
+/// the UI, BatchWriter, and analytics work identically regardless of backend.
 pub trait ProcessBackend: Send + Sync {
     /// Human-readable name (e.g. "claude", "hermes", "openclaw").
     fn name(&self) -> &str;

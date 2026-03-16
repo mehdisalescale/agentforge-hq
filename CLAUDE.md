@@ -22,7 +22,7 @@ Users browse 100+ pre-built agent personas, hire them into org charts with budge
 ```
 forge-app          binary: DB setup, API server, embedded frontend, graceful shutdown, cron scheduler
 ├── forge-api      Axum HTTP + WebSocket, routes, CORS, TraceLayer, rust-embed SPA
-├── forge-process  spawn Claude CLI, stream-json parsing, ConcurrentRunner, LoopDetector, SpawnLimiter
+├── forge-process  multi-backend process spawning (BackendRegistry, ProcessBackend trait), stream-json parsing, event normalization, ConcurrentRunner, LoopDetector, SpawnLimiter
 ├── forge-agent    agent model, 10 presets (incl. Coordinator), validation
 ├── forge-db       SQLite WAL, 12 migrations, 17 repos, UnitOfWork, BatchWriter, connection pool
 ├── forge-core     ForgeEvent (43 variants), EventBus fan-out (mpsc + broadcast), shared types
@@ -31,7 +31,7 @@ forge-app          binary: DB setup, API server, embedded frontend, graceful shu
 ├── forge-org      Company, Department, OrgPosition models + org chart builder
 ├── forge-persona  100+ persona catalog, division taxonomy, parser, hire flow
 ├── forge-governance  Goal and Approval models
-└── forge-mcp-bin  MCP stdio server (rmcp, 19 tools)
+└── forge-mcp-bin  MCP stdio server (rmcp, 21 tools)
 ```
 
 ## Build & Test
@@ -72,7 +72,8 @@ cargo check             # should be zero warnings
 - **IDs:** Newtype wrappers (`AgentId`, `SessionId`, `ScheduleId`) around `uuid::Uuid`
 - **Events:** All state changes emit `ForgeEvent` variants (43 types) through `EventBus` fan-out (mpsc for guaranteed persistence + broadcast for UI)
 - **Persistence:** `BatchWriter` batches events (50 or 2s flush) in transactions
-- **DB access:** `UnitOfWork` in forge-db aggregates all 17 repos behind `Arc<UnitOfWork>`; `AppState` holds `uow`, `event_bus`, and `safety` — route handlers access repos via `state.uow.xxx_repo`
+- **DB access:** `UnitOfWork` in forge-db aggregates all 17 repos behind `Arc<UnitOfWork>`; `AppState` holds `uow`, `event_bus`, `safety`, and `backend_registry` — route handlers access repos via `state.uow.xxx_repo`
+- **Backends:** `BackendRegistry` in forge-process holds pluggable `ProcessBackend` implementations; `SpawnMiddleware` resolves backend by name and normalizes events via `normalize_to_forge_event()`
 
 ## Documentation Map
 
@@ -123,7 +124,7 @@ A typical Epic 1 flow is:
 4. Capture intent in `/goals` and keep status updated.
 5. Use `/approvals` as the thin governance layer for decisions that need an explicit yes/no.
 
-## MCP Tools (forge-mcp-bin, 19 tools)
+## MCP Tools (forge-mcp-bin, 21 tools)
 
 The MCP server exposes these tools over stdio transport:
 
@@ -133,11 +134,13 @@ The MCP server exposes these tools over stdio transport:
 - **Workforce:** `forge_list_personas` — list personas with optional division/search filter; `forge_hire_persona` — hire a persona into a company (creates agent + org position)
 - **Governance:** `forge_get_budget` — get budget status; `forge_request_approval` — request an approval; `forge_check_approval` — check approval status; `forge_list_goals` — list company goals
 - **Observability:** `forge_get_session_events` — get all events for a session; `forge_get_analytics` — usage analytics (costs, session stats, agent breakdown)
+- **Backend Discovery:** `forge_list_backends` — list available backends and capabilities; `forge_backend_health` — health-check all backends
 
 ## Wave 4 Architecture (in progress)
 
 - **AgentConfigurator:** Generates per-persona CLAUDE.md + hooks.json for Claude Code instances
 - **HookReceiver:** HTTP endpoints (`POST /api/v1/hooks/pre-tool`, `post-tool`, `stop`) for Claude Code hooks to POST events back
+- **Hexagonal Backends:** `BackendRegistry` + `ProcessBackend` trait in forge-process enable pluggable execution backends (Claude, Hermes, OpenClaw). Events are normalized via `normalize_to_forge_event()` so UI/analytics are backend-agnostic. Endpoints: `GET /api/v1/backends`, `GET /api/v1/backends/health`
 - **Middleware simplification:** Moving from 8-middleware chain toward governance-only (RateLimit → BudgetGate → Persist → ConfiguredSpawn)
 - **Configure → Execute → Observe loop:** AgentForge configures Claude Code instances, observes via hooks, reacts to events
 

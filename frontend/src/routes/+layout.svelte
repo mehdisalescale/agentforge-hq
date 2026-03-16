@@ -5,7 +5,7 @@
   import {
     Home, Bot, History, Zap,
     Building2, Users, Network, Target, ShieldCheck,
-    Puzzle,
+    Puzzle, Server,
     BarChart3, Settings,
     Wifi, WifiOff,
     Menu, X
@@ -93,6 +93,7 @@
 
   const utilityLinks: NavLink[] = [
     { href: '/skills', text: 'Skills', icon: Puzzle },
+    { href: '/backends', text: 'Backends', icon: Server },
     { href: '/analytics', text: 'Analytics', icon: BarChart3 },
     { href: '/settings', text: 'Settings', icon: Settings },
   ];

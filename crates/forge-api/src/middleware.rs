@@ -17,7 +17,7 @@ use forge_core::events::ForgeEvent;
 use forge_core::ids::{AgentId, SessionId};
 use forge_db::{ApprovalRepo, CompanyRepo, GoalRepo, OrgPositionRepo, SessionRepo, SkillRepo};
 use forge_process::stream_event::StreamJsonEvent;
-use forge_process::{parse_line, ProcessRunner, BackendRegistry, BackendSpawnConfig};
+use forge_process::{parse_line, ProcessRunner, BackendRegistry, BackendSpawnConfig, normalize_to_forge_event};
 use forge_safety::{BudgetStatus, CircuitBreaker, CostTracker, RateLimiter};
 
 /// Context passed through the middleware chain.
@@ -616,6 +616,7 @@ impl Middleware for SpawnMiddleware {
             let cost_tracker = Arc::clone(&self.cost_tracker);
             let sid = ctx.session_id_typed.clone();
             let aid = ctx.agent_id_typed.clone();
+            let backend_name_owned = backend_name.to_string();
 
             tokio::spawn(async move {
                 use tokio::io::AsyncBufReadExt;
@@ -675,8 +676,14 @@ impl Middleware for SpawnMiddleware {
                                 }
                             }
                         }
-                        if runner.emit_parsed_event(&sid, &aid, &ev).is_err() {
-                            tracing::warn!("spawn middleware: emit_parsed_event failed");
+                        // Use centralized event normalization for backend-agnostic mapping
+                        let forge_events = normalize_to_forge_event(
+                            &backend_name_owned, &ev, &sid, &aid,
+                        );
+                        for fe in forge_events {
+                            if runner.emit(fe).is_err() {
+                                tracing::warn!("spawn middleware: emit normalized event failed");
+                            }
                         }
                     }
                 }

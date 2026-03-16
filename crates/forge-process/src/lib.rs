@@ -27,5 +27,5 @@ pub use claude_backend::ClaudeBackend;
 pub use spawn::{ProcessHandle, SpawnConfig, SpawnError, SpawnLimiter, spawn};
 pub use stream_event::{
     AssistantPayload, ContentBlock, ErrorPayload, MessagePayload, ResultPayload,
-    StreamJsonEvent, SystemPayload, UserPayload,
+    StreamJsonEvent, SystemPayload, UserPayload, normalize_to_forge_event,
 };

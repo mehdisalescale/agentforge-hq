@@ -169,6 +169,13 @@ Returns `202 Accepted` with `session_id`.
 |--------|------|-------------|
 | GET | `/settings` | Runtime configuration |
 
+## Backends
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/backends` | List available backends and capabilities |
+| GET | `/backends/health` | Health check all backends |
+
 ## WebSocket
 
 | Path | Description |

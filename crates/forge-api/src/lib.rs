@@ -924,4 +924,44 @@ mod tests {
         let expected_tool_count = 21;
         assert_eq!(expected_tool_count, 21, "Update site-docs/reference/mcp-tools.md if tool count changes");
     }
+
+    // --- E3: Backend dispatch and health tests ---
+
+    #[tokio::test]
+    async fn backends_list_returns_claude() {
+        let app = app(test_state());
+        let (status, json) = json_get(&app, "/api/v1/backends").await;
+        assert_eq!(status, StatusCode::OK);
+        let arr = json.as_array().unwrap();
+        assert_eq!(arr.len(), 1);
+        assert_eq!(arr[0]["name"], "claude");
+        assert_eq!(arr[0]["capabilities"]["supports_streaming"], true);
+        assert_eq!(arr[0]["capabilities"]["supports_tools"], true);
+    }
+
+    #[tokio::test]
+    async fn backends_health_returns_status() {
+        let app = app(test_state());
+        let (status, json) = json_get(&app, "/api/v1/backends/health").await;
+        assert_eq!(status, StatusCode::OK);
+        let arr = json.as_array().unwrap();
+        assert_eq!(arr.len(), 1);
+        assert_eq!(arr[0]["name"], "claude");
+        // Status will be "healthy", "degraded", or "unavailable" depending on
+        // whether claude CLI is installed — just verify the field exists
+        assert!(arr[0]["status"].is_string());
+    }
+
+    #[tokio::test]
+    async fn backend_registry_dispatches_to_claude() {
+        let state = test_state();
+        // Verify the registry has the default backend
+        assert!(state.backend_registry.default().is_some());
+        assert_eq!(state.backend_registry.default().unwrap().name(), "claude");
+        // Verify capabilities
+        let caps = state.backend_registry.default().unwrap().capabilities();
+        assert!(caps.supports_streaming);
+        assert!(caps.supports_tools);
+        assert!(!caps.supported_models.is_empty());
+    }
 }
