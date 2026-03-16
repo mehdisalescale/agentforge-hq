@@ -47,7 +47,7 @@ impl SkillRepo {
     }
 
     pub fn list(&self) -> ForgeResult<Vec<Skill>> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let mut stmt = conn
             .prepare(
                 "SELECT id, name, description, category, subcategory, content, source_repo, parameters_json, examples_json, usage_count, created_at
@@ -63,7 +63,7 @@ impl SkillRepo {
     }
 
     pub fn get(&self, id: &str) -> ForgeResult<Skill> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let mut stmt = conn
             .prepare(
                 "SELECT id, name, description, category, subcategory, content, source_repo, parameters_json, examples_json, usage_count, created_at
@@ -80,7 +80,7 @@ impl SkillRepo {
     /// Insert or update a skill by id. On conflict (same id), updates all fields
     /// except usage_count and created_at.
     pub fn upsert(&self, input: &UpsertSkill) -> ForgeResult<()> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         conn.execute(
             "INSERT INTO skills (id, name, description, category, subcategory, content, source_repo, parameters_json, examples_json)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
@@ -149,7 +149,7 @@ impl SkillRepo {
         trigger_type: &str,
         trigger_pattern: &str,
     ) -> ForgeResult<SkillRule> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let id = Uuid::new_v4().to_string();
         conn.execute(
             "INSERT INTO skill_rules (id, skill_id, trigger_type, trigger_pattern, enabled)
@@ -171,7 +171,7 @@ impl SkillRepo {
 
     /// List all rules for a given skill.
     pub fn list_rules(&self, skill_id: &str) -> ForgeResult<Vec<SkillRule>> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let mut stmt = conn
             .prepare(
                 "SELECT id, skill_id, trigger_type, trigger_pattern, enabled, created_at
@@ -190,7 +190,7 @@ impl SkillRepo {
 
     /// Delete a skill rule by id.
     pub fn delete_rule(&self, id: &str) -> ForgeResult<()> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let rows = conn
             .execute("DELETE FROM skill_rules WHERE id = ?1", rusqlite::params![id])
             .map_err(|e| ForgeError::Database(Box::new(e)))?;
@@ -209,7 +209,7 @@ impl SkillRepo {
     ///
     /// Returns a de-duplicated list of matched skills.
     pub fn find_matching_rules(&self, working_dir: &str, prompt: &str) -> ForgeResult<Vec<Skill>> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let mut stmt = conn
             .prepare(
                 "SELECT sr.id, sr.skill_id, sr.trigger_type, sr.trigger_pattern, sr.enabled, sr.created_at,
@@ -393,11 +393,11 @@ mod tests {
 
     fn setup_test_db() -> Arc<Mutex<Connection>> {
         let db = DbPool::in_memory().unwrap();
-        let conn = db.connection();
+        let conn = db.connection().unwrap();
         let migrator = Migrator::new(&conn);
         migrator.apply_pending().unwrap();
         drop(conn);
-        db.conn_arc()
+        db.conn_arc().unwrap()
     }
 
     #[test]
@@ -617,7 +617,7 @@ Body content here.
     /// Setup DB with skill_rules table for rule tests.
     fn setup_test_db_with_rules() -> Arc<Mutex<Connection>> {
         let db = DbPool::in_memory().unwrap();
-        let conn = db.connection();
+        let conn = db.connection().unwrap();
         let migrator = Migrator::new(&conn);
         migrator.apply_pending().unwrap();
         // Create the skill_rules table (migration 0008 may not be wired yet)
@@ -635,7 +635,7 @@ Body content here.
         )
         .unwrap();
         drop(conn);
-        db.conn_arc()
+        db.conn_arc().unwrap()
     }
 
     fn insert_test_skill(conn: &Arc<Mutex<Connection>>, id: &str, name: &str) {

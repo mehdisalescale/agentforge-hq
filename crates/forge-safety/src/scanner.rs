@@ -1,4 +1,5 @@
 use regex::Regex;
+use std::sync::LazyLock;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Severity {
@@ -29,90 +30,104 @@ pub struct SecurityFinding {
 }
 
 struct ScanPattern {
-    name: String,
+    name: &'static str,
     severity: Severity,
     regex: Regex,
-    description: String,
+    description: &'static str,
 }
 
-pub struct SecurityScanner {
-    patterns: Vec<ScanPattern>,
-}
+/// Security scan patterns compiled once via `LazyLock`.
+/// All regex patterns are known at compile time and guaranteed to be valid,
+/// so `expect` is appropriate here (a failure would indicate a programming bug).
+static SCAN_PATTERNS: LazyLock<Vec<ScanPattern>> = LazyLock::new(|| {
+    vec![
+        ScanPattern {
+            name: "command_injection",
+            severity: Severity::Critical,
+            regex: Regex::new(r#"os\.system\(|subprocess\.(call|run|Popen)\(.*f"|exec\(.*shell"#)
+                .expect("command_injection regex is valid"),
+            description: "Potential command injection via os.system/subprocess/exec",
+        },
+        ScanPattern {
+            name: "xss_dangerous_html",
+            severity: Severity::High,
+            regex: Regex::new(r#"\.innerHTML\s*=|dangerouslySetInnerHTML|v-html"#)
+                .expect("xss_dangerous_html regex is valid"),
+            description: "Dangerous HTML assignment may allow XSS",
+        },
+        ScanPattern {
+            name: "eval_injection",
+            severity: Severity::Critical,
+            regex: Regex::new(r#"eval\(|exec\(|new Function\("#)
+                .expect("eval_injection regex is valid"),
+            description: "Dynamic code execution via eval/exec/new Function",
+        },
+        ScanPattern {
+            name: "sql_injection",
+            severity: Severity::Critical,
+            regex: Regex::new(r#"f".*(?i:SELECT|INSERT|UPDATE|DELETE)|"(?i:SELECT).*"\s*\+|\.format\(.*(?i:SELECT)"#)
+                .expect("sql_injection regex is valid"),
+            description: "Potential SQL injection via string interpolation",
+        },
+        ScanPattern {
+            name: "path_traversal",
+            severity: Severity::High,
+            regex: Regex::new(r#"\.\./.*open|open\(.*\.\./|os\.path\.join\(.*request"#)
+                .expect("path_traversal regex is valid"),
+            description: "Path traversal via ../ in file operations",
+        },
+        ScanPattern {
+            name: "pickle_deserialization",
+            severity: Severity::High,
+            regex: Regex::new(r#"pickle\.loads?\(|yaml\.load\("#)
+                .expect("pickle_deserialization regex is valid"),
+            description: "Unsafe deserialization via pickle/yaml.load",
+        },
+        ScanPattern {
+            name: "hardcoded_secrets",
+            severity: Severity::Medium,
+            regex: Regex::new(r#"(?i)(api_key|password|secret|token)\s*=\s*["'][^"'\s$\{][^"']*["']"#)
+                .expect("hardcoded_secrets regex is valid"),
+            description: "Hardcoded secret or credential in source code",
+        },
+        ScanPattern {
+            name: "insecure_random",
+            severity: Severity::Low,
+            regex: Regex::new(r#"Math\.random\(\)|random\.random\(\)"#)
+                .expect("insecure_random regex is valid"),
+            description: "Insecure random number generator used (not suitable for crypto/auth)",
+        },
+        ScanPattern {
+            name: "open_redirect",
+            severity: Severity::Medium,
+            regex: Regex::new(r#"redirect\(request\.(GET|POST|query)"#)
+                .expect("open_redirect regex is valid"),
+            description: "Open redirect using unvalidated user input",
+        },
+    ]
+});
+
+pub struct SecurityScanner;
 
 impl SecurityScanner {
     pub fn new() -> Self {
-        let patterns = vec![
-            ScanPattern {
-                name: "command_injection".into(),
-                severity: Severity::Critical,
-                regex: Regex::new(r#"os\.system\(|subprocess\.(call|run|Popen)\(.*f"|exec\(.*shell"#).unwrap(),
-                description: "Potential command injection via os.system/subprocess/exec".into(),
-            },
-            ScanPattern {
-                name: "xss_dangerous_html".into(),
-                severity: Severity::High,
-                regex: Regex::new(r#"\.innerHTML\s*=|dangerouslySetInnerHTML|v-html"#).unwrap(),
-                description: "Dangerous HTML assignment may allow XSS".into(),
-            },
-            ScanPattern {
-                name: "eval_injection".into(),
-                severity: Severity::Critical,
-                regex: Regex::new(r#"eval\(|exec\(|new Function\("#).unwrap(),
-                description: "Dynamic code execution via eval/exec/new Function".into(),
-            },
-            ScanPattern {
-                name: "sql_injection".into(),
-                severity: Severity::Critical,
-                regex: Regex::new(r#"f".*(?i:SELECT|INSERT|UPDATE|DELETE)|"(?i:SELECT).*"\s*\+|\.format\(.*(?i:SELECT)"#).unwrap(),
-                description: "Potential SQL injection via string interpolation".into(),
-            },
-            ScanPattern {
-                name: "path_traversal".into(),
-                severity: Severity::High,
-                regex: Regex::new(r#"\.\./.*open|open\(.*\.\./|os\.path\.join\(.*request"#).unwrap(),
-                description: "Path traversal via ../ in file operations".into(),
-            },
-            ScanPattern {
-                name: "pickle_deserialization".into(),
-                severity: Severity::High,
-                regex: Regex::new(r#"pickle\.loads?\(|yaml\.load\("#).unwrap(),
-                description: "Unsafe deserialization via pickle/yaml.load".into(),
-            },
-            ScanPattern {
-                name: "hardcoded_secrets".into(),
-                severity: Severity::Medium,
-                regex: Regex::new(r#"(?i)(api_key|password|secret|token)\s*=\s*["'][^"'\s$\{][^"']*["']"#).unwrap(),
-                description: "Hardcoded secret or credential in source code".into(),
-            },
-            ScanPattern {
-                name: "insecure_random".into(),
-                severity: Severity::Low,
-                regex: Regex::new(r#"Math\.random\(\)|random\.random\(\)"#).unwrap(),
-                description: "Insecure random number generator used (not suitable for crypto/auth)".into(),
-            },
-            ScanPattern {
-                name: "open_redirect".into(),
-                severity: Severity::Medium,
-                regex: Regex::new(r#"redirect\(request\.(GET|POST|query)"#).unwrap(),
-                description: "Open redirect using unvalidated user input".into(),
-            },
-        ];
-
-        Self { patterns }
+        // Force initialization of the static patterns on first use.
+        LazyLock::force(&SCAN_PATTERNS);
+        Self
     }
 
     pub fn scan(&self, code: &str) -> Vec<SecurityFinding> {
         let mut findings = Vec::new();
 
         for (line_idx, line) in code.lines().enumerate() {
-            for pat in &self.patterns {
+            for pat in SCAN_PATTERNS.iter() {
                 if pat.regex.is_match(line) {
                     findings.push(SecurityFinding {
-                        pattern: pat.name.clone(),
+                        pattern: pat.name.to_string(),
                         severity: pat.severity.clone(),
                         line: line_idx + 1,
                         snippet: line.trim().to_string(),
-                        description: pat.description.clone(),
+                        description: pat.description.to_string(),
                     });
                 }
             }

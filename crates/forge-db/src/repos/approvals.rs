@@ -38,7 +38,7 @@ impl ApprovalRepo {
             return Err(ForgeError::Validation("approval_type is required".into()));
         }
 
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let id = uuid::Uuid::new_v4().to_string();
         let now = Utc::now().to_rfc3339();
         conn.execute(
@@ -61,7 +61,7 @@ impl ApprovalRepo {
     }
 
     pub fn get(&self, id: &str) -> ForgeResult<Approval> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let mut stmt = conn
             .prepare(
                 "SELECT id, company_id, approval_type, status, requester, approver, data_json, created_at, updated_at
@@ -83,7 +83,7 @@ impl ApprovalRepo {
         status: &str,
         approver: Option<&str>,
     ) -> ForgeResult<Approval> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let now = Utc::now().to_rfc3339();
         let rows = conn
             .execute(
@@ -99,7 +99,7 @@ impl ApprovalRepo {
     }
 
     pub fn list_by_company(&self, company_id: &str) -> ForgeResult<Vec<Approval>> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let mut stmt = conn
             .prepare(
                 "SELECT id, company_id, approval_type, status, requester, approver, data_json, created_at, updated_at

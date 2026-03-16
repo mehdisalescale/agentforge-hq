@@ -87,18 +87,18 @@ impl ProcessRunner {
     ) -> ForgeResult<()> {
         let now = Utc::now();
         self.event_bus.emit_sync(ForgeEvent::ProcessStarted {
-            session_id: session_id.clone(),
-            agent_id: agent_id.clone(),
+            session_id,
+            agent_id,
             timestamp: now,
         })?;
         self.event_bus.emit_sync(ForgeEvent::ProcessOutput {
-            session_id: session_id.clone(),
+            session_id,
             kind: OutputKind::Assistant,
             content: "Stub output line 1.".into(),
             timestamp: Utc::now(),
         })?;
         self.event_bus.emit_sync(ForgeEvent::ProcessOutput {
-            session_id: session_id.clone(),
+            session_id,
             kind: OutputKind::Assistant,
             content: "Stub output line 2.".into(),
             timestamp: Utc::now(),
@@ -122,23 +122,23 @@ impl ProcessRunner {
         let now = Utc::now();
         let forge_event = match &event.kind {
             StreamJsonKind::Started => ForgeEvent::ProcessStarted {
-                session_id: session_id.clone(),
-                agent_id: agent_id.clone(),
+                session_id: *session_id,
+                agent_id: *agent_id,
                 timestamp: now,
             },
             StreamJsonKind::Output { kind, content } => ForgeEvent::ProcessOutput {
-                session_id: session_id.clone(),
+                session_id: *session_id,
                 kind: kind.clone(),
                 content: content.clone(),
                 timestamp: now,
             },
             StreamJsonKind::Completed { exit_code } => ForgeEvent::ProcessCompleted {
-                session_id: session_id.clone(),
+                session_id: *session_id,
                 exit_code: *exit_code,
                 timestamp: now,
             },
             StreamJsonKind::Failed { error } => ForgeEvent::ProcessFailed {
-                session_id: session_id.clone(),
+                session_id: *session_id,
                 error: error.clone(),
                 timestamp: now,
             },
@@ -177,7 +177,7 @@ impl ProcessRunner {
                     for block in &msg.content {
                         if let Some((kind, content)) = content_block_output(block) {
                             self.event_bus.emit_sync(ForgeEvent::ProcessOutput {
-                                session_id: session_id.clone(),
+                                session_id: *session_id,
                                 kind,
                                 content,
                                 timestamp: Utc::now(),
@@ -189,12 +189,12 @@ impl ProcessRunner {
             }
             ParsedEvent::User(_) => Ok(()),
             ParsedEvent::Result(_) => self.event_bus.emit_sync(ForgeEvent::ProcessCompleted {
-                session_id: session_id.clone(),
+                session_id: *session_id,
                 exit_code: 0,
                 timestamp: Utc::now(),
             }),
             ParsedEvent::Error(p) => self.event_bus.emit_sync(ForgeEvent::ProcessFailed {
-                session_id: session_id.clone(),
+                session_id: *session_id,
                 error: p.message.clone().unwrap_or_else(|| "unknown error".into()),
                 timestamp: Utc::now(),
             }),
@@ -243,7 +243,7 @@ mod tests {
         let session_id = SessionId::new();
         let agent_id = AgentId::new();
 
-        runner.emit_stub_run(session_id.clone(), agent_id.clone()).unwrap();
+        runner.emit_stub_run(session_id, agent_id).unwrap();
 
         let e1 = rx.recv().await.unwrap();
         assert!(matches!(e1, ForgeEvent::ProcessStarted { .. }));

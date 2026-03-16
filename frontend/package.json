@@ -8,7 +8,8 @@
     "build": "svelte-kit sync && vite build",
     "preview": "vite preview",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-    "sync": "svelte-kit sync"
+    "sync": "svelte-kit sync",
+    "generate-types": "npx --yes openapi-typescript ${FORGE_API_URL:-http://127.0.0.1:3000}/api/openapi.json -o src/lib/api-types.generated.ts"
   },
   "devDependencies": {
     "@sveltejs/adapter-static": "^3.0.8",

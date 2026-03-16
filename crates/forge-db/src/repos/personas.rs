@@ -15,7 +15,7 @@ impl PersonaRepo {
     }
 
     pub fn upsert_divisions(&self, divisions: &[PersonaDivision]) -> ForgeResult<()> {
-        let mut conn = self.conn.lock().expect("db mutex poisoned");
+        let mut conn = crate::pool::lock_conn(&self.conn)?;
         let tx = conn
             .transaction()
             .map_err(|e| ForgeError::Database(Box::new(e)))?;
@@ -48,7 +48,7 @@ impl PersonaRepo {
     }
 
     pub fn upsert_personas(&self, personas: &[Persona]) -> ForgeResult<()> {
-        let mut conn = self.conn.lock().expect("db mutex poisoned");
+        let mut conn = crate::pool::lock_conn(&self.conn)?;
         let tx = conn
             .transaction()
             .map_err(|e| ForgeError::Database(Box::new(e)))?;
@@ -94,7 +94,7 @@ impl PersonaRepo {
     }
 
     pub fn list_divisions(&self) -> ForgeResult<Vec<PersonaDivision>> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let mut stmt = conn
             .prepare(
                 "SELECT id, slug, name, description, agent_count, created_at, updated_at
@@ -142,7 +142,7 @@ impl PersonaRepo {
     }
 
     pub fn list(&self, division_slug: Option<&str>, search: Option<&str>) -> ForgeResult<Vec<Persona>> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
 
         let mut sql = String::from(
             "SELECT id, division_slug, slug, name, short_description, personality, deliverables, success_metrics, workflow, tags_json, source_file, created_at, updated_at
@@ -189,7 +189,7 @@ impl PersonaRepo {
     }
 
     pub fn get(&self, id: &PersonaId) -> ForgeResult<Persona> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let mut stmt = conn
             .prepare(
                 "SELECT id, division_slug, slug, name, short_description, personality, deliverables, success_metrics, workflow, tags_json, source_file, created_at, updated_at

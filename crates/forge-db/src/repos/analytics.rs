@@ -47,7 +47,7 @@ impl AnalyticsRepo {
     }
 
     pub fn total_cost(&self, start: &str, end: &str) -> ForgeResult<f64> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let cost: f64 = conn
             .query_row(
                 "SELECT COALESCE(SUM(cost_usd), 0.0) FROM sessions WHERE created_at BETWEEN ?1 AND ?2",
@@ -59,7 +59,7 @@ impl AnalyticsRepo {
     }
 
     pub fn cost_by_agent(&self, start: &str, end: &str) -> ForgeResult<Vec<AgentCostBreakdown>> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let mut stmt = conn
             .prepare(
                 "SELECT agent_id, COALESCE(SUM(cost_usd), 0.0), COUNT(*)
@@ -82,7 +82,7 @@ impl AnalyticsRepo {
     }
 
     pub fn daily_costs(&self, start: &str, end: &str) -> ForgeResult<Vec<DailyCost>> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let mut stmt = conn
             .prepare(
                 "SELECT date(created_at) AS day, COALESCE(SUM(cost_usd), 0.0)
@@ -104,7 +104,7 @@ impl AnalyticsRepo {
     }
 
     pub fn session_stats(&self, start: &str, end: &str) -> ForgeResult<SessionStats> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let (total, completed, failed, avg_cost): (i64, i64, i64, f64) = conn
             .query_row(
                 "SELECT COUNT(*),

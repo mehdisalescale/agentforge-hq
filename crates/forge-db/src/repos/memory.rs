@@ -89,7 +89,7 @@ impl MemoryRepo {
         if input.content.trim().is_empty() {
             return Err(ForgeError::Validation("content cannot be empty".into()));
         }
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let id = Uuid::new_v4().to_string();
         let now = Utc::now();
         let category = input.category.as_deref().unwrap_or("general");
@@ -138,7 +138,7 @@ impl MemoryRepo {
     }
 
     pub fn get(&self, id: &str) -> ForgeResult<Memory> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
 
         // Try with memory_type column first; fall back without it
         let sql = if has_memory_type_column(&conn) {
@@ -167,7 +167,7 @@ impl MemoryRepo {
     }
 
     pub fn list(&self, limit: i64, offset: i64) -> ForgeResult<Vec<Memory>> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
 
         let sql = if has_memory_type_column(&conn) {
             "SELECT id, category, content, confidence, source_session_id, created_at, updated_at, memory_type
@@ -207,7 +207,7 @@ impl MemoryRepo {
         let category = input.category.as_deref().unwrap_or(&existing.category);
         let confidence = input.confidence.unwrap_or(existing.confidence);
 
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         conn.execute(
             "UPDATE memory SET content = ?1, category = ?2, confidence = ?3, updated_at = ?4 WHERE id = ?5",
             rusqlite::params![content, category, confidence, now.to_rfc3339(), id],
@@ -219,7 +219,7 @@ impl MemoryRepo {
     }
 
     pub fn delete(&self, id: &str) -> ForgeResult<()> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let rows = conn
             .execute("DELETE FROM memory WHERE id = ?1", rusqlite::params![id])
             .map_err(|e| ForgeError::Database(Box::new(e)))?;
@@ -395,7 +395,7 @@ impl MemoryRepo {
 
     /// Simple LIKE-based search across content and category.
     pub fn search(&self, query: &str) -> ForgeResult<Vec<Memory>> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let pattern = format!("%{}%", query);
 
         let sql = if has_memory_type_column(&conn) {
@@ -431,7 +431,7 @@ impl MemoryRepo {
 
     /// Search memories filtered by type.
     pub fn search_by_type(&self, memory_type: &str, query: &str) -> ForgeResult<Vec<Memory>> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let pattern = format!("%{}%", query);
         let mut stmt = conn
             .prepare(

@@ -1,5 +1,10 @@
 //! Forge MCP server: stdio transport via rmcp, agent and session tools.
 //! Usage: FORGE_DB_PATH=~/.agentforge/forge.db forge-mcp
+//!
+//! **WARNING:** This binary accesses the same SQLite database as forge-app.
+//! Do not run both simultaneously without ensuring SQLite WAL mode is enabled
+//! and busy_timeout is set (both are configured by forge-db's DbPool).
+//! Concurrent writes may result in SQLITE_BUSY errors.
 
 use forge_agent::model::{NewAgent, UpdateAgent};
 use forge_core::ids::{AgentId, SessionId};
@@ -26,8 +31,7 @@ fn default_db_path() -> String {
 
     // Graceful migration: use legacy path if it exists and new path doesn't
     if !std::path::Path::new(&new_path).exists() && std::path::Path::new(&legacy_path).exists() {
-        eprintln!("Note: Found database at legacy path ~/.claude-forge/forge.db");
-        eprintln!("      Consider moving to ~/.agentforge/forge.db");
+        tracing::warn!("Found database at legacy path ~/.claude-forge/forge.db. Consider moving to ~/.agentforge/forge.db");
         return legacy_path;
     }
     new_path
@@ -720,7 +724,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     tracing::info!(path = %db_path, "opening database");
     let db = forge_db::DbPool::new(path)?;
     {
-        let conn = db.connection();
+        let conn = db.connection()?;
         let migrator = Migrator::new(&conn);
         migrator.apply_pending()?;
     }

@@ -160,7 +160,7 @@
                       };
                     }
                   })
-                  .catch(() => { /* ignore metadata fetch errors */ });
+                  .catch((e) => console.warn('metadata fetch failed:', e));
               }
             }
             if (ev.type === 'ProcessFailed') {
