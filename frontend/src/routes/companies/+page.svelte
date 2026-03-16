@@ -1,8 +1,8 @@
 <script lang="ts">
   import { setContext } from 'svelte';
   import { onMount } from 'svelte';
-  import { listCompanies, createCompany, type Company } from '$lib/api';
-  import { Building2, Plus, DollarSign } from 'lucide-svelte';
+  import { listCompanies, createCompany, updateCompany, deleteCompany, type Company } from '$lib/api';
+  import { Building2, Plus, DollarSign, Pencil, Trash2, X } from 'lucide-svelte';
   import Skeleton from '$lib/components/Skeleton.svelte';
   import ErrorMessage from '$lib/components/ErrorMessage.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
@@ -21,6 +21,69 @@
   let name = $state('');
   let mission = $state('');
   let budgetLimit = $state<string | number>('');
+
+  // Detail / edit state
+  let selectedId = $state<string | null>(null);
+  let editing = $state(false);
+  let editName = $state('');
+  let editMission = $state('');
+  let editBudget = $state<string | number>('');
+  let deleting = $state(false);
+
+  let selectedCompany = $derived(companies.find(c => c.id === selectedId) ?? null);
+
+  function selectCompany(id: string) {
+    if (selectedId === id) {
+      selectedId = null;
+      editing = false;
+    } else {
+      selectedId = id;
+      editing = false;
+    }
+  }
+
+  function startEdit() {
+    if (!selectedCompany) return;
+    editName = selectedCompany.name;
+    editMission = selectedCompany.mission || '';
+    editBudget = selectedCompany.budget_limit ?? '';
+    editing = true;
+  }
+
+  async function saveEdit() {
+    if (!selectedCompany || !editName.trim()) return;
+    submitting = true;
+    try {
+      const payload: Record<string, unknown> = { name: editName.trim() };
+      if (editMission.trim()) payload.mission = editMission.trim();
+      const bl = String(editBudget).trim();
+      if (bl) {
+        const n = Number(bl);
+        if (!Number.isNaN(n) && n > 0) payload.budget_limit = n;
+      }
+      await updateCompany(selectedCompany.id, payload);
+      editing = false;
+      await loadCompanies();
+    } catch (e) {
+      formError = e instanceof Error ? e.message : String(e);
+    } finally {
+      submitting = false;
+    }
+  }
+
+  async function confirmDelete() {
+    if (!selectedCompany) return;
+    deleting = true;
+    try {
+      await deleteCompany(selectedCompany.id);
+      selectedId = null;
+      await loadCompanies();
+    } catch (e) {
+      error = e instanceof Error ? e.message : String(e);
+    } finally {
+      deleting = false;
+    }
+  }
 
   async function loadCompanies() {
     loading = true;
@@ -114,7 +177,14 @@
   {:else}
     <div class="company-cards">
       {#each companies as c (c.id)}
-        <article class="card">
+        <article
+          class="card"
+          class:selected={selectedId === c.id}
+          role="button"
+          tabindex="0"
+          onclick={() => selectCompany(c.id)}
+          onkeydown={(e) => e.key === 'Enter' && selectCompany(c.id)}
+        >
           <header class="card-header">
             <h2 class="card-title">{c.name}</h2>
           </header>
@@ -128,6 +198,56 @@
         </article>
       {/each}
     </div>
+
+    {#if selectedCompany && !editing}
+      <div class="detail-panel">
+        <header class="detail-header">
+          <h2>{selectedCompany.name}</h2>
+          <div class="detail-actions">
+            <button class="btn btn-ghost" onclick={startEdit} title="Edit"><Pencil size={14} /> Edit</button>
+            <button class="btn btn-danger" onclick={confirmDelete} disabled={deleting} title="Delete"><Trash2 size={14} /> {deleting ? 'Deleting...' : 'Delete'}</button>
+            <button class="btn btn-ghost" onclick={() => { selectedId = null; }} title="Close"><X size={14} /></button>
+          </div>
+        </header>
+        <dl class="detail-fields">
+          <dt>Mission</dt>
+          <dd>{selectedCompany.mission || '—'}</dd>
+          <dt>Budget Used</dt>
+          <dd>${selectedCompany.budget_used.toFixed(2)}</dd>
+          <dt>Budget Limit</dt>
+          <dd>{selectedCompany.budget_limit != null ? `$${selectedCompany.budget_limit.toFixed(2)}` : 'No limit'}</dd>
+          <dt>Created</dt>
+          <dd>{new Date(selectedCompany.created_at).toLocaleDateString()}</dd>
+        </dl>
+      </div>
+    {/if}
+
+    {#if editing && selectedCompany}
+      <div class="detail-panel">
+        <h2>Edit {selectedCompany.name}</h2>
+        {#if formError}
+          <div class="message error">{formError}</div>
+        {/if}
+        <form class="company-form" onsubmit={(e) => { e.preventDefault(); saveEdit(); }}>
+          <label>
+            <span>Name</span>
+            <input type="text" bind:value={editName} required />
+          </label>
+          <label>
+            <span>Mission</span>
+            <textarea bind:value={editMission} rows="3"></textarea>
+          </label>
+          <label>
+            <span>Budget limit (USD)</span>
+            <input type="number" min="0" step="0.01" bind:value={editBudget} />
+          </label>
+          <div class="form-actions">
+            <button type="button" class="btn btn-ghost" onclick={() => { editing = false; }}>Cancel</button>
+            <button type="submit" class="btn btn-primary" disabled={submitting}>{submitting ? 'Saving...' : 'Save'}</button>
+          </div>
+        </form>
+      </div>
+    {/if}
   {/if}
 
   {#if formOpen}
@@ -212,9 +332,16 @@
     transition: border-color var(--transition), box-shadow var(--transition);
   }
 
-  .card:hover {
+  .card:hover,
+  .card:focus-visible {
     border-color: var(--border-hover);
     box-shadow: var(--shadow-sm);
+    cursor: pointer;
+  }
+
+  .card.selected {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-muted);
   }
 
   .card-title {
@@ -241,6 +368,58 @@
 
   .card-budget .label {
     color: var(--muted);
+  }
+
+  .detail-panel {
+    margin-top: 1.5rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+  }
+
+  .detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+  }
+
+  .detail-header h2 {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 600;
+  }
+
+  .detail-actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .detail-fields {
+    display: grid;
+    grid-template-columns: 8rem 1fr;
+    gap: 0.5rem 1rem;
+    font-size: 0.875rem;
+  }
+
+  .detail-fields dt {
+    color: var(--muted);
+    font-weight: 500;
+  }
+
+  .detail-fields dd {
+    margin: 0;
+  }
+
+  .btn-danger {
+    background: transparent;
+    border-color: transparent;
+    color: #f87171;
+  }
+
+  .btn-danger:hover {
+    background: rgba(248, 113, 113, 0.1);
   }
 
   .empty-state {

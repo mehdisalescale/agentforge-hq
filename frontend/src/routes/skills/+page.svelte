@@ -2,6 +2,7 @@
   import { setContext } from 'svelte';
   import { onMount } from 'svelte';
   import { listSkills, type Skill } from '$lib/api';
+  import Markdown from '$lib/components/Markdown.svelte';
 
   setContext('pageTitle', 'Skills');
 
@@ -131,9 +132,9 @@
 
           <div class="content-preview">
             {#if expandedIds.has(skill.id)}
-              <pre class="content-text">{cp.full}</pre>
+              <Markdown content={cp.full} />
             {:else}
-              <pre class="content-text">{cp.preview}</pre>
+              <Markdown content={cp.preview} />
             {/if}
             {#if cp.needsExpand}
               <button class="btn btn-ghost expand-btn" onclick={() => toggleExpand(skill.id)}>

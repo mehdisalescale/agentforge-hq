@@ -188,7 +188,7 @@
             </div>
             <button class="btn btn-small" type="button" onclick={() => openHireModal(p)}><UserPlus size={14} /> Hire</button>
           </header>
-          <p class="card-summary">{p.short_description}</p>
+          <div class="card-summary"><Markdown content={p.short_description} /></div>
           {#if p.tags?.length}
             <ul class="tags">
               {#each p.tags.slice(0, 6) as tag}

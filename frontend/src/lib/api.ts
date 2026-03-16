@@ -650,6 +650,25 @@ export async function createCompany(data: {
   return handleResponse<Company>(res);
 }
 
+export async function updateCompany(id: string, data: Record<string, unknown>): Promise<Company> {
+  const res = await fetch(`${API_BASE}/api/v1/companies/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<Company>(res);
+}
+
+export async function deleteCompany(id: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/v1/companies/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => 'Delete failed');
+    throw new Error(text);
+  }
+}
+
 export async function createDepartment(data: {
   company_id: string;
   name: string;

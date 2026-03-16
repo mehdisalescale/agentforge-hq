@@ -7,7 +7,7 @@
 
 ## Architecture
 
-- [MCP Design](MCP_DESIGN.md) — MCP server architecture (rmcp, stdio transport, 10 tools)
+- [MCP Design](MCP_DESIGN.md) — MCP server architecture (rmcp, stdio transport, 21 tools)
 - [E2E Smoke Test](E2E_SMOKE_TEST.md) — End-to-end test documentation
 
 ## Crate Reference
@@ -16,17 +16,17 @@
 |-------|---------|
 | `forge-app` | Binary entry point, DB setup, API server, cron scheduler |
 | `forge-api` | Axum HTTP + WebSocket, routes, CORS, rust-embed SPA |
-| `forge-process` | Spawn Claude CLI, stream-json parsing, ConcurrentRunner, LoopDetector |
+| `forge-process` | Spawn Claude CLI, stream-json parsing, ConcurrentRunner, LoopDetector, ProcessBackend trait, BackendRegistry |
 | `forge-agent` | Agent model, 10 presets, validation |
-| `forge-db` | SQLite WAL, 12 migrations, 16 repos, BatchWriter |
-| `forge-core` | ForgeEvent (35 variants), EventBus, shared types, error hierarchy |
+| `forge-db` | SQLite WAL, 13 migrations (0001–0014), 17 repos, BatchWriter, UnitOfWork, r2d2 pool |
+| `forge-core` | ForgeEvent (43 variants), EventBus fan-out (mpsc + broadcast), shared types, error hierarchy |
 | `forge-safety` | CircuitBreaker, RateLimiter, CostTracker |
 | `forge-git` | Git worktree create/remove/list for multi-agent isolation |
 | `forge-org` | Company, Department, OrgPosition models + org chart builder |
 | `forge-persona` | 100+ persona catalog, division taxonomy, parser, hire flow |
 | `forge-governance` | Goal and Approval models |
 | `forge-mcp` | MCP protocol stubs |
-| `forge-mcp-bin` | MCP stdio server (rmcp, 10 tools, 5 resources) |
+| `forge-mcp-bin` | MCP stdio server (rmcp, 21 tools) |
 
 ## Epic 1 — Implemented Surfaces (Org + Personas + Governance)
 

@@ -1,7 +1,7 @@
 # AgentForge HQ — North Star
 
 > **Read this first in every session.** This is the single source of truth for the core app.
-> Last updated: 2026-03-15
+> Last updated: 2026-03-16
 >
 > **Repo:** [mehdisalescale/agentforge-hq](https://github.com/mehdisalescale/agentforge-hq)
 
@@ -20,20 +20,20 @@ Unifies 8 open-source repos into one product. The only Rust-native tool in the s
 
 ### What's Implemented
 
-**13 workspace crates:**
+**12 workspace crates + 1 MCP stubs crate (13 total):**
 
 | Crate | What |
 |-------|------|
 | forge-core | ForgeEvent (43 variants), EventBus fan-out (mpsc + broadcast), ForgeError, typed IDs |
 | forge-agent | 10 presets (incl. Coordinator), Agent/NewAgent/UpdateAgent, validation |
-| forge-db | SQLite WAL, 12 migrations, 17 repos, BatchWriter (50/2s), r2d2 connection pool |
-| forge-process | Claude CLI spawn, stream-json, ConcurrentRunner, LoopDetector |
+| forge-db | SQLite WAL, 13 migrations (0001–0014), 17 repos, BatchWriter (50/2s), UnitOfWork, r2d2 pool |
+| forge-process | Claude CLI spawn, stream-json, ConcurrentRunner, LoopDetector, ProcessBackend trait, BackendRegistry |
 | forge-safety | CircuitBreaker (3-state FSM, persistent), RateLimiter (token bucket), CostTracker |
 | forge-api | Full HTTP API + WebSocket, CORS, TraceLayer, rust-embed SPA, middleware chain |
 | forge-app | Binary wiring, graceful shutdown, env config, skill loading, cron scheduler |
 | forge-git | Worktree create/remove/list for multi-agent isolation |
 | forge-mcp | MCP protocol stubs |
-| forge-mcp-bin | MCP stdio server (rmcp, 19 tools) |
+| forge-mcp-bin | MCP stdio server (rmcp, 21 tools) |
 | **forge-org** | Company, Department, OrgPosition models + org chart builder |
 | **forge-persona** | Persona catalog (100+ personas, 11 divisions), parser, hire flow |
 | **forge-governance** | Goal and Approval models |
@@ -76,7 +76,8 @@ Unifies 8 open-source repos into one product. The only Rust-native tool in the s
 - **v0.5.0**: Cron scheduler, usage analytics, loop detection, quality/exit gates, 150 tests
 - **Epic 1**: Org structure, persona catalog, governance layer, 4 new crates, 5 new frontend pages
 - **Wave 3**: Sidebar cleanup, governance wiring, session output, page verification
-- **Wave 4**: MCP expansion (19 tools), AgentConfigurator, HookReceiver, middleware simplification
+- **Wave 4**: MCP expansion (21 tools), AgentConfigurator, HookReceiver, middleware simplification
+- **AR-1 + E3**: Unit of Work refactor, Hexagonal Backends (ProcessBackend trait, BackendRegistry, ClaudeBackend), 295 tests
 
 ---
 
@@ -88,7 +89,7 @@ Full details: `../docs/product/EPIC_INDEX.md`
 |------|------|--------|
 | E1 | Persona Workforce Catalog | **Baseline implemented** |
 | E2 | Dev Methodology Engine | Planning |
-| E3 | Hexagonal Backend Architecture | Planning |
+| E3 | Hexagonal Backend Architecture | **Foundation implemented** |
 | E4 | Org Structure & Governance | Planning |
 | E5 | Multi-Backend Execution (Hermes/OpenClaw) | Not started |
 | E6 | Knowledge Base | Not started |
@@ -132,10 +133,10 @@ Full details: `../docs/product/EPIC_INDEX.md`
 
 ```
 agentforge-hq/                   <-- This directory (was forge-project)
-  crates/                         <-- 13 workspace crates
+  crates/                         <-- 12 workspace crates + forge-mcp stubs
     forge-core/                   ForgeEvent (43 variants), EventBus (fan-out), errors, IDs
     forge-agent/                  Agent model, 10 presets, validation
-    forge-db/                     SQLite WAL, 12 migrations, 17 repos, BatchWriter
+    forge-db/                     SQLite WAL, 13 migrations, 17 repos, BatchWriter, UnitOfWork
     forge-process/                Claude CLI spawn, stream-json, ConcurrentRunner, LoopDetector
     forge-safety/                 CircuitBreaker, RateLimiter, CostTracker
     forge-api/                    Axum HTTP + WebSocket + middleware + embedded frontend
@@ -147,7 +148,7 @@ agentforge-hq/                   <-- This directory (was forge-project)
     forge-mcp/                    MCP protocol stubs
     forge-mcp-bin/                MCP stdio server (rmcp)
   frontend/                       SvelteKit 5 + TailwindCSS 4
-  migrations/                     0001–0013 (org, personas, governance, safety)
+  migrations/                     0001–0014 (org, personas, governance, safety, backends)
   personas/                       112 persona Markdown files (11 divisions, seeded at startup)
   skills/                         10 seed Markdown skill files
   scripts/                        e2e-smoke.sh
