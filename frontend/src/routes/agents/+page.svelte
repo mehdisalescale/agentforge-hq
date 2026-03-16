@@ -60,6 +60,7 @@
   let formPreset = $state<string>('');
   let formMaxTurns = $state<string>('');
   let formUseMax = $state(false);
+  let formBackendType = $state('claude');
 
   async function loadAgents() {
     loading = true;
@@ -82,6 +83,7 @@
     formPreset = '';
     formMaxTurns = '';
     formUseMax = false;
+    formBackendType = 'claude';
     formError = null;
     formOpen = 'create';
   }
@@ -97,6 +99,7 @@
       formPreset = a.preset ?? '';
       formMaxTurns = a.max_turns != null ? String(a.max_turns) : '';
       formUseMax = a.use_max;
+      formBackendType = a.backend_type || 'claude';
       formOpen = 'edit';
     } catch (e) {
       formError = e instanceof Error ? e.message : String(e);
@@ -116,6 +119,7 @@
       system_prompt: formSystemPrompt.trim() || undefined,
       preset: formPreset ? (formPreset as Agent['preset']) : undefined,
       use_max: formUseMax,
+      backend_type: formBackendType || 'claude',
     };
     const mt = formMaxTurns.trim();
     if (mt) {
@@ -206,6 +210,7 @@
           <div class="card-header">
             <h2 class="card-title">{agent.name}</h2>
             <span class="card-meta">{agent.model}</span>
+            <span class="backend-badge">{agent.backend_type}</span>
             {#if agent.preset}
               <span class="badge">{agent.preset}</span>
             {/if}
@@ -278,6 +283,16 @@
             <input type="text" bind:value={formModel} placeholder="e.g. claude-sonnet-4-20250514" />
           </label>
           <label>
+            <span>Backend</span>
+            <select bind:value={formBackendType}>
+              <option value="claude">claude</option>
+              <option value="openai">openai</option>
+              <option value="gemini">gemini</option>
+              <option value="ollama">ollama</option>
+              <option value="custom">custom</option>
+            </select>
+          </label>
+          <label>
             <span>Preset</span>
             <select bind:value={formPreset}>
               <option value="">None</option>
@@ -339,6 +354,17 @@
   }
   .agent-stats .stat strong {
     color: #e2e8f0;
+  }
+  .backend-badge {
+    font-size: 0.65rem;
+    padding: 0.15rem 0.45rem;
+    border-radius: 4px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    background: rgba(96, 165, 250, 0.12);
+    color: #60a5fa;
+    border: 1px solid rgba(96, 165, 250, 0.25);
   }
   .hired-badge {
     font-size: 0.65rem;

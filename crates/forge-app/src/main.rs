@@ -4,17 +4,17 @@
 use forge_api::state::SafetyState;
 use forge_api::{serve_until_signal, AppState};
 use forge_core::EventBus;
-use forge_db::{
-    AgentRepo, AnalyticsRepo, ApprovalRepo, BatchWriter, CompanyRepo, CompactionRepo, DbPool,
-    DepartmentRepo, EventRepo, GoalRepo, HookRepo, MemoryRepo, Migrator, OrgPositionRepo,
-    PersonaRepo, SafetyRepo, ScheduleRepo, SessionRepo, SkillRepo, WorkflowRepo,
-};
+use forge_db::{BatchWriter, DbPool, Migrator, UnitOfWork};
 
 mod scheduler;
 use forge_agent::model::NewAgent;
 use forge_agent::preset::AgentPreset;
+use forge_db::{
+    AgentRepo, ApprovalRepo, CompanyRepo, DepartmentRepo, GoalRepo, OrgPositionRepo,
+};
 use forge_persona::parser::PersonaParser;
 use forge_persona::model::{Persona, PersonaDivision, PersonaDivisionId};
+use forge_process::{BackendRegistry, ClaudeBackend};
 use forge_safety::{CircuitBreaker, CostTracker, RateLimiter};
 use std::env;
 use std::net::SocketAddr;
@@ -77,44 +77,31 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         }
     }
 
-    let conn_arc = db.conn_arc();
-    let agent_repo = AgentRepo::new(Arc::clone(&conn_arc));
-    let session_repo = SessionRepo::new(Arc::clone(&conn_arc));
-    let event_repo = EventRepo::new(Arc::clone(&conn_arc));
-    let skill_repo = SkillRepo::new(Arc::clone(&conn_arc));
-    let workflow_repo = WorkflowRepo::new(Arc::clone(&conn_arc));
-    let memory_repo = MemoryRepo::new(Arc::clone(&conn_arc));
-    let hook_repo = HookRepo::new(Arc::clone(&conn_arc));
-    let schedule_repo = ScheduleRepo::new(Arc::clone(&conn_arc));
-    let analytics_repo = AnalyticsRepo::new(Arc::clone(&conn_arc));
-    let compaction_repo = CompactionRepo::new(Arc::clone(&conn_arc));
-    let company_repo = CompanyRepo::new(Arc::clone(&conn_arc));
-    let department_repo = DepartmentRepo::new(Arc::clone(&conn_arc));
-    let org_position_repo = OrgPositionRepo::new(Arc::clone(&conn_arc));
-    let goal_repo = GoalRepo::new(Arc::clone(&conn_arc));
-    let approval_repo = ApprovalRepo::new(Arc::clone(&conn_arc));
-    let persona_repo = PersonaRepo::new(Arc::clone(&conn_arc));
+    let db = Arc::new(db);
+    let uow = Arc::new(UnitOfWork::new(Arc::clone(&db)));
+
     let (event_bus, persist_rx) = EventBus::new(1024, 256);
 
     // Load seed skills from the skills/ directory.
-    if let Err(e) = skill_repo.load_from_dir(std::path::Path::new("skills")) {
+    if let Err(e) = uow.skill_repo.load_from_dir(std::path::Path::new("skills")) {
         tracing::warn!("skill loading failed: {}", e);
     }
 
     // Seed persona catalog from personas/ directory.
-    seed_personas(&persona_repo);
+    seed_personas(&uow.persona_repo);
 
     // Seed demo data on first launch so pages aren't empty.
     seed_demo_data(
-        &company_repo,
-        &department_repo,
-        &agent_repo,
-        &org_position_repo,
-        &goal_repo,
-        &approval_repo,
+        &uow.company_repo,
+        &uow.department_repo,
+        &uow.agent_repo,
+        &uow.org_position_repo,
+        &uow.goal_repo,
+        &uow.approval_repo,
     );
 
     // Persistence channel: guaranteed delivery via mpsc (no Lagged errors possible)
+    let conn_arc = db.conn_arc();
     let batch_writer = Arc::new(BatchWriter::spawn(Arc::clone(&conn_arc)));
     let bw = Arc::clone(&batch_writer);
     let mut persist_rx = persist_rx;
@@ -145,8 +132,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let circuit_breaker = Arc::new(CircuitBreaker::default());
 
     // Load persisted safety state
-    let safety_repo = SafetyRepo::new(Arc::clone(&conn_arc));
-    if let Ok(Some(cb_json)) = safety_repo.get("circuit_breaker") {
+    if let Ok(Some(cb_json)) = uow.safety_repo.get("circuit_breaker") {
         if let Ok(saved) = serde_json::from_str::<forge_safety::CircuitBreakerState>(&cb_json) {
             circuit_breaker.restore_state(&saved);
             info!("restored circuit breaker state: {}", saved.state);
@@ -154,33 +140,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     }
 
     let circuit_breaker_for_shutdown = Arc::clone(&circuit_breaker);
+    let safety_repo_for_shutdown = Arc::clone(&uow.safety_repo);
     let safety = SafetyState {
         circuit_breaker,
         rate_limiter,
         cost_tracker: Arc::new(CostTracker::new(budget_warn, budget_limit)),
     };
 
-    let schedule_repo = Arc::new(schedule_repo);
-    let state = AppState::new(
-        Arc::new(agent_repo),
-        Arc::new(session_repo),
-        Arc::new(event_repo),
-        Arc::new(event_bus),
-        Arc::new(skill_repo),
-        Arc::new(workflow_repo),
-        Arc::new(memory_repo),
-        Arc::new(hook_repo),
-        Arc::clone(&schedule_repo),
-        Arc::new(analytics_repo),
-        Arc::new(compaction_repo),
-        Arc::new(company_repo),
-        Arc::new(department_repo),
-        Arc::new(org_position_repo),
-        Arc::new(goal_repo),
-        Arc::new(approval_repo),
-        Arc::new(persona_repo),
-        safety,
-    );
+    let mut backend_registry = BackendRegistry::new("claude");
+    backend_registry.register(Box::new(ClaudeBackend::new()));
+    let backend_registry = Arc::new(backend_registry);
+
+    let schedule_repo = Arc::clone(&uow.schedule_repo);
+    let state = AppState::new(Arc::clone(&uow), Arc::new(event_bus), safety, backend_registry);
 
     // Spawn background scheduler.
     let cancel = tokio_util::sync::CancellationToken::new();
@@ -195,7 +167,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Persist safety state before shutdown
     let cb_state = circuit_breaker_for_shutdown.export_state();
     if let Ok(json) = serde_json::to_string(&cb_state) {
-        if let Err(e) = safety_repo.set("circuit_breaker", &json) {
+        if let Err(e) = safety_repo_for_shutdown.set("circuit_breaker", &json) {
             tracing::warn!("failed to persist circuit breaker state: {}", e);
         }
     }
@@ -360,6 +332,7 @@ fn seed_demo_data(
             use_max: None,
             preset: Some(preset),
             config: None,
+            backend_type: None,
         }) {
             Ok(a) => a,
             Err(e) => {

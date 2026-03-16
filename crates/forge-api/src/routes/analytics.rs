@@ -39,14 +39,14 @@ async fn usage_report(
         .unwrap_or_else(|| now.format("%Y-%m-%dT%H:%M:%S").to_string());
 
     let mut report = state
-        .analytics_repo
+        .uow.analytics_repo
         .usage_report(&start, &end)
         .map_err(api_error)?;
 
     // Filter agent_breakdown to only agents belonging to the selected company
     if let Some(ref company_id) = query.company_id {
         let positions = state
-            .org_position_repo
+            .uow.org_position_repo
             .list_by_company(company_id)
             .map_err(api_error)?;
         let company_agent_ids: std::collections::HashSet<String> = positions

@@ -16,6 +16,7 @@ const MIGRATION_009: &str = include_str!("../../../migrations/0009_personas.sql"
 const MIGRATION_011: &str = include_str!("../../../migrations/0011_org_charts.sql");
 const MIGRATION_012: &str = include_str!("../../../migrations/0012_agents_persona_id.sql");
 const MIGRATION_013: &str = include_str!("../../../migrations/0013_safety_state.sql");
+const MIGRATION_014: &str = include_str!("../../../migrations/0014_agents_backend_type.sql");
 
 pub struct Migrator<'a> {
     conn: &'a Connection,
@@ -174,6 +175,16 @@ impl<'a> Migrator<'a> {
             current = 13;
             applied += 1;
             info!("migration 0013 applied, now at version 13");
+        }
+
+        if current < 14 {
+            info!("applying migration 0014_agents_backend_type.sql");
+            self.conn
+                .execute_batch(MIGRATION_014)
+                .map_err(|e| ForgeError::Database(Box::new(e)))?;
+            current = 14;
+            applied += 1;
+            info!("migration 0014 applied, now at version 14");
         }
 
         if applied == 0 {

@@ -84,6 +84,7 @@ impl PersonaMapper {
             use_max: self.config.max_turns.map(|_| true),
             preset: None,
             config: Some(config),
+            backend_type: None,
         }
     }
 }

@@ -2,6 +2,7 @@
 
 mod agents;
 mod analytics;
+mod backends;
 mod health;
 mod hooks;
 mod memory;
@@ -37,4 +38,5 @@ pub fn router() -> Router<AppState> {
         .merge(org::routes())
         .merge(personas::routes())
         .merge(governance::routes())
+        .merge(backends::routes())
 }

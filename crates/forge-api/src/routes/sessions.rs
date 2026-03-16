@@ -42,7 +42,7 @@ pub fn routes() -> Router<AppState> {
 async fn list_sessions(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<Session>>, axum::response::Response> {
-    let sessions = state.session_repo.list().map_err(api_error)?;
+    let sessions = state.uow.session_repo.list().map_err(api_error)?;
     Ok(Json(sessions))
 }
 
@@ -52,14 +52,14 @@ async fn create_session(
 ) -> Result<Json<Session>, axum::response::Response> {
     let agent_id = forge_core::ids::AgentId(parse_uuid(&body.agent_id)?);
     // Verify agent exists
-    state.agent_repo.get(&agent_id).map_err(api_error)?;
+    state.uow.agent_repo.get(&agent_id).map_err(api_error)?;
 
     let input = NewSession {
         agent_id,
         directory: body.directory,
         claude_session_id: body.claude_session_id,
     };
-    let session = state.session_repo.create(&input).map_err(api_error)?;
+    let session = state.uow.session_repo.create(&input).map_err(api_error)?;
     Ok(Json(session))
 }
 
@@ -68,7 +68,7 @@ async fn get_session(
     Path(id): Path<String>,
 ) -> Result<Json<Session>, axum::response::Response> {
     let session_id = SessionId(parse_uuid(&id)?);
-    let session = state.session_repo.get(&session_id).map_err(api_error)?;
+    let session = state.uow.session_repo.get(&session_id).map_err(api_error)?;
     Ok(Json(session))
 }
 
@@ -79,8 +79,8 @@ async fn get_session_events(
 ) -> Result<Json<Vec<forge_db::StoredEvent>>, axum::response::Response> {
     let session_id = SessionId(parse_uuid(&id)?);
     // Verify session exists
-    state.session_repo.get(&session_id).map_err(api_error)?;
-    let events = state.event_repo.query_by_session(&session_id).map_err(api_error)?;
+    state.uow.session_repo.get(&session_id).map_err(api_error)?;
+    let events = state.uow.event_repo.query_by_session(&session_id).map_err(api_error)?;
     Ok(Json(events))
 }
 
@@ -89,7 +89,7 @@ async fn delete_session(
     Path(id): Path<String>,
 ) -> Result<axum::http::StatusCode, axum::response::Response> {
     let session_id = SessionId(parse_uuid(&id)?);
-    state.session_repo.delete(&session_id).map_err(api_error)?;
+    state.uow.session_repo.delete(&session_id).map_err(api_error)?;
     Ok(axum::http::StatusCode::NO_CONTENT)
 }
 
@@ -99,8 +99,8 @@ async fn export_session(
     Query(query): Query<ExportQuery>,
 ) -> Result<axum::response::Response, axum::response::Response> {
     let session_id = SessionId(parse_uuid(&id)?);
-    let session = state.session_repo.get(&session_id).map_err(api_error)?;
-    let events = state.event_repo.query_by_session(&session_id).map_err(api_error)?;
+    let session = state.uow.session_repo.get(&session_id).map_err(api_error)?;
+    let events = state.uow.event_repo.query_by_session(&session_id).map_err(api_error)?;
 
     let format = query.format.to_lowercase();
     if format == "html" {

@@ -259,6 +259,7 @@ mod tests {
                 use_max: None,
                 preset: None,
                 config: None,
+                backend_type: None,
             })
             .unwrap();
 

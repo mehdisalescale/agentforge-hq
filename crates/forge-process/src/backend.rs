@@ -11,7 +11,7 @@ pub enum BackendHealth {
 }
 
 /// What a backend can do.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct BackendCapabilities {
     pub supports_streaming: bool,
     pub supports_tools: bool,
@@ -82,6 +82,21 @@ impl BackendRegistry {
 
     pub fn available_backends(&self) -> Vec<&str> {
         self.backends.keys().map(|s| s.as_str()).collect()
+    }
+
+    /// List all registered backend names.
+    pub fn list_backends(&self) -> Vec<String> {
+        self.backends.keys().cloned().collect()
+    }
+
+    /// Health-check every registered backend, returning name → health pairs.
+    pub async fn health_check_all(&self) -> Vec<(String, BackendHealth)> {
+        let mut results = Vec::new();
+        for (name, backend) in &self.backends {
+            let health = backend.health_check().await;
+            results.push((name.clone(), health));
+        }
+        results
     }
 }
 

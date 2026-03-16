@@ -38,7 +38,7 @@ async fn list_goals(
     Query(query): Query<ListGoalsQuery>,
 ) -> Result<Json<Vec<Goal>>, axum::response::Response> {
     let goals = state
-        .goal_repo
+        .uow.goal_repo
         .list_by_company(&query.company_id)
         .map_err(api_error)?;
     Ok(Json(goals))
@@ -64,7 +64,7 @@ async fn create_goal(
         title: body.title,
         description: body.description,
     };
-    let goal = state.goal_repo.create(&input).map_err(api_error)?;
+    let goal = state.uow.goal_repo.create(&input).map_err(api_error)?;
     Ok(Json(goal))
 }
 
@@ -87,7 +87,7 @@ async fn update_goal_status(
     }
 
     let goal = state
-        .goal_repo
+        .uow.goal_repo
         .update_status(&id, &body.status)
         .map_err(api_error)?;
 
@@ -108,7 +108,7 @@ async fn list_approvals(
     Query(query): Query<ListApprovalsQuery>,
 ) -> Result<Json<Vec<Approval>>, axum::response::Response> {
     let approvals = state
-        .approval_repo
+        .uow.approval_repo
         .list_by_company(&query.company_id)
         .map_err(api_error)?;
     let filtered = if let Some(status) = query.status {
@@ -141,7 +141,7 @@ async fn create_approval(
         data_json: serde_json::to_string(&body.data_json)
             .map_err(|e| api_error(forge_core::error::ForgeError::Validation(e.to_string())))?,
     };
-    let approval = state.approval_repo.create(&input).map_err(api_error)?;
+    let approval = state.uow.approval_repo.create(&input).map_err(api_error)?;
     Ok(Json(approval))
 }
 
@@ -165,7 +165,7 @@ async fn update_approval_status(
     }
 
     let approval = state
-        .approval_repo
+        .uow.approval_repo
         .update_status(&id, &body.status, body.approver.as_deref())
         .map_err(api_error)?;
 

@@ -4,11 +4,10 @@
 use forge_agent::model::{NewAgent, UpdateAgent};
 use forge_core::ids::{AgentId, SessionId};
 use forge_db::{
-    AgentRepo, AnalyticsRepo, ApprovalRepo, CompanyRepo, EventRepo, GoalRepo, Migrator,
-    NewApproval, NewOrgPosition, NewSession, OrgPositionRepo, PersonaRepo, SessionRepo,
-    StoredEvent,
+    Migrator, NewApproval, NewOrgPosition, NewSession, StoredEvent, UnitOfWork,
 };
 use forge_persona::model::PersonaId;
+use forge_process::{BackendRegistry, ClaudeBackend};
 use rmcp::handler::server::tool::ToolRouter;
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::model::*;
@@ -36,15 +35,8 @@ fn default_db_path() -> String {
 
 #[derive(Clone)]
 pub struct ForgeMcp {
-    agent_repo: Arc<AgentRepo>,
-    session_repo: Arc<SessionRepo>,
-    event_repo: Arc<EventRepo>,
-    persona_repo: Arc<PersonaRepo>,
-    company_repo: Arc<CompanyRepo>,
-    approval_repo: Arc<ApprovalRepo>,
-    analytics_repo: Arc<AnalyticsRepo>,
-    goal_repo: Arc<GoalRepo>,
-    org_position_repo: Arc<OrgPositionRepo>,
+    uow: Arc<UnitOfWork>,
+    backend_registry: Arc<BackendRegistry>,
     tool_router: ToolRouter<Self>,
 }
 
@@ -174,35 +166,17 @@ fn to_json_content(value: &impl serde::Serialize) -> Result<CallToolResult, Erro
 
 #[tool_router]
 impl ForgeMcp {
-    #[allow(clippy::too_many_arguments)]
-    fn new(
-        agent_repo: Arc<AgentRepo>,
-        session_repo: Arc<SessionRepo>,
-        event_repo: Arc<EventRepo>,
-        persona_repo: Arc<PersonaRepo>,
-        company_repo: Arc<CompanyRepo>,
-        approval_repo: Arc<ApprovalRepo>,
-        analytics_repo: Arc<AnalyticsRepo>,
-        goal_repo: Arc<GoalRepo>,
-        org_position_repo: Arc<OrgPositionRepo>,
-    ) -> Self {
+    fn new(uow: Arc<UnitOfWork>, backend_registry: Arc<BackendRegistry>) -> Self {
         Self {
-            agent_repo,
-            session_repo,
-            event_repo,
-            persona_repo,
-            company_repo,
-            approval_repo,
-            analytics_repo,
-            goal_repo,
-            org_position_repo,
+            uow,
+            backend_registry,
             tool_router: Self::tool_router(),
         }
     }
 
     #[tool(description = "List all agents")]
     async fn agent_list(&self) -> Result<CallToolResult, ErrorData> {
-        let agents = self.agent_repo.list().map_err(forge_err)?;
+        let agents = self.uow.agent_repo.list().map_err(forge_err)?;
         to_json_content(&agents)
     }
 
@@ -212,7 +186,7 @@ impl ForgeMcp {
         Parameters(IdParam { id }): Parameters<IdParam>,
     ) -> Result<CallToolResult, ErrorData> {
         let agent_id = AgentId(parse_uuid(&id)?);
-        let agent = self.agent_repo.get(&agent_id).map_err(forge_err)?;
+        let agent = self.uow.agent_repo.get(&agent_id).map_err(forge_err)?;
         to_json_content(&agent)
     }
 
@@ -234,8 +208,9 @@ impl ForgeMcp {
             use_max: Some(false),
             preset,
             config: None,
+            backend_type: None,
         };
-        let agent = self.agent_repo.create(&input).map_err(forge_err)?;
+        let agent = self.uow.agent_repo.create(&input).map_err(forge_err)?;
         to_json_content(&agent)
     }
 
@@ -254,8 +229,9 @@ impl ForgeMcp {
             use_max: None,
             preset: None,
             config: None,
+            backend_type: None,
         };
-        let agent = self.agent_repo.update(&agent_id, &input).map_err(forge_err)?;
+        let agent = self.uow.agent_repo.update(&agent_id, &input).map_err(forge_err)?;
         to_json_content(&agent)
     }
 
@@ -265,7 +241,7 @@ impl ForgeMcp {
         Parameters(IdParam { id }): Parameters<IdParam>,
     ) -> Result<CallToolResult, ErrorData> {
         let agent_id = AgentId(parse_uuid(&id)?);
-        self.agent_repo.delete(&agent_id).map_err(forge_err)?;
+        self.uow.agent_repo.delete(&agent_id).map_err(forge_err)?;
         Ok(CallToolResult::success(vec![Content::text(
             r#"{"ok": true}"#,
         )]))
@@ -273,7 +249,7 @@ impl ForgeMcp {
 
     #[tool(description = "List all sessions")]
     async fn session_list(&self) -> Result<CallToolResult, ErrorData> {
-        let sessions = self.session_repo.list().map_err(forge_err)?;
+        let sessions = self.uow.session_repo.list().map_err(forge_err)?;
         to_json_content(&sessions)
     }
 
@@ -283,7 +259,7 @@ impl ForgeMcp {
         Parameters(IdParam { id }): Parameters<IdParam>,
     ) -> Result<CallToolResult, ErrorData> {
         let session_id = SessionId(parse_uuid(&id)?);
-        let session = self.session_repo.get(&session_id).map_err(forge_err)?;
+        let session = self.uow.session_repo.get(&session_id).map_err(forge_err)?;
         to_json_content(&session)
     }
 
@@ -293,13 +269,13 @@ impl ForgeMcp {
         Parameters(params): Parameters<SessionCreateParam>,
     ) -> Result<CallToolResult, ErrorData> {
         let agent_id = AgentId(parse_uuid(&params.agent_id)?);
-        self.agent_repo.get(&agent_id).map_err(forge_err)?;
+        self.uow.agent_repo.get(&agent_id).map_err(forge_err)?;
         let input = NewSession {
             agent_id,
             directory: params.directory.unwrap_or_else(|| ".".into()),
             claude_session_id: params.claude_session_id,
         };
-        let session = self.session_repo.create(&input).map_err(forge_err)?;
+        let session = self.uow.session_repo.create(&input).map_err(forge_err)?;
         to_json_content(&session)
     }
 
@@ -309,7 +285,7 @@ impl ForgeMcp {
         Parameters(IdParam { id }): Parameters<IdParam>,
     ) -> Result<CallToolResult, ErrorData> {
         let session_id = SessionId(parse_uuid(&id)?);
-        self.session_repo.delete(&session_id).map_err(forge_err)?;
+        self.uow.session_repo.delete(&session_id).map_err(forge_err)?;
         Ok(CallToolResult::success(vec![Content::text(
             r#"{"ok": true}"#,
         )]))
@@ -321,8 +297,8 @@ impl ForgeMcp {
         Parameters(params): Parameters<SessionExportParam>,
     ) -> Result<CallToolResult, ErrorData> {
         let session_id = SessionId(parse_uuid(&params.id)?);
-        let session = self.session_repo.get(&session_id).map_err(forge_err)?;
-        let events = self.event_repo.query_by_session(&session_id).map_err(forge_err)?;
+        let session = self.uow.session_repo.get(&session_id).map_err(forge_err)?;
+        let events = self.uow.event_repo.query_by_session(&session_id).map_err(forge_err)?;
         let format = params.format.as_deref().unwrap_or("json");
         if format == "markdown" {
             let md = session_to_markdown(&session, &events);
@@ -391,6 +367,7 @@ impl ForgeMcp {
         Parameters(p): Parameters<ListPersonasParam>,
     ) -> Result<CallToolResult, ErrorData> {
         let personas = self
+            .uow
             .persona_repo
             .list(p.division.as_deref(), p.search.as_deref())
             .map_err(|e| ErrorData::internal_error(format!("Failed to list personas: {}", e), None))?;
@@ -421,6 +398,7 @@ impl ForgeMcp {
         Parameters(p): Parameters<GetBudgetParam>,
     ) -> Result<CallToolResult, ErrorData> {
         let company = self
+            .uow
             .company_repo
             .get(&p.company_id)
             .map_err(|e| ErrorData::internal_error(format!("Company not found: {}", e), None))?;
@@ -460,7 +438,7 @@ impl ForgeMcp {
             requester: "mcp-client".to_string(),
             data_json: serde_json::json!({ "description": p.description }).to_string(),
         };
-        let approval = self.approval_repo.create(&input).map_err(forge_err)?;
+        let approval = self.uow.approval_repo.create(&input).map_err(forge_err)?;
         to_json_content(&serde_json::json!({
             "id": approval.id,
             "status": approval.status,
@@ -476,7 +454,7 @@ impl ForgeMcp {
         &self,
         Parameters(IdParam { id }): Parameters<IdParam>,
     ) -> Result<CallToolResult, ErrorData> {
-        let approval = self.approval_repo.get(&id).map_err(forge_err)?;
+        let approval = self.uow.approval_repo.get(&id).map_err(forge_err)?;
         to_json_content(&serde_json::json!({
             "id": approval.id,
             "company_id": approval.company_id,
@@ -501,7 +479,7 @@ impl ForgeMcp {
         Parameters(p): Parameters<GetSessionEventsParam>,
     ) -> Result<CallToolResult, ErrorData> {
         let session_id = SessionId(parse_uuid(&p.session_id)?);
-        let events = self.event_repo.query_by_session(&session_id).map_err(forge_err)?;
+        let events = self.uow.event_repo.query_by_session(&session_id).map_err(forge_err)?;
         to_json_content(&events)
     }
 
@@ -522,7 +500,7 @@ impl ForgeMcp {
                 .format("%Y-%m-%d")
                 .to_string()
         });
-        let report = self.analytics_repo.usage_report(&start, &end).map_err(forge_err)?;
+        let report = self.uow.analytics_repo.usage_report(&start, &end).map_err(forge_err)?;
         let mut result = serde_json::json!({
             "total_cost": report.total_cost,
             "projected_monthly_cost": report.projected_monthly_cost,
@@ -563,6 +541,7 @@ impl ForgeMcp {
     ) -> Result<CallToolResult, ErrorData> {
         let persona_id = PersonaId(parse_uuid(&p.persona_id)?);
         let persona = self
+            .uow
             .persona_repo
             .get(&persona_id)
             .map_err(|e| ErrorData::internal_error(format!("Persona not found: {}", e), None))?;
@@ -586,11 +565,13 @@ impl ForgeMcp {
             use_max: None,
             preset: None,
             config: None,
+            backend_type: None,
         };
-        let agent = self.agent_repo.create(&new_agent).map_err(forge_err)?;
+        let agent = self.uow.agent_repo.create(&new_agent).map_err(forge_err)?;
 
         // Link persona_id for traceability
-        self.agent_repo
+        self.uow
+            .agent_repo
             .set_persona_id(&agent.id, &persona_id.0.to_string())
             .map_err(forge_err)?;
 
@@ -603,7 +584,7 @@ impl ForgeMcp {
             role: persona.slug.clone(),
             title: Some(persona.name.clone()),
         };
-        let position = self.org_position_repo.create(&pos_input).map_err(forge_err)?;
+        let position = self.uow.org_position_repo.create(&pos_input).map_err(forge_err)?;
 
         to_json_content(&serde_json::json!({
             "agent_id": agent.id.0.to_string(),
@@ -622,8 +603,62 @@ impl ForgeMcp {
         &self,
         Parameters(p): Parameters<GetBudgetParam>,
     ) -> Result<CallToolResult, ErrorData> {
-        let goals = self.goal_repo.list_by_company(&p.company_id).map_err(forge_err)?;
+        let goals = self.uow.goal_repo.list_by_company(&p.company_id).map_err(forge_err)?;
         to_json_content(&goals)
+    }
+
+    // --- Backend discovery tools ---
+
+    #[tool(
+        name = "forge_list_backends",
+        description = "List available execution backends and their capabilities"
+    )]
+    async fn forge_list_backends(&self) -> Result<CallToolResult, ErrorData> {
+        let names = self.backend_registry.list_backends();
+        let result: Vec<serde_json::Value> = names
+            .iter()
+            .filter_map(|name| {
+                self.backend_registry.get(name).map(|backend| {
+                    serde_json::json!({
+                        "name": name,
+                        "capabilities": {
+                            "supports_streaming": backend.capabilities().supports_streaming,
+                            "supports_tools": backend.capabilities().supports_tools,
+                            "supported_models": backend.capabilities().supported_models,
+                        }
+                    })
+                })
+            })
+            .collect();
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&result).unwrap_or_default(),
+        )]))
+    }
+
+    #[tool(
+        name = "forge_backend_health",
+        description = "Check health status of all execution backends"
+    )]
+    async fn forge_backend_health(&self) -> Result<CallToolResult, ErrorData> {
+        let checks = self.backend_registry.health_check_all().await;
+        let result: Vec<serde_json::Value> = checks
+            .into_iter()
+            .map(|(name, health)| {
+                let (status, message) = match health {
+                    forge_process::BackendHealth::Healthy => ("healthy", None),
+                    forge_process::BackendHealth::Degraded(msg) => ("degraded", Some(msg)),
+                    forge_process::BackendHealth::Unavailable(msg) => ("unavailable", Some(msg)),
+                };
+                serde_json::json!({
+                    "name": name,
+                    "status": status,
+                    "message": message,
+                })
+            })
+            .collect();
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&result).unwrap_or_default(),
+        )]))
     }
 }
 
@@ -633,12 +668,12 @@ impl ServerHandler for ForgeMcp {
         ServerInfo {
             instructions: Some(
                 "Forge MCP server: manage Claude Code agents, sessions, personas, budgets, \
-                 governance, and analytics. Tools: agent_list, agent_get, agent_create, \
+                 governance, analytics, and backends. Tools: agent_list, agent_get, agent_create, \
                  agent_update, agent_delete, session_list, session_get, session_create, \
                  session_delete, session_export, forge_classify_task, forge_list_personas, \
                  forge_get_budget, forge_request_approval, forge_check_approval, \
                  forge_get_session_events, forge_get_analytics, forge_hire_persona, \
-                 forge_list_goals."
+                 forge_list_goals, forge_list_backends, forge_backend_health."
                     .into(),
             ),
             capabilities: ServerCapabilities::builder().enable_tools().build(),
@@ -689,29 +724,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let migrator = Migrator::new(&conn);
         migrator.apply_pending()?;
     }
-    let conn = db.conn_arc();
-    let agent_repo = Arc::new(AgentRepo::new(Arc::clone(&conn)));
-    let session_repo = Arc::new(SessionRepo::new(Arc::clone(&conn)));
-    let event_repo = Arc::new(EventRepo::new(Arc::clone(&conn)));
-    let persona_repo = Arc::new(PersonaRepo::new(Arc::clone(&conn)));
-    let company_repo = Arc::new(CompanyRepo::new(Arc::clone(&conn)));
-    let approval_repo = Arc::new(ApprovalRepo::new(Arc::clone(&conn)));
-    let analytics_repo = Arc::new(AnalyticsRepo::new(Arc::clone(&conn)));
-    let goal_repo = Arc::new(GoalRepo::new(Arc::clone(&conn)));
-    let org_position_repo = Arc::new(OrgPositionRepo::new(Arc::clone(&conn)));
+
+    let db = Arc::new(db);
+    let uow = Arc::new(UnitOfWork::new(Arc::clone(&db)));
+
+    let mut backend_registry = BackendRegistry::new("claude");
+    backend_registry.register(Box::new(ClaudeBackend::new()));
+    let backend_registry = Arc::new(backend_registry);
 
     tracing::info!("starting Forge MCP server (stdio)");
-    let server = ForgeMcp::new(
-        agent_repo,
-        session_repo,
-        event_repo,
-        persona_repo,
-        company_repo,
-        approval_repo,
-        analytics_repo,
-        goal_repo,
-        org_position_repo,
-    );
+    let server = ForgeMcp::new(uow, backend_registry);
     let service = server.serve(rmcp::transport::stdio()).await?;
     service.waiting().await?;
 

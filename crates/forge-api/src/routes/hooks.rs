@@ -140,7 +140,7 @@ async fn stop_hook(
         let session_id = SessionId(sid);
 
         // Update session status
-        let _ = state.session_repo.update_status(&session_id, "completed");
+        let _ = state.uow.session_repo.update_status(&session_id, "completed");
 
         let _ = state.event_bus.emit(ForgeEvent::SessionCompleted {
             session_id,
@@ -190,7 +190,7 @@ fn extract_code_blocks(text: &str) -> Vec<String> {
 async fn list_hooks(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<Hook>>, axum::response::Response> {
-    let hooks = state.hook_repo.list().map_err(api_error)?;
+    let hooks = state.uow.hook_repo.list().map_err(api_error)?;
     Ok(Json(hooks))
 }
 
@@ -199,7 +199,7 @@ async fn get_hook(
     Path(id): Path<String>,
 ) -> Result<Json<Hook>, axum::response::Response> {
     let hook = state
-        .hook_repo
+        .uow.hook_repo
         .get(&id)
         .map_err(api_error)?
         .ok_or_else(|| {
@@ -215,7 +215,7 @@ async fn create_hook(
     State(state): State<AppState>,
     Json(input): Json<NewHook>,
 ) -> Result<Json<Hook>, axum::response::Response> {
-    let hook = state.hook_repo.create(&input).map_err(api_error)?;
+    let hook = state.uow.hook_repo.create(&input).map_err(api_error)?;
     Ok(Json(hook))
 }
 
@@ -224,7 +224,7 @@ async fn update_hook(
     Path(id): Path<String>,
     Json(input): Json<UpdateHook>,
 ) -> Result<Json<Hook>, axum::response::Response> {
-    let hook = state.hook_repo.update(&id, &input).map_err(api_error)?;
+    let hook = state.uow.hook_repo.update(&id, &input).map_err(api_error)?;
     Ok(Json(hook))
 }
 
@@ -232,7 +232,7 @@ async fn delete_hook(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<axum::http::StatusCode, axum::response::Response> {
-    state.hook_repo.delete(&id).map_err(api_error)?;
+    state.uow.hook_repo.delete(&id).map_err(api_error)?;
     Ok(axum::http::StatusCode::NO_CONTENT)
 }
 

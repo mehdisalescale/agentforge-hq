@@ -27,7 +27,7 @@ pub fn routes() -> Router<AppState> {
 async fn list_workflows(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<Workflow>>, axum::response::Response> {
-    let workflows = state.workflow_repo.list().map_err(api_error)?;
+    let workflows = state.uow.workflow_repo.list().map_err(api_error)?;
     Ok(Json(workflows))
 }
 
@@ -35,7 +35,7 @@ async fn get_workflow(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<Json<Workflow>, axum::response::Response> {
-    let workflow = state.workflow_repo.get(&id).map_err(api_error)?;
+    let workflow = state.uow.workflow_repo.get(&id).map_err(api_error)?;
     Ok(Json(workflow))
 }
 
@@ -51,7 +51,7 @@ async fn create_workflow(
     Json(body): Json<CreateWorkflowRequest>,
 ) -> Result<Json<Workflow>, axum::response::Response> {
     let workflow = state
-        .workflow_repo
+        .uow.workflow_repo
         .create(&body.name, body.description.as_deref(), &body.definition_json)
         .map_err(api_error)?;
     Ok(Json(workflow))
@@ -70,7 +70,7 @@ async fn update_workflow(
     Json(body): Json<UpdateWorkflowRequest>,
 ) -> Result<Json<Workflow>, axum::response::Response> {
     let workflow = state
-        .workflow_repo
+        .uow.workflow_repo
         .update(
             &id,
             body.name.as_deref(),
@@ -85,7 +85,7 @@ async fn delete_workflow(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<axum::http::StatusCode, axum::response::Response> {
-    state.workflow_repo.delete(&id).map_err(api_error)?;
+    state.uow.workflow_repo.delete(&id).map_err(api_error)?;
     Ok(axum::http::StatusCode::NO_CONTENT)
 }
 
@@ -114,7 +114,7 @@ async fn run_workflow(
     Path(id): Path<String>,
     Json(body): Json<RunWorkflowRequest>,
 ) -> Result<Json<RunWorkflowResponse>, axum::response::Response> {
-    let workflow = state.workflow_repo.get(&id).map_err(api_error)?;
+    let workflow = state.uow.workflow_repo.get(&id).map_err(api_error)?;
 
     let pipeline: Pipeline = serde_json::from_str(&workflow.definition_json).map_err(|e| {
         api_error(forge_core::error::ForgeError::Validation(format!(

@@ -1,11 +1,8 @@
 //! Application state shared across handlers.
 
 use forge_core::EventBus;
-use forge_db::{
-    AgentRepo, AnalyticsRepo, ApprovalRepo, CompanyRepo, CompactionRepo, DepartmentRepo, EventRepo,
-    GoalRepo, HookRepo, MemoryRepo, OrgPositionRepo, PersonaRepo, ScheduleRepo, SessionRepo,
-    SkillRepo, WorkflowRepo,
-};
+use forge_db::UnitOfWork;
+use forge_process::BackendRegistry;
 use forge_safety::{CircuitBreaker, CostTracker, RateLimiter};
 use std::sync::Arc;
 
@@ -17,70 +14,27 @@ pub struct SafetyState {
     pub cost_tracker: Arc<CostTracker>,
 }
 
-/// Shared state for the API: repositories, event bus, safety.
+/// Shared state for the API: unit of work, event bus, safety, backend registry.
 #[derive(Clone)]
 pub struct AppState {
-    pub agent_repo: Arc<AgentRepo>,
-    pub session_repo: Arc<SessionRepo>,
-    pub event_repo: Arc<EventRepo>,
+    pub uow: Arc<UnitOfWork>,
     pub event_bus: Arc<EventBus>,
-    pub skill_repo: Arc<SkillRepo>,
-    pub workflow_repo: Arc<WorkflowRepo>,
-    pub memory_repo: Arc<MemoryRepo>,
-    pub hook_repo: Arc<HookRepo>,
-    pub schedule_repo: Arc<ScheduleRepo>,
-    pub analytics_repo: Arc<AnalyticsRepo>,
-    pub compaction_repo: Arc<CompactionRepo>,
-    pub company_repo: Arc<CompanyRepo>,
-    pub department_repo: Arc<DepartmentRepo>,
-    pub org_position_repo: Arc<OrgPositionRepo>,
-    pub goal_repo: Arc<GoalRepo>,
-    pub approval_repo: Arc<ApprovalRepo>,
-    pub persona_repo: Arc<PersonaRepo>,
     pub safety: SafetyState,
+    pub backend_registry: Arc<BackendRegistry>,
 }
 
 impl AppState {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
-        agent_repo: Arc<AgentRepo>,
-        session_repo: Arc<SessionRepo>,
-        event_repo: Arc<EventRepo>,
+        uow: Arc<UnitOfWork>,
         event_bus: Arc<EventBus>,
-        skill_repo: Arc<SkillRepo>,
-        workflow_repo: Arc<WorkflowRepo>,
-        memory_repo: Arc<MemoryRepo>,
-        hook_repo: Arc<HookRepo>,
-        schedule_repo: Arc<ScheduleRepo>,
-        analytics_repo: Arc<AnalyticsRepo>,
-        compaction_repo: Arc<CompactionRepo>,
-        company_repo: Arc<CompanyRepo>,
-        department_repo: Arc<DepartmentRepo>,
-        org_position_repo: Arc<OrgPositionRepo>,
-        goal_repo: Arc<GoalRepo>,
-        approval_repo: Arc<ApprovalRepo>,
-        persona_repo: Arc<PersonaRepo>,
         safety: SafetyState,
+        backend_registry: Arc<BackendRegistry>,
     ) -> Self {
         Self {
-            agent_repo,
-            session_repo,
-            event_repo,
+            uow,
             event_bus,
-            skill_repo,
-            workflow_repo,
-            memory_repo,
-            hook_repo,
-            schedule_repo,
-            analytics_repo,
-            compaction_repo,
-            company_repo,
-            department_repo,
-            org_position_repo,
-            goal_repo,
-            approval_repo,
-            persona_repo,
             safety,
+            backend_registry,
         }
     }
 }

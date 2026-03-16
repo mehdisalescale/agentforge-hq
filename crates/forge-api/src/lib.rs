@@ -147,11 +147,8 @@ mod tests {
     use super::*;
     use axum::body::Body;
     use forge_core::EventBus;
-    use forge_db::{
-        AgentRepo, AnalyticsRepo, ApprovalRepo, CompanyRepo, CompactionRepo, DbPool, DepartmentRepo,
-        EventRepo, GoalRepo, HookRepo, MemoryRepo, Migrator, OrgPositionRepo, PersonaRepo,
-        ScheduleRepo, SessionRepo, SkillRepo, WorkflowRepo,
-    };
+    use forge_db::{DbPool, Migrator, UnitOfWork};
+    use forge_process::{BackendRegistry, ClaudeBackend};
     use crate::state::SafetyState;
     use forge_safety::{CircuitBreaker, RateLimiter};
     use std::time::Duration;
@@ -161,36 +158,25 @@ mod tests {
 
     fn test_state() -> AppState {
         let db = DbPool::in_memory().unwrap();
-        let conn_arc = db.conn_arc();
         {
-            let conn = conn_arc.lock().unwrap();
+            let conn = db.connection();
             let migrator = Migrator::new(&conn);
             migrator.apply_pending().unwrap();
         }
+        let db = Arc::new(db);
+        let uow = Arc::new(UnitOfWork::new(Arc::clone(&db)));
         let (event_bus, _persist_rx) = EventBus::new(16, 16);
+        let mut backend_registry = BackendRegistry::new("claude");
+        backend_registry.register(Box::new(ClaudeBackend::new()));
         AppState::new(
-            Arc::new(AgentRepo::new(Arc::clone(&conn_arc))),
-            Arc::new(SessionRepo::new(Arc::clone(&conn_arc))),
-            Arc::new(EventRepo::new(Arc::clone(&conn_arc))),
+            uow,
             Arc::new(event_bus),
-            Arc::new(SkillRepo::new(Arc::clone(&conn_arc))),
-            Arc::new(WorkflowRepo::new(Arc::clone(&conn_arc))),
-            Arc::new(MemoryRepo::new(Arc::clone(&conn_arc))),
-            Arc::new(HookRepo::new(Arc::clone(&conn_arc))),
-            Arc::new(ScheduleRepo::new(Arc::clone(&conn_arc))),
-            Arc::new(AnalyticsRepo::new(Arc::clone(&conn_arc))),
-            Arc::new(CompactionRepo::new(Arc::clone(&conn_arc))),
-            Arc::new(CompanyRepo::new(Arc::clone(&conn_arc))),
-            Arc::new(DepartmentRepo::new(Arc::clone(&conn_arc))),
-            Arc::new(OrgPositionRepo::new(Arc::clone(&conn_arc))),
-            Arc::new(GoalRepo::new(Arc::clone(&conn_arc))),
-            Arc::new(ApprovalRepo::new(Arc::clone(&conn_arc))),
-            Arc::new(PersonaRepo::new(Arc::clone(&conn_arc))),
             SafetyState {
                 circuit_breaker: Arc::new(CircuitBreaker::default()),
                 rate_limiter: Arc::new(RateLimiter::new(100, Duration::from_secs(1))),
                 cost_tracker: Arc::new(forge_safety::CostTracker::default()),
             },
+            Arc::new(backend_registry),
         )
     }
 
@@ -245,7 +231,7 @@ mod tests {
         use forge_agent::model::NewAgent;
 
         let state = test_state();
-        let agent = state.agent_repo
+        let agent = state.uow.agent_repo
             .create(&NewAgent {
                 name: "ExportTestAgent".into(),
                 model: None,
@@ -255,6 +241,7 @@ mod tests {
                 use_max: None,
                 preset: None,
                 config: None,
+                backend_type: None,
             })
             .unwrap();
 
@@ -321,7 +308,7 @@ mod tests {
         use forge_agent::model::NewAgent;
 
         let state = test_state();
-        let agent = state.agent_repo
+        let agent = state.uow.agent_repo
             .create(&NewAgent {
                 name: "RunTestAgent".into(),
                 model: None,
@@ -331,6 +318,7 @@ mod tests {
                 use_max: None,
                 preset: None,
                 config: None,
+                backend_type: None,
             })
             .unwrap();
 
@@ -933,7 +921,7 @@ mod tests {
     #[test]
     fn mcp_tool_count_matches_docs() {
         // This is a compile-time reminder: if tools change, update site-docs/reference/mcp-tools.md
-        let expected_tool_count = 19;
-        assert_eq!(expected_tool_count, 19, "Update site-docs/reference/mcp-tools.md if tool count changes");
+        let expected_tool_count = 21;
+        assert_eq!(expected_tool_count, 21, "Update site-docs/reference/mcp-tools.md if tool count changes");
     }
 }

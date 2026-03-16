@@ -38,7 +38,7 @@ pub fn routes() -> Router<AppState> {
 async fn list_companies(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<Company>>, axum::response::Response> {
-    let companies = state.company_repo.list().map_err(api_error)?;
+    let companies = state.uow.company_repo.list().map_err(api_error)?;
     Ok(Json(companies))
 }
 
@@ -58,7 +58,7 @@ async fn create_company(
         mission: body.mission,
         budget_limit: body.budget_limit,
     };
-    let company = state.company_repo.create(&input).map_err(api_error)?;
+    let company = state.uow.company_repo.create(&input).map_err(api_error)?;
     Ok(Json(company))
 }
 
@@ -66,7 +66,7 @@ async fn get_company(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<Json<Company>, axum::response::Response> {
-    let company = state.company_repo.get(&id).map_err(api_error)?;
+    let company = state.uow.company_repo.get(&id).map_err(api_error)?;
     Ok(Json(company))
 }
 
@@ -83,7 +83,7 @@ async fn update_company(
     Json(body): Json<UpdateCompanyBody>,
 ) -> Result<Json<Company>, axum::response::Response> {
     let company = state
-        .company_repo
+        .uow.company_repo
         .update(&id, body.name.as_deref(), body.mission.as_deref(), body.budget_limit)
         .map_err(api_error)?;
     Ok(Json(company))
@@ -93,7 +93,7 @@ async fn delete_company(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<StatusCode, axum::response::Response> {
-    state.company_repo.delete(&id).map_err(api_error)?;
+    state.uow.company_repo.delete(&id).map_err(api_error)?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -113,7 +113,7 @@ async fn create_department(
         name: body.name,
         description: body.description,
     };
-    let dept = state.department_repo.create(&input).map_err(api_error)?;
+    let dept = state.uow.department_repo.create(&input).map_err(api_error)?;
     Ok(Json(dept))
 }
 
@@ -127,7 +127,7 @@ async fn list_departments_by_company(
     Query(query): Query<ListDepartmentsQuery>,
 ) -> Result<Json<Vec<Department>>, axum::response::Response> {
     let depts = state
-        .department_repo
+        .uow.department_repo
         .list_by_company(&query.company_id)
         .map_err(api_error)?;
     Ok(Json(depts))
@@ -137,7 +137,7 @@ async fn get_department(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<Json<Department>, axum::response::Response> {
-    let dept = state.department_repo.get(&id).map_err(api_error)?;
+    let dept = state.uow.department_repo.get(&id).map_err(api_error)?;
     Ok(Json(dept))
 }
 
@@ -153,7 +153,7 @@ async fn update_department(
     Json(body): Json<UpdateDepartmentBody>,
 ) -> Result<Json<Department>, axum::response::Response> {
     let dept = state
-        .department_repo
+        .uow.department_repo
         .update(&id, body.name.as_deref(), body.description.as_deref())
         .map_err(api_error)?;
     Ok(Json(dept))
@@ -163,7 +163,7 @@ async fn delete_department(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<StatusCode, axum::response::Response> {
-    state.department_repo.delete(&id).map_err(api_error)?;
+    state.uow.department_repo.delete(&id).map_err(api_error)?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -190,7 +190,7 @@ async fn create_org_position(
         title: body.title,
     };
     let pos = state
-        .org_position_repo
+        .uow.org_position_repo
         .create(&input)
         .map_err(api_error)?;
     Ok(Json(pos))
@@ -206,7 +206,7 @@ async fn list_org_positions_by_company(
     Query(query): Query<ListOrgPositionsQuery>,
 ) -> Result<Json<Vec<OrgPosition>>, axum::response::Response> {
     let positions = state
-        .org_position_repo
+        .uow.org_position_repo
         .list_by_company(&query.company_id)
         .map_err(api_error)?;
     Ok(Json(positions))
@@ -222,9 +222,9 @@ async fn get_org_chart(
     Query(query): Query<OrgChartQuery>,
 ) -> Result<Json<org_model::CompanyOrgChart>, axum::response::Response> {
     let company = if let Some(id) = query.company_id {
-        state.company_repo.get(&id).map_err(api_error)?
+        state.uow.company_repo.get(&id).map_err(api_error)?
     } else {
-        let companies = state.company_repo.list().map_err(api_error)?;
+        let companies = state.uow.company_repo.list().map_err(api_error)?;
         companies
             .into_iter()
             .next()
@@ -232,11 +232,11 @@ async fn get_org_chart(
     };
 
     let departments = state
-        .department_repo
+        .uow.department_repo
         .list_by_company(&company.id)
         .map_err(api_error)?;
     let positions = state
-        .org_position_repo
+        .uow.org_position_repo
         .list_by_company(&company.id)
         .map_err(api_error)?;
 

@@ -401,6 +401,7 @@ dependencies = [
  "forge-core",
  "forge-db",
  "forge-persona",
+ "forge-process",
  "forge-safety",
  "rusqlite",
  "serde_json",

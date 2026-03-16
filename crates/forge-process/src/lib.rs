@@ -22,6 +22,8 @@ pub use loop_detect::{ExitGateConfig, LoopDetector, check_completion_patterns, v
 pub use parse::{parse_line, ParseError};
 pub use pipeline::{Pipeline, PipelineRunner, PipelineStep, StepResult};
 pub use runner::{ProcessRunner, StreamJsonEvent as RunnerStubEvent, StreamJsonKind};
+pub use backend::{BackendCapabilities, BackendHealth, BackendRegistry, BackendSpawnConfig, ProcessBackend};
+pub use claude_backend::ClaudeBackend;
 pub use spawn::{ProcessHandle, SpawnConfig, SpawnError, SpawnLimiter, spawn};
 pub use stream_event::{
     AssistantPayload, ContentBlock, ErrorPayload, MessagePayload, ResultPayload,

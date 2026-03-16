@@ -33,11 +33,11 @@ async fn list_memories(
     Query(params): Query<ListParams>,
 ) -> Result<Json<Vec<Memory>>, axum::response::Response> {
     let memories = if let Some(query) = &params.q {
-        state.memory_repo.search(query).map_err(api_error)?
+        state.uow.memory_repo.search(query).map_err(api_error)?
     } else {
         let limit = params.limit.unwrap_or(50);
         let offset = params.offset.unwrap_or(0);
-        state.memory_repo.list(limit, offset).map_err(api_error)?
+        state.uow.memory_repo.list(limit, offset).map_err(api_error)?
     };
     Ok(Json(memories))
 }
@@ -46,7 +46,7 @@ async fn get_memory(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<Json<Memory>, axum::response::Response> {
-    let memory = state.memory_repo.get(&id).map_err(api_error)?;
+    let memory = state.uow.memory_repo.get(&id).map_err(api_error)?;
     Ok(Json(memory))
 }
 
@@ -54,7 +54,7 @@ async fn create_memory(
     State(state): State<AppState>,
     Json(input): Json<NewMemory>,
 ) -> Result<Json<Memory>, axum::response::Response> {
-    let memory = state.memory_repo.create(&input).map_err(api_error)?;
+    let memory = state.uow.memory_repo.create(&input).map_err(api_error)?;
     Ok(Json(memory))
 }
 
@@ -63,7 +63,7 @@ async fn update_memory(
     Path(id): Path<String>,
     Json(input): Json<UpdateMemory>,
 ) -> Result<Json<Memory>, axum::response::Response> {
-    let memory = state.memory_repo.update(&id, &input).map_err(api_error)?;
+    let memory = state.uow.memory_repo.update(&id, &input).map_err(api_error)?;
     Ok(Json(memory))
 }
 
@@ -71,6 +71,6 @@ async fn delete_memory(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<axum::http::StatusCode, axum::response::Response> {
-    state.memory_repo.delete(&id).map_err(api_error)?;
+    state.uow.memory_repo.delete(&id).map_err(api_error)?;
     Ok(axum::http::StatusCode::NO_CONTENT)
 }

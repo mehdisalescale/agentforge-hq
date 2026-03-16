@@ -28,6 +28,7 @@ export interface Agent {
   preset: AgentPreset | null;
   persona_id: string | null;
   config: Record<string, unknown> | null;
+  backend_type: string;
   created_at: string;
   updated_at: string;
 }
@@ -41,6 +42,7 @@ export interface NewAgent {
   use_max?: boolean | null;
   preset?: AgentPreset | null;
   config?: Record<string, unknown> | null;
+  backend_type?: string | null;
 }
 
 export interface UpdateAgent {
@@ -52,6 +54,7 @@ export interface UpdateAgent {
   use_max?: boolean | null;
   preset?: AgentPreset | null;
   config?: Record<string, unknown> | null;
+  backend_type?: string | null;
 }
 
 export const PRESETS: AgentPreset[] = [

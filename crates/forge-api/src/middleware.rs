@@ -17,7 +17,7 @@ use forge_core::events::ForgeEvent;
 use forge_core::ids::{AgentId, SessionId};
 use forge_db::{ApprovalRepo, CompanyRepo, GoalRepo, OrgPositionRepo, SessionRepo, SkillRepo};
 use forge_process::stream_event::StreamJsonEvent;
-use forge_process::{parse_line, spawn, ProcessRunner, SpawnConfig, SpawnError};
+use forge_process::{parse_line, ProcessRunner, BackendRegistry, BackendSpawnConfig};
 use forge_safety::{BudgetStatus, CircuitBreaker, CostTracker, RateLimiter};
 
 /// Context passed through the middleware chain.
@@ -560,14 +560,15 @@ impl Middleware for PersistMiddleware {
     }
 }
 
-/// Terminal middleware: spawns the Claude CLI process, kicks off a background
-/// task to stream output and emit events. Does NOT call `next.run()`.
+/// Terminal middleware: spawns a backend process via BackendRegistry, kicks off
+/// a background task to stream output and emit events. Does NOT call `next.run()`.
 pub struct SpawnMiddleware {
     pub event_bus: Arc<EventBus>,
     pub session_repo: Arc<SessionRepo>,
     pub circuit_breaker: Arc<CircuitBreaker>,
     pub cost_tracker: Arc<CostTracker>,
     pub configurator: Arc<crate::configurator::AgentConfigurator>,
+    pub backend_registry: Arc<BackendRegistry>,
 }
 
 impl Middleware for SpawnMiddleware {
@@ -585,18 +586,28 @@ impl Middleware for SpawnMiddleware {
                 // Non-fatal — agent runs without persona config
             }
 
-            let resume_arg = ctx.resume_session_id.as_deref();
-            let config = SpawnConfig::from_env().with_working_dir(&ctx.directory);
-            let mut handle = spawn(&config, &ctx.prompt, resume_arg)
+            // Resolve backend from registry (default "claude")
+            let backend_name = ctx.metadata.get("backend_type")
+                .map(|s| s.as_str())
+                .unwrap_or("claude");
+            let backend = self.backend_registry.get(backend_name)
+                .ok_or_else(|| MiddlewareError::SpawnFailed(
+                    format!("unknown backend: {}", backend_name)
+                ))?;
+
+            let spawn_config = BackendSpawnConfig {
+                prompt: ctx.prompt.clone(),
+                working_dir: ctx.directory.clone(),
+                model: None,
+                max_turns: None,
+                allowed_tools: None,
+                system_prompt: None,
+                resume_session_id: ctx.resume_session_id.clone(),
+                env: std::collections::HashMap::new(),
+            };
+            let mut handle = backend.spawn(&spawn_config)
                 .await
-                .map_err(|e| match e {
-                    SpawnError::Io(io) => {
-                        MiddlewareError::SpawnFailed(format!("io: {}", io))
-                    }
-                    SpawnError::CommandMissing => {
-                        MiddlewareError::SpawnFailed("command missing".into())
-                    }
-                })?;
+                .map_err(|e| MiddlewareError::SpawnFailed(e.to_string()))?;
 
             // Capture values for the background task
             let event_bus = Arc::clone(&self.event_bus);
@@ -990,6 +1001,7 @@ mod tests {
                 use_max: None,
                 preset: None,
                 config: None,
+                backend_type: None,
             })
             .unwrap();
         session_repo
@@ -1386,6 +1398,7 @@ mod tests {
                 use_max: None,
                 preset: None,
                 config: None,
+                backend_type: None,
             })
             .unwrap();
         org_position_repo
@@ -1444,6 +1457,7 @@ mod tests {
                 use_max: None,
                 preset: None,
                 config: None,
+                backend_type: None,
             })
             .unwrap();
         org_position_repo
@@ -1517,6 +1531,7 @@ mod tests {
                 use_max: None,
                 preset: None,
                 config: None,
+                backend_type: None,
             })
             .unwrap();
         org_position_repo
@@ -1579,6 +1594,7 @@ mod tests {
                 use_max: None,
                 preset: None,
                 config: None,
+                backend_type: None,
             })
             .unwrap();
         org_position_repo

@@ -17,6 +17,7 @@ pub struct Agent {
     pub use_max: bool,
     pub preset: Option<AgentPreset>,
     pub config: Option<serde_json::Value>,
+    pub backend_type: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -31,6 +32,7 @@ pub struct NewAgent {
     pub use_max: Option<bool>,
     pub preset: Option<AgentPreset>,
     pub config: Option<serde_json::Value>,
+    pub backend_type: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -43,4 +45,5 @@ pub struct UpdateAgent {
     pub use_max: Option<bool>,
     pub preset: Option<Option<AgentPreset>>,
     pub config: Option<Option<serde_json::Value>>,
+    pub backend_type: Option<String>,
 }

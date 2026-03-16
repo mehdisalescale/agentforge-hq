@@ -43,9 +43,15 @@ impl AgentRepo {
             .as_ref()
             .and_then(|c| serde_json::to_string(c).ok());
 
+        let backend_type = input
+            .backend_type
+            .as_deref()
+            .unwrap_or("claude")
+            .to_string();
+
         conn.execute(
-            "INSERT INTO agents (id, name, model, system_prompt, allowed_tools, max_turns, use_max, preset, config_json, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+            "INSERT INTO agents (id, name, model, system_prompt, allowed_tools, max_turns, use_max, preset, config_json, backend_type, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
             rusqlite::params![
                 id.0.to_string(),
                 input.name,
@@ -56,6 +62,7 @@ impl AgentRepo {
                 input.use_max.unwrap_or(false),
                 preset_str,
                 config_json,
+                backend_type,
                 now.to_rfc3339(),
                 now.to_rfc3339(),
             ],
@@ -70,7 +77,7 @@ impl AgentRepo {
         let conn = self.conn.lock().expect("db mutex poisoned");
         let mut stmt = conn
             .prepare(
-                "SELECT id, name, model, system_prompt, allowed_tools, max_turns, use_max, preset, config_json, created_at, updated_at
+                "SELECT id, name, model, system_prompt, allowed_tools, max_turns, use_max, preset, config_json, backend_type, created_at, updated_at
              FROM agents WHERE id = ?1",
             )
             .map_err(|e| ForgeError::Database(Box::new(e)))?;
@@ -90,7 +97,7 @@ impl AgentRepo {
         let conn = self.conn.lock().expect("db mutex poisoned");
         let mut stmt = conn
             .prepare(
-                "SELECT id, name, model, system_prompt, allowed_tools, max_turns, use_max, preset, config_json, created_at, updated_at
+                "SELECT id, name, model, system_prompt, allowed_tools, max_turns, use_max, preset, config_json, backend_type, created_at, updated_at
              FROM agents ORDER BY created_at DESC",
             )
             .map_err(|e| ForgeError::Database(Box::new(e)))?;
@@ -141,6 +148,11 @@ impl AgentRepo {
             Some(inner) => inner.clone(),
             None => existing.config,
         };
+        let backend_type = input
+            .backend_type
+            .as_ref()
+            .cloned()
+            .unwrap_or(existing.backend_type);
 
         let allowed_tools_json = allowed_tools
             .as_ref()
@@ -152,7 +164,7 @@ impl AgentRepo {
 
         let conn = self.conn.lock().expect("db mutex poisoned");
         conn.execute(
-            "UPDATE agents SET name = ?1, model = ?2, system_prompt = ?3, allowed_tools = ?4, max_turns = ?5, use_max = ?6, preset = ?7, config_json = ?8, updated_at = ?9 WHERE id = ?10",
+            "UPDATE agents SET name = ?1, model = ?2, system_prompt = ?3, allowed_tools = ?4, max_turns = ?5, use_max = ?6, preset = ?7, config_json = ?8, backend_type = ?9, updated_at = ?10 WHERE id = ?11",
             rusqlite::params![
                 name,
                 model,
@@ -162,6 +174,7 @@ impl AgentRepo {
                 use_max,
                 preset_str,
                 config_json,
+                backend_type,
                 now.to_rfc3339(),
                 id.0.to_string(),
             ],
@@ -218,8 +231,9 @@ fn row_to_agent(row: &rusqlite::Row<'_>) -> Result<Agent, ForgeError> {
         .and_then(|s| serde_json::from_str(s).ok().or_else(|| serde_json::from_str(&format!("\"{}\"", s)).ok()));
     let config_json: Option<String> = row.get(8).map_err(|e| ForgeError::Database(Box::new(e)))?;
     let config = config_json.as_deref().and_then(|s| serde_json::from_str(s).ok());
-    let created_at: String = row.get(9).map_err(|e| ForgeError::Database(Box::new(e)))?;
-    let updated_at: String = row.get(10).map_err(|e| ForgeError::Database(Box::new(e)))?;
+    let backend_type: String = row.get(9).map_err(|e| ForgeError::Database(Box::new(e)))?;
+    let created_at: String = row.get(10).map_err(|e| ForgeError::Database(Box::new(e)))?;
+    let updated_at: String = row.get(11).map_err(|e| ForgeError::Database(Box::new(e)))?;
     let created_at = DateTime::parse_from_rfc3339(&created_at)
         .map_err(|_| ForgeError::Validation(format!("invalid timestamp: {}", created_at)))?
         .with_timezone(&Utc);
@@ -237,6 +251,7 @@ fn row_to_agent(row: &rusqlite::Row<'_>) -> Result<Agent, ForgeError> {
         use_max,
         preset,
         config,
+        backend_type,
         created_at,
         updated_at,
     })

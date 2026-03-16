@@ -39,7 +39,7 @@ async fn list_personas(
     let search = query.q.as_deref();
 
     let personas = state
-        .persona_repo
+        .uow.persona_repo
         .list(division, search)
         .map_err(api_error)?;
 
@@ -49,7 +49,7 @@ async fn list_personas(
 async fn list_divisions(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<PersonaDivision>>, axum::response::Response> {
-    let divisions = state.persona_repo.list_divisions().map_err(api_error)?;
+    let divisions = state.uow.persona_repo.list_divisions().map_err(api_error)?;
     Ok(Json(divisions))
 }
 
@@ -66,7 +66,7 @@ async fn get_persona(
         })?,
     );
 
-    let persona = state.persona_repo.get(&parsed).map_err(api_error)?;
+    let persona = state.uow.persona_repo.get(&parsed).map_err(api_error)?;
     Ok(Json(persona))
 }
 
@@ -100,7 +100,7 @@ async fn hire_persona(
             )))
         })?,
     );
-    let persona = state.persona_repo.get(&persona_id).map_err(api_error)?;
+    let persona = state.uow.persona_repo.get(&persona_id).map_err(api_error)?;
 
     // Create an agent that reflects this persona.
     // Agent names only allow [A-Za-z0-9_-], so convert spaces to hyphens and strip invalid chars.
@@ -122,12 +122,13 @@ async fn hire_persona(
         use_max: None,
         preset: None,
         config: None,
+        backend_type: None,
     };
-    let agent = state.agent_repo.create(&new_agent).map_err(api_error)?;
+    let agent = state.uow.agent_repo.create(&new_agent).map_err(api_error)?;
 
     // Backfill persona_id on the agent row for traceability.
     state
-        .agent_repo
+        .uow.agent_repo
         .set_persona_id(&agent.id, &persona_id.0.to_string())
         .map_err(api_error)?;
 
@@ -143,7 +144,7 @@ async fn hire_persona(
             .or_else(|| Some(persona.name.clone())),
     };
     let position = state
-        .org_position_repo
+        .uow.org_position_repo
         .create(&pos_input)
         .map_err(api_error)?;
 

@@ -24,7 +24,7 @@ pub fn routes() -> Router<AppState> {
 }
 
 async fn list_agents(State(state): State<AppState>) -> Result<Json<Vec<Agent>>, axum::response::Response> {
-    let agents = state.agent_repo.list().map_err(api_error)?;
+    let agents = state.uow.agent_repo.list().map_err(api_error)?;
     Ok(Json(agents))
 }
 
@@ -33,7 +33,7 @@ async fn get_agent(
     Path(id): Path<String>,
 ) -> Result<Json<Agent>, axum::response::Response> {
     let agent_id = AgentId(parse_uuid(&id)?);
-    let agent = state.agent_repo.get(&agent_id).map_err(api_error)?;
+    let agent = state.uow.agent_repo.get(&agent_id).map_err(api_error)?;
     Ok(Json(agent))
 }
 
@@ -41,7 +41,7 @@ async fn create_agent(
     State(state): State<AppState>,
     Json(input): Json<NewAgent>,
 ) -> Result<Json<Agent>, axum::response::Response> {
-    let agent = state.agent_repo.create(&input).map_err(api_error)?;
+    let agent = state.uow.agent_repo.create(&input).map_err(api_error)?;
     if let Err(e) = state.event_bus.emit(ForgeEvent::AgentCreated {
         agent_id: agent.id.clone(),
         name: agent.name.clone(),
@@ -58,7 +58,7 @@ async fn update_agent(
     Json(input): Json<UpdateAgent>,
 ) -> Result<Json<Agent>, axum::response::Response> {
     let agent_id = AgentId(parse_uuid(&id)?);
-    let agent = state.agent_repo.update(&agent_id, &input).map_err(api_error)?;
+    let agent = state.uow.agent_repo.update(&agent_id, &input).map_err(api_error)?;
     if let Err(e) = state.event_bus.emit(ForgeEvent::AgentUpdated {
         agent_id: agent.id.clone(),
         name: agent.name.clone(),
@@ -74,7 +74,7 @@ async fn delete_agent(
     Path(id): Path<String>,
 ) -> Result<axum::http::StatusCode, axum::response::Response> {
     let agent_id = AgentId(parse_uuid(&id)?);
-    state.agent_repo.delete(&agent_id).map_err(api_error)?;
+    state.uow.agent_repo.delete(&agent_id).map_err(api_error)?;
     if let Err(e) = state.event_bus.emit(ForgeEvent::AgentDeleted {
         agent_id,
         timestamp: Utc::now(),
@@ -100,9 +100,9 @@ async fn agent_stats(
 ) -> Result<Json<AgentStats>, axum::response::Response> {
     let agent_id = AgentId(parse_uuid(&id)?);
     // Verify agent exists
-    state.agent_repo.get(&agent_id).map_err(api_error)?;
+    state.uow.agent_repo.get(&agent_id).map_err(api_error)?;
 
-    let sessions = state.session_repo.list().map_err(api_error)?;
+    let sessions = state.uow.session_repo.list().map_err(api_error)?;
     let agent_sessions: Vec<_> = sessions
         .iter()
         .filter(|s| s.agent_id == agent_id)
@@ -135,7 +135,7 @@ async fn agent_stats(
 async fn all_agent_stats(
     State(state): State<AppState>,
 ) -> Result<Json<HashMap<String, AgentStats>>, axum::response::Response> {
-    let sessions = state.session_repo.list().map_err(api_error)?;
+    let sessions = state.uow.session_repo.list().map_err(api_error)?;
     let mut stats_map: HashMap<String, (i64, Option<String>, f64, i64)> = HashMap::new();
 
     for s in &sessions {

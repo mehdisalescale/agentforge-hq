@@ -24,7 +24,7 @@ forge-app          binary: DB setup, API server, embedded frontend, graceful shu
 ├── forge-api      Axum HTTP + WebSocket, routes, CORS, TraceLayer, rust-embed SPA
 ├── forge-process  spawn Claude CLI, stream-json parsing, ConcurrentRunner, LoopDetector, SpawnLimiter
 ├── forge-agent    agent model, 10 presets (incl. Coordinator), validation
-├── forge-db       SQLite WAL, 12 migrations, 17 repos, BatchWriter, r2d2 connection pool
+├── forge-db       SQLite WAL, 12 migrations, 17 repos, UnitOfWork, BatchWriter, connection pool
 ├── forge-core     ForgeEvent (43 variants), EventBus fan-out (mpsc + broadcast), shared types
 ├── forge-safety   CircuitBreaker (persistent), RateLimiter, CostTracker
 ├── forge-git      git worktree create/remove/list for multi-agent isolation
@@ -72,6 +72,7 @@ cargo check             # should be zero warnings
 - **IDs:** Newtype wrappers (`AgentId`, `SessionId`, `ScheduleId`) around `uuid::Uuid`
 - **Events:** All state changes emit `ForgeEvent` variants (43 types) through `EventBus` fan-out (mpsc for guaranteed persistence + broadcast for UI)
 - **Persistence:** `BatchWriter` batches events (50 or 2s flush) in transactions
+- **DB access:** `UnitOfWork` in forge-db aggregates all 17 repos behind `Arc<UnitOfWork>`; `AppState` holds `uow`, `event_bus`, and `safety` — route handlers access repos via `state.uow.xxx_repo`
 
 ## Documentation Map
 

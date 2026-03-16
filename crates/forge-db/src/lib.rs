@@ -5,6 +5,7 @@ pub mod batch_writer;
 pub mod migrations;
 pub mod pool;
 pub mod repos;
+pub mod unit_of_work;
 
 pub use repos::companies::{Company, CompanyRepo, NewCompany};
 pub use repos::departments::{Department, DepartmentRepo, NewDepartment};
@@ -26,6 +27,7 @@ pub use repos::compaction::{Compaction, CompactionRepo};
 pub use repos::schedules::{Schedule, ScheduleRepo, NewSchedule, UpdateSchedule};
 pub use repos::analytics::{AnalyticsRepo, UsageReport};
 pub use repos::safety::SafetyRepo;
+pub use unit_of_work::UnitOfWork;
 
 #[cfg(test)]
 mod tests {
@@ -45,6 +47,7 @@ mod tests {
             use_max: None,
             preset: None,
             config: None,
+            backend_type: None,
         }
     }
 

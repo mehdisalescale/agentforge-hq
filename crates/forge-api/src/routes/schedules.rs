@@ -23,7 +23,7 @@ pub fn routes() -> Router<AppState> {
 async fn list_schedules(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<Schedule>>, axum::response::Response> {
-    let schedules = state.schedule_repo.list().map_err(api_error)?;
+    let schedules = state.uow.schedule_repo.list().map_err(api_error)?;
     Ok(Json(schedules))
 }
 
@@ -32,7 +32,7 @@ async fn get_schedule(
     Path(id): Path<String>,
 ) -> Result<Json<Schedule>, axum::response::Response> {
     let schedule = state
-        .schedule_repo
+        .uow.schedule_repo
         .get(&id)
         .map_err(api_error)?
         .ok_or_else(|| {
@@ -48,7 +48,7 @@ async fn create_schedule(
     State(state): State<AppState>,
     Json(input): Json<NewSchedule>,
 ) -> Result<Json<Schedule>, axum::response::Response> {
-    let schedule = state.schedule_repo.create(&input).map_err(api_error)?;
+    let schedule = state.uow.schedule_repo.create(&input).map_err(api_error)?;
     Ok(Json(schedule))
 }
 
@@ -57,7 +57,7 @@ async fn update_schedule(
     Path(id): Path<String>,
     Json(input): Json<UpdateSchedule>,
 ) -> Result<Json<Schedule>, axum::response::Response> {
-    let schedule = state.schedule_repo.update(&id, &input).map_err(api_error)?;
+    let schedule = state.uow.schedule_repo.update(&id, &input).map_err(api_error)?;
     Ok(Json(schedule))
 }
 
@@ -65,6 +65,6 @@ async fn delete_schedule(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<axum::http::StatusCode, axum::response::Response> {
-    state.schedule_repo.delete(&id).map_err(api_error)?;
+    state.uow.schedule_repo.delete(&id).map_err(api_error)?;
     Ok(axum::http::StatusCode::NO_CONTENT)
 }

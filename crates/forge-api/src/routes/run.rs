@@ -47,15 +47,15 @@ async fn run_handler(
 ) -> Result<impl IntoResponse, axum::response::Response> {
     // 1. Parse & validate
     let agent_id = AgentId(parse_uuid(&body.agent_id)?);
-    state.agent_repo.get(&agent_id).map_err(api_error)?;
+    state.uow.agent_repo.get(&agent_id).map_err(api_error)?;
 
     let session = if let Some(ref sid) = body.session_id {
         let id = SessionId(parse_uuid(sid)?);
-        state.session_repo.get(&id).map_err(api_error)?
+        state.uow.session_repo.get(&id).map_err(api_error)?
     } else {
         let directory = body.directory.as_deref().unwrap_or(".").to_string();
         state
-            .session_repo
+            .uow.session_repo
             .create(&NewSession {
                 agent_id: agent_id.clone(),
                 directory: directory.clone(),
@@ -88,38 +88,39 @@ async fn run_handler(
     });
     chain.add(CostCheckMiddleware {
         cost_tracker: Arc::clone(&state.safety.cost_tracker),
-        session_repo: Arc::clone(&state.session_repo),
+        session_repo: Arc::clone(&state.uow.session_repo),
     });
     chain.add(GovernanceMiddleware {
-        company_repo: Arc::clone(&state.company_repo),
-        org_position_repo: Arc::clone(&state.org_position_repo),
-        goal_repo: Arc::clone(&state.goal_repo),
-        approval_repo: Arc::clone(&state.approval_repo),
+        company_repo: Arc::clone(&state.uow.company_repo),
+        org_position_repo: Arc::clone(&state.uow.org_position_repo),
+        goal_repo: Arc::clone(&state.uow.goal_repo),
+        approval_repo: Arc::clone(&state.uow.approval_repo),
     });
     chain.add(SecurityScanMiddleware {
         event_bus: Arc::clone(&state.event_bus),
     });
     chain.add(PersistMiddleware {
-        session_repo: Arc::clone(&state.session_repo),
+        session_repo: Arc::clone(&state.uow.session_repo),
         event_bus: Arc::clone(&state.event_bus),
     });
 
     // AgentConfigurator replaces SkillInjection + TaskTypeDetection middlewares
     let configurator = Arc::new(AgentConfigurator {
-        skill_repo: Arc::clone(&state.skill_repo),
-        company_repo: Arc::clone(&state.company_repo),
-        org_position_repo: Arc::clone(&state.org_position_repo),
-        goal_repo: Arc::clone(&state.goal_repo),
-        persona_repo: Arc::clone(&state.persona_repo),
-        agent_repo: Arc::clone(&state.agent_repo),
+        skill_repo: Arc::clone(&state.uow.skill_repo),
+        company_repo: Arc::clone(&state.uow.company_repo),
+        org_position_repo: Arc::clone(&state.uow.org_position_repo),
+        goal_repo: Arc::clone(&state.uow.goal_repo),
+        persona_repo: Arc::clone(&state.uow.persona_repo),
+        agent_repo: Arc::clone(&state.uow.agent_repo),
     });
 
     chain.add(SpawnMiddleware {
         event_bus: Arc::clone(&state.event_bus),
-        session_repo: Arc::clone(&state.session_repo),
+        session_repo: Arc::clone(&state.uow.session_repo),
         circuit_breaker: Arc::clone(&state.safety.circuit_breaker),
         cost_tracker: Arc::clone(&state.safety.cost_tracker),
         configurator,
+        backend_registry: Arc::clone(&state.backend_registry),
     });
 
     // 4. Execute and map errors to HTTP responses
