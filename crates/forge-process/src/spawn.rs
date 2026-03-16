@@ -47,7 +47,10 @@ impl Default for SpawnConfig {
                 "--verbose".into(),
             ],
             working_dir: None,
-            env_remove: vec!["CLAUDECODE".to_string()],
+            env_remove: vec![
+                "CLAUDECODE".to_string(),
+                "ANTHROPIC_API_KEY".to_string(),
+            ],
             env_set: vec![],
             timeout: Some(Duration::from_secs(300)),
             max_concurrent: 4,
