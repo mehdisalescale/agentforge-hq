@@ -27,7 +27,7 @@ impl WorkflowRepo {
     }
 
     pub fn list(&self) -> ForgeResult<Vec<Workflow>> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let mut stmt = conn
             .prepare(
                 "SELECT id, name, description, definition_json, created_at, updated_at
@@ -43,7 +43,7 @@ impl WorkflowRepo {
     }
 
     pub fn get(&self, id: &str) -> ForgeResult<Workflow> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let mut stmt = conn
             .prepare(
                 "SELECT id, name, description, definition_json, created_at, updated_at
@@ -66,7 +66,7 @@ impl WorkflowRepo {
     ) -> ForgeResult<Workflow> {
         let id = Uuid::new_v4().to_string();
         let now = Utc::now().to_rfc3339();
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         conn.execute(
             "INSERT INTO workflows (id, name, description, definition_json, created_at, updated_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
@@ -90,7 +90,7 @@ impl WorkflowRepo {
         let _ = self.get(id)?;
 
         let now = Utc::now().to_rfc3339();
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
 
         let mut sets = vec!["updated_at = ?1".to_string()];
         let mut param_idx = 2u32;
@@ -131,7 +131,7 @@ impl WorkflowRepo {
 
     /// Delete a workflow by id.
     pub fn delete(&self, id: &str) -> ForgeResult<()> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let rows = conn
             .execute("DELETE FROM workflows WHERE id = ?1", rusqlite::params![id])
             .map_err(|e| ForgeError::Database(Box::new(e)))?;

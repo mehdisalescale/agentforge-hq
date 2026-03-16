@@ -37,7 +37,7 @@ impl GoalRepo {
             return Err(ForgeError::Validation("goal title is required".into()));
         }
 
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let id = uuid::Uuid::new_v4().to_string();
         let now = Utc::now().to_rfc3339();
         conn.execute(
@@ -59,7 +59,7 @@ impl GoalRepo {
     }
 
     pub fn get(&self, id: &str) -> ForgeResult<Goal> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let mut stmt = conn
             .prepare(
                 "SELECT id, company_id, parent_id, title, description, status, created_at, updated_at
@@ -76,7 +76,7 @@ impl GoalRepo {
     }
 
     pub fn update_status(&self, id: &str, status: &str) -> ForgeResult<Goal> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let now = Utc::now().to_rfc3339();
         let rows = conn
             .execute(
@@ -92,7 +92,7 @@ impl GoalRepo {
     }
 
     pub fn list_by_company(&self, company_id: &str) -> ForgeResult<Vec<Goal>> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let mut stmt = conn
             .prepare(
                 "SELECT id, company_id, parent_id, title, description, status, created_at, updated_at

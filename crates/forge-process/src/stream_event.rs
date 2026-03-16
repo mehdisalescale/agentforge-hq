@@ -126,7 +126,7 @@ pub fn normalize_to_forge_event(
                 for block in &msg.content {
                     if let Some((kind, content)) = content_block_to_output(block) {
                         events.push(ForgeEvent::ProcessOutput {
-                            session_id: session_id.clone(),
+                            session_id: *session_id,
                             kind,
                             content,
                             timestamp: Utc::now(),
@@ -139,14 +139,14 @@ pub fn normalize_to_forge_event(
         StreamJsonEvent::User(_) => vec![],
         StreamJsonEvent::Result(_) => {
             vec![ForgeEvent::ProcessCompleted {
-                session_id: session_id.clone(),
+                session_id: *session_id,
                 exit_code: 0,
                 timestamp: Utc::now(),
             }]
         }
         StreamJsonEvent::Error(p) => {
             vec![ForgeEvent::ProcessFailed {
-                session_id: session_id.clone(),
+                session_id: *session_id,
                 error: p
                     .message
                     .clone()

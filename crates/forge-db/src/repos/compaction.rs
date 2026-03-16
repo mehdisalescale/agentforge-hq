@@ -34,7 +34,7 @@ impl CompactionRepo {
         original_tokens: i64,
         compacted_tokens: i64,
     ) -> ForgeResult<Compaction> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let id = Uuid::new_v4().to_string();
 
         conn.execute(
@@ -58,7 +58,7 @@ impl CompactionRepo {
 
     /// List all compaction records for a session, ordered by created_at DESC.
     pub fn list_for_session(&self, session_id: &str) -> ForgeResult<Vec<Compaction>> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let mut stmt = conn
             .prepare(
                 "SELECT id, session_id, summary, original_token_count, compacted_token_count, created_at
@@ -77,7 +77,7 @@ impl CompactionRepo {
 
     /// Get the most recent compaction for a session.
     pub fn get_latest(&self, session_id: &str) -> ForgeResult<Option<Compaction>> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let mut stmt = conn
             .prepare(
                 "SELECT id, session_id, summary, original_token_count, compacted_token_count, created_at

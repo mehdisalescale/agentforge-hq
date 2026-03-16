@@ -15,6 +15,7 @@ pub use repos::approvals::{Approval, ApprovalRepo, NewApproval};
 pub use batch_writer::BatchWriter;
 pub use migrations::Migrator;
 pub use pool::DbPool;
+pub use pool::lock_conn;
 pub use repos::agents::AgentRepo;
 pub use repos::events::{EventRepo, StoredEvent};
 pub use repos::hooks::{Hook, HookRepo, NewHook, UpdateHook};
@@ -53,17 +54,17 @@ mod tests {
 
     fn setup_test_db() -> Arc<std::sync::Mutex<rusqlite::Connection>> {
         let db = DbPool::in_memory().unwrap();
-        let conn = db.connection();
+        let conn = db.connection().unwrap();
         let migrator = Migrator::new(&conn);
         migrator.apply_pending().unwrap();
         drop(conn);
-        db.conn_arc()
+        db.conn_arc().unwrap()
     }
 
     #[test]
     fn migration_applies_cleanly() {
         let db = DbPool::in_memory().unwrap();
-        let conn = db.connection();
+        let conn = db.connection().unwrap();
         let migrator = Migrator::new(&conn);
         assert!(migrator.apply_pending().unwrap() >= 1);
     }
@@ -71,7 +72,7 @@ mod tests {
     #[test]
     fn migration_is_idempotent() {
         let db = DbPool::in_memory().unwrap();
-        let conn = db.connection();
+        let conn = db.connection().unwrap();
         let migrator = Migrator::new(&conn);
         migrator.apply_pending().unwrap();
         assert_eq!(migrator.apply_pending().unwrap(), 0);
@@ -80,7 +81,7 @@ mod tests {
     #[test]
     fn migration_version_tracked() {
         let db = DbPool::in_memory().unwrap();
-        let conn = db.connection();
+        let conn = db.connection().unwrap();
         let migrator = Migrator::new(&conn);
         migrator.apply_pending().unwrap();
         assert!(migrator.current_version().unwrap() >= 1);
@@ -200,7 +201,7 @@ mod tests {
     #[test]
     fn fts5_tables_exist() {
         let db = DbPool::in_memory().unwrap();
-        let conn = db.connection();
+        let conn = db.connection().unwrap();
         let migrator = Migrator::new(&conn);
         migrator.apply_pending().unwrap();
         let count: i32 = conn

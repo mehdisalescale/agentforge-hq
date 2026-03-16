@@ -159,7 +159,7 @@ mod tests {
     fn test_state() -> AppState {
         let db = DbPool::in_memory().unwrap();
         {
-            let conn = db.connection();
+            let conn = db.connection().unwrap();
             let migrator = Migrator::new(&conn);
             migrator.apply_pending().unwrap();
         }

@@ -70,7 +70,7 @@ impl HookRepo {
             ));
         }
 
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let id = uuid::Uuid::new_v4().to_string();
 
         conn.execute(
@@ -92,7 +92,7 @@ impl HookRepo {
     }
 
     pub fn get(&self, id: &str) -> ForgeResult<Option<Hook>> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let mut stmt = conn
             .prepare(
                 "SELECT id, name, event_type, timing, command, enabled, created_at
@@ -109,7 +109,7 @@ impl HookRepo {
     }
 
     pub fn list(&self) -> ForgeResult<Vec<Hook>> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let mut stmt = conn
             .prepare(
                 "SELECT id, name, event_type, timing, command, enabled, created_at
@@ -135,7 +135,7 @@ impl HookRepo {
         let command = input.command.as_deref().unwrap_or(&existing.command);
         let enabled = input.enabled.unwrap_or(existing.enabled);
 
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         conn.execute(
             "UPDATE hooks SET name = ?1, command = ?2, enabled = ?3 WHERE id = ?4",
             rusqlite::params![name, command, enabled, id],
@@ -148,7 +148,7 @@ impl HookRepo {
     }
 
     pub fn delete(&self, id: &str) -> ForgeResult<()> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let rows = conn
             .execute("DELETE FROM hooks WHERE id = ?1", rusqlite::params![id])
             .map_err(|e| ForgeError::Database(Box::new(e)))?;
@@ -161,7 +161,7 @@ impl HookRepo {
     }
 
     pub fn find_by_event(&self, event_type: &str, timing: &str) -> ForgeResult<Vec<Hook>> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let mut stmt = conn
             .prepare(
                 "SELECT id, name, event_type, timing, command, enabled, created_at

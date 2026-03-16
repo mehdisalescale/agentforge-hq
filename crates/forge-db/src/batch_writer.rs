@@ -87,7 +87,14 @@ fn writer_loop(conn: Arc<Mutex<Connection>>, receiver: Receiver<ForgeEvent>) {
 }
 
 fn flush_to_db(conn: &Arc<Mutex<Connection>>, buffer: &mut Vec<ForgeEvent>) {
-    let mut conn = conn.lock().expect("db mutex poisoned");
+    let mut conn = match conn.lock() {
+        Ok(c) => c,
+        Err(_) => {
+            error!("database mutex poisoned, dropping {} events", buffer.len());
+            buffer.clear();
+            return;
+        }
+    };
     let count = buffer.len();
 
     let tx = match conn.transaction() {

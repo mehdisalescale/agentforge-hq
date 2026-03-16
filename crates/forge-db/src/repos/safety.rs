@@ -15,7 +15,7 @@ impl SafetyRepo {
 
     /// Load a safety state value by key. Returns None if not found.
     pub fn get(&self, key: &str) -> ForgeResult<Option<String>> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let mut stmt = conn
             .prepare("SELECT value_json FROM safety_state WHERE key = ?1")
             .map_err(|e| ForgeError::Database(Box::new(e)))?;
@@ -28,7 +28,7 @@ impl SafetyRepo {
 
     /// Save a safety state value. Upserts (insert or update).
     pub fn set(&self, key: &str, value_json: &str) -> ForgeResult<()> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         conn.execute(
             "INSERT INTO safety_state (key, value_json, updated_at)
              VALUES (?1, ?2, datetime('now'))

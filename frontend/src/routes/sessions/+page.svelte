@@ -138,7 +138,7 @@
 
   onMount(() => {
     loadSessions();
-    listAgents().then((a) => (agents = a)).catch(() => {});
+    listAgents().then((a) => (agents = a)).catch((e) => console.warn('failed to load agents:', e));
   });
 </script>
 

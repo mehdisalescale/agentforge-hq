@@ -227,7 +227,7 @@ mod tests {
 
     fn setup_configurator() -> AgentConfigurator {
         let db = DbPool::in_memory().unwrap();
-        let conn_arc = db.conn_arc();
+        let conn_arc = db.conn_arc().unwrap();
         {
             let conn = conn_arc.lock().unwrap();
             let migrator = Migrator::new(&conn);

@@ -21,7 +21,7 @@ impl AgentRepo {
     pub fn create(&self, input: &NewAgent) -> ForgeResult<Agent> {
         validate_new_agent(input)?;
 
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let id = AgentId::new();
         let now = Utc::now();
         let model = input
@@ -74,7 +74,7 @@ impl AgentRepo {
     }
 
     pub fn get(&self, id: &AgentId) -> ForgeResult<Agent> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let mut stmt = conn
             .prepare(
                 "SELECT id, name, model, system_prompt, allowed_tools, max_turns, use_max, preset, config_json, backend_type, created_at, updated_at
@@ -94,7 +94,7 @@ impl AgentRepo {
     }
 
     pub fn list(&self) -> ForgeResult<Vec<Agent>> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let mut stmt = conn
             .prepare(
                 "SELECT id, name, model, system_prompt, allowed_tools, max_turns, use_max, preset, config_json, backend_type, created_at, updated_at
@@ -162,7 +162,7 @@ impl AgentRepo {
             .and_then(|p| serde_json::to_string(p).ok());
         let config_json = config.as_ref().and_then(|c| serde_json::to_string(c).ok());
 
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         conn.execute(
             "UPDATE agents SET name = ?1, model = ?2, system_prompt = ?3, allowed_tools = ?4, max_turns = ?5, use_max = ?6, preset = ?7, config_json = ?8, backend_type = ?9, updated_at = ?10 WHERE id = ?11",
             rusqlite::params![
@@ -186,7 +186,7 @@ impl AgentRepo {
     }
 
     pub fn set_persona_id(&self, id: &AgentId, persona_id: &str) -> ForgeResult<()> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         conn.execute(
             "UPDATE agents SET persona_id = ?1 WHERE id = ?2",
             rusqlite::params![persona_id, id.0.to_string()],
@@ -196,7 +196,7 @@ impl AgentRepo {
     }
 
     pub fn delete(&self, id: &AgentId) -> ForgeResult<()> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let rows = conn
             .execute("DELETE FROM agents WHERE id = ?1", rusqlite::params![id.0.to_string()])
             .map_err(|e| ForgeError::Database(Box::new(e)))?;

@@ -40,7 +40,7 @@ impl OrgPositionRepo {
             return Err(ForgeError::Validation("org position role is required".into()));
         }
 
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let id = uuid::Uuid::new_v4().to_string();
         let now = Utc::now().to_rfc3339();
 
@@ -67,7 +67,7 @@ impl OrgPositionRepo {
     }
 
     pub fn get(&self, id: &str) -> ForgeResult<OrgPosition> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let mut stmt = conn
             .prepare(
                 "SELECT id, company_id, department_id, agent_id, reports_to, role, title, created_at, updated_at
@@ -85,7 +85,7 @@ impl OrgPositionRepo {
     }
 
     pub fn list_by_company(&self, company_id: &str) -> ForgeResult<Vec<OrgPosition>> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let mut stmt = conn
             .prepare(
                 "SELECT id, company_id, department_id, agent_id, reports_to, role, title, created_at, updated_at

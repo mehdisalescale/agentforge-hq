@@ -25,7 +25,7 @@ impl EventRepo {
     }
 
     pub fn query_by_session(&self, session_id: &SessionId) -> ForgeResult<Vec<StoredEvent>> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let mut stmt = conn
             .prepare(
                 "SELECT id, session_id, agent_id, event_type, data_json, timestamp
@@ -42,7 +42,7 @@ impl EventRepo {
     }
 
     pub fn query_by_type(&self, event_type: &str, limit: usize) -> ForgeResult<Vec<StoredEvent>> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let mut stmt = conn
             .prepare(
                 "SELECT id, session_id, agent_id, event_type, data_json, timestamp
@@ -59,7 +59,7 @@ impl EventRepo {
     }
 
     pub fn count(&self) -> ForgeResult<u64> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let count: i64 = conn
             .query_row("SELECT COUNT(*) FROM events", [], |row| row.get(0))
             .map_err(|e| forge_core::error::ForgeError::Database(Box::new(e)))?;

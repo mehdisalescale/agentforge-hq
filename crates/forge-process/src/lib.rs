@@ -19,7 +19,7 @@ pub mod task_type;
 pub use best_of_n::{BestOfNRunner, SelectionResult, select_best};
 pub use concurrent::{ConcurrentRunner, SubTask, SubTaskResult, aggregate_results};
 pub use loop_detect::{ExitGateConfig, LoopDetector, check_completion_patterns, validate_exit};
-pub use parse::{parse_line, ParseError};
+pub use parse::parse_line;
 pub use pipeline::{Pipeline, PipelineRunner, PipelineStep, StepResult};
 pub use runner::{ProcessRunner, StreamJsonEvent as RunnerStubEvent, StreamJsonKind};
 pub use backend::{BackendCapabilities, BackendHealth, BackendRegistry, BackendSpawnConfig, ProcessBackend};

@@ -32,7 +32,7 @@ pub struct UnitOfWork {
 
 impl UnitOfWork {
     pub fn new(pool: Arc<DbPool>) -> Self {
-        let conn = pool.conn_arc();
+        let conn = pool.conn_arc().expect("failed to open db connection for UnitOfWork");
         Self {
             agent_repo: Arc::new(AgentRepo::new(Arc::clone(&conn))),
             session_repo: Arc::new(SessionRepo::new(Arc::clone(&conn))),
@@ -69,7 +69,7 @@ mod tests {
     fn setup_uow() -> UnitOfWork {
         let db = DbPool::in_memory().unwrap();
         {
-            let conn = db.connection();
+            let conn = db.connection().unwrap();
             Migrator::new(&conn).apply_pending().unwrap();
         }
         UnitOfWork::new(Arc::new(db))
@@ -95,7 +95,7 @@ mod tests {
     fn uow_pool_accessible() {
         let uow = setup_uow();
         // pool() should return a valid reference (used for BatchWriter, migrations, etc.)
-        let _conn = uow.pool().connection();
+        let _conn = uow.pool().connection().unwrap();
     }
 
     #[test]

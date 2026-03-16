@@ -67,7 +67,7 @@ impl ScheduleRepo {
         let next = next_occurrence(&input.cron_expr)?;
         let next_str = next.format("%Y-%m-%dT%H:%M:%S").to_string();
 
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let id = uuid::Uuid::new_v4().to_string();
 
         conn.execute(
@@ -83,7 +83,7 @@ impl ScheduleRepo {
     }
 
     pub fn get(&self, id: &str) -> ForgeResult<Option<Schedule>> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let mut stmt = conn
             .prepare(
                 "SELECT id, name, cron_expr, agent_id, prompt, directory, enabled, last_run_at, next_run_at, run_count, created_at
@@ -100,7 +100,7 @@ impl ScheduleRepo {
     }
 
     pub fn list(&self) -> ForgeResult<Vec<Schedule>> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let mut stmt = conn
             .prepare(
                 "SELECT id, name, cron_expr, agent_id, prompt, directory, enabled, last_run_at, next_run_at, run_count, created_at
@@ -118,7 +118,7 @@ impl ScheduleRepo {
     }
 
     pub fn list_enabled(&self) -> ForgeResult<Vec<Schedule>> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let mut stmt = conn
             .prepare(
                 "SELECT id, name, cron_expr, agent_id, prompt, directory, enabled, last_run_at, next_run_at, run_count, created_at
@@ -153,7 +153,7 @@ impl ScheduleRepo {
         let next = next_occurrence(cron_expr)?;
         let next_str = next.format("%Y-%m-%dT%H:%M:%S").to_string();
 
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         conn.execute(
             "UPDATE schedules SET name = ?1, cron_expr = ?2, prompt = ?3, directory = ?4, enabled = ?5, next_run_at = ?6 WHERE id = ?7",
             rusqlite::params![name, cron_expr, prompt, directory, enabled, next_str, id],
@@ -166,7 +166,7 @@ impl ScheduleRepo {
     }
 
     pub fn delete(&self, id: &str) -> ForgeResult<()> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         let rows = conn
             .execute("DELETE FROM schedules WHERE id = ?1", rusqlite::params![id])
             .map_err(|e| ForgeError::Database(Box::new(e)))?;
@@ -186,7 +186,7 @@ impl ScheduleRepo {
         let next = next_occurrence(&existing.cron_expr)?;
         let next_str = next.format("%Y-%m-%dT%H:%M:%S").to_string();
 
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = crate::pool::lock_conn(&self.conn)?;
         conn.execute(
             "UPDATE schedules SET last_run_at = ?1, next_run_at = ?2, run_count = run_count + 1 WHERE id = ?3",
             rusqlite::params![now, next_str, id],
