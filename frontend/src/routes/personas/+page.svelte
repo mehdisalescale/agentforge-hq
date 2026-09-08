@@ -467,7 +467,7 @@
     border-radius: 6px;
     margin-bottom: 1rem;
     background: rgba(239, 68, 68, 0.15);
-    color: #fca5a5;
+    color: var(--danger-text);
     border: 1px solid rgba(239, 68, 68, 0.3);
   }
 
@@ -476,14 +476,14 @@
     border-radius: 6px;
     margin-bottom: 1rem;
     background: rgba(34, 197, 94, 0.15);
-    color: #bbf7d0;
+    color: var(--success-text);
     border: 1px solid rgba(34, 197, 94, 0.4);
   }
 
   .modal-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.7);
+    background: var(--backdrop);
     backdrop-filter: blur(4px);
     display: flex;
     align-items: center;

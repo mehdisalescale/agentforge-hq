@@ -297,7 +297,7 @@
 
   .badge-approved {
     background: rgba(34, 197, 94, 0.15);
-    color: #bbf7d0;
+    color: var(--success-text);
     border: 1px solid rgba(34, 197, 94, 0.4);
   }
 
@@ -312,7 +312,7 @@
     border-radius: 6px;
     margin-bottom: 1rem;
     background: rgba(239, 68, 68, 0.15);
-    color: #fca5a5;
+    color: var(--danger-text);
     border: 1px solid rgba(239, 68, 68, 0.3);
   }
 </style>

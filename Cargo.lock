@@ -400,6 +400,7 @@ dependencies = [
  "forge-api",
  "forge-core",
  "forge-db",
+ "forge-migrate",
  "forge-persona",
  "forge-process",
  "forge-safety",
@@ -478,6 +479,22 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
+name = "forge-migrate"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "forge-core",
+ "forge-git",
+ "forge-process",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
  "uuid",
 ]
 

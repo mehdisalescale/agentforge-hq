@@ -13,6 +13,7 @@ members = [
     "crates/forge-org",
     "crates/forge-governance",
     "crates/forge-persona",
+    "crates/forge-migrate",
 ]
 
 [workspace.dependencies]

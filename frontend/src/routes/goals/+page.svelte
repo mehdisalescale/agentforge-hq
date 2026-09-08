@@ -340,14 +340,14 @@
     border-radius: 6px;
     margin-bottom: 1rem;
     background: rgba(239, 68, 68, 0.15);
-    color: #fca5a5;
+    color: var(--danger-text);
     border: 1px solid rgba(239, 68, 68, 0.3);
   }
 
   .modal-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.6);
+    background: var(--backdrop);
     display: flex;
     align-items: center;
     justify-content: center;

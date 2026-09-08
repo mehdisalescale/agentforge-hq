@@ -455,7 +455,7 @@
   .btn-primary {
     background: var(--accent);
     border-color: var(--accent);
-    color: #09090b;
+    color: var(--accent-text);
     font-weight: 600;
   }
 
@@ -479,14 +479,14 @@
     border-radius: var(--radius-sm);
     margin-bottom: 1rem;
     background: var(--danger-muted);
-    color: #fca5a5;
+    color: var(--danger-text);
     border: 1px solid rgba(248, 113, 113, 0.3);
   }
 
   .modal-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.7);
+    background: var(--backdrop);
     backdrop-filter: blur(4px);
     display: flex;
     align-items: center;

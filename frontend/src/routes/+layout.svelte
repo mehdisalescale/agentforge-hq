@@ -8,10 +8,18 @@
     Puzzle, Server,
     BarChart3, Settings,
     Wifi, WifiOff,
-    Menu, X
+    Menu, X,
+    Sun, Moon
   } from 'lucide-svelte';
 
   let sidebarOpen = $state(false);
+  let theme = $state<'dark' | 'light'>('dark');
+
+  function toggleTheme() {
+    theme = theme === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+  }
 
   function toggleSidebar() {
     sidebarOpen = !sidebarOpen;
@@ -45,6 +53,12 @@
   }
 
   onMount(async () => {
+    const saved = localStorage.getItem('theme');
+    if (saved === 'light' || saved === 'dark') {
+      theme = saved;
+    } else if (window.matchMedia('(prefers-color-scheme: light)').matches) {
+      theme = 'light';
+    }
     connectWs();
     try {
       const res = await fetch('/api/v1/health');
@@ -184,6 +198,17 @@
           </a>
         {/each}
       </div>
+
+      <div class="nav-divider"></div>
+      <button class="theme-toggle" onclick={toggleTheme} aria-label="Toggle theme">
+        {#if theme === 'dark'}
+          <Sun size={16} />
+          <span>Light mode</span>
+        {:else}
+          <Moon size={16} />
+          <span>Dark mode</span>
+        {/if}
+      </button>
     </nav>
   </aside>
   <main class="main" id="main-content">
@@ -240,5 +265,35 @@
     background: var(--border);
     margin: 0.25rem 0.75rem;
     opacity: 0.5;
+  }
+
+  .theme-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.4rem 1.25rem;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all var(--transition);
+  }
+
+  .theme-toggle:hover {
+    background: var(--surface-hover);
+    color: var(--text);
+  }
+
+  .theme-toggle :global(svg) {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    opacity: 0.7;
+  }
+
+  .theme-toggle:hover :global(svg) {
+    opacity: 1;
   }
 </style>

@@ -310,7 +310,7 @@
     border-radius: 6px;
     margin-bottom: 1rem;
     background: rgba(239, 68, 68, 0.15);
-    color: #fca5a5;
+    color: var(--danger-text);
     border: 1px solid rgba(239, 68, 68, 0.3);
   }
 

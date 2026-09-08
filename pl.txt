@@ -1,0 +1,240 @@
+
+⏺ User approved Claude's plan
+  ⎿  Plan saved to: ~/.claude/plans/snoopy-zooming-alpaca.md · /plan to edit
+     Plan: Address All 42 Review Findings (review-march-15/)
+
+     Context
+
+     The March 15 review found 42 issues across 4 documents: 12 doc inconsistencies, 11 fix proposals, 10 architecture improvements, 10 UX proposals. This plan organizes
+     them into 4 waves of parallel agent briefs (the established pattern in docs/agents/).
+
+     Validated baseline (differs from review in places):
+     - ForgeEvent: 44 variants (not 35 or 38)
+     - MCP tools: 19 (review says 20 — recount needed)
+     - Middleware: 10 implementations, 7 wired in run.rs
+     - EventBus capacity: 256 in main.rs (not 16 — review is stale)
+     - DbPool: Single Arc<Mutex<Connection>> — no real pool, no busy_timeout
+     - FP-11 (MkDocs CI/CD): Already done
+
+     Scope Reduction
+
+     Defer to future sprint (high risk, lower ROI right now):
+     - AR-1: Unit of Work (invasive refactor of all 16 repos + all route handlers)
+     - AR-5: Middleware pipeline trait refactor (1000+ line file, risky)
+     - UX-8: Full keyboard navigation (nice-to-have)
+
+     Remaining: 35 findings across 4 waves (~14 working days)
+
+     ---
+     Wave R1 — Quick Wins (Days 1–2, 3 parallel agents)
+
+     Agent R1-A: Doc Consistency Sweep
+
+     Findings: Issues 1–3, 5–8, 10–11; FP-04–FP-08
+     Files (site-docs only):
+     - site-docs/reference/api.md — add 10+ missing routes
+     - site-docs/reference/mcp-tools.md — verify tool count, add missing
+     - site-docs/architecture/events.md — fix to 44 variants
+     - site-docs/architecture/middleware.md — canonical 7-stage list from run.rs
+     - site-docs/reference/personas.md — clarify count + loading pipeline
+     - site-docs/development/wave-history.md — fix page/middleware counts
+     - site-docs/strategy/gaps.md — update resolution status
+     - site-docs/architecture/mcp.md — remove HTTP SSE claim
+     - site-docs/development/building.md, site-docs/getting-started/quickstart.md — pnpm
+     - site-docs/getting-started/configuration.md, site-docs/reference/env-vars.md — DB path
+     Time: 3–4 hours
+
+     Agent R1-B: DB Path + Git Cleanup + Root Docs
+
+     Findings: Issues 4, 12; FP-02, FP-03
+     Files:
+     - crates/forge-app/src/main.rs — default_db_path() → ~/.agentforge/forge.db + legacy fallback
+     - crates/forge-mcp-bin/src/main.rs — same DB path fix
+     - CLAUDE.md — fix event count (→44), other stale claims
+     - README.md — pnpm, DB path
+     - git rm -r --cached site/ (already in .gitignore)
+     Time: 2–3 hours
+
+     Agent R1-C: Dependency Hygiene + Structured Logging
+
+     Findings: AR-9, AR-10
+     Files:
+     - deny.toml (new) — cargo-deny config
+     - crates/forge-app/src/main.rs — JSON log formatter for release builds (tracing init section only)
+     - Cargo.toml (workspace) — add tracing-subscriber JSON feature if needed
+     - .github/workflows/ci.yml — add cargo-deny + cargo-audit steps
+     Time: 3–4 hours
+
+     Conflict note: R1-B and R1-C both touch main.rs but in different functions (db_path vs tracing init). Safe to parallelize.
+
+     ---
+     Wave R2 — Architecture (Days 3–8, sequential with some overlap)
+
+     Agent R2-A: Event Bus Fan-Out (Days 3–5)
+
+     Finding: AR-2
+     Files:
+     - crates/forge-core/src/event_bus.rs — replace single broadcast with: mpsc for persistence (guaranteed), broadcast(1024) for WebSocket (best-effort)
+     - crates/forge-core/src/lib.rs — re-exports
+     - crates/forge-app/src/main.rs — update BatchWriter wiring (lines 98–118)
+     - crates/forge-api/src/routes/ws.rs — update WS handler
+     Time: 1–2 days
+
+     Agent R2-B: Connection Pooling + Busy Timeout (Days 3–5, parallel with R2-A)
+
+     Finding: AR-3
+     Files:
+     - crates/forge-db/src/pool.rs — replace Arc<Mutex<Connection>> with read/write pool (r2d2-sqlite or manual). Add PRAGMA busy_timeout = 5000
+     - crates/forge-db/Cargo.toml — add r2d2-sqlite
+     - crates/forge-db/src/repos/*.rs — update all 16 repos to use pool
+     - crates/forge-db/src/batch_writer.rs — use write pool
+     - crates/forge-db/src/lib.rs — update exports
+     Time: 2–3 days
+
+     Agent R2-C: Safety Persistence + Spawn Limits (Days 6–8)
+
+     Findings: AR-6, AR-7
+     Files:
+     - crates/forge-safety/src/lib.rs — add persistence trait, load/save for CircuitBreaker + CostTracker
+     - crates/forge-db/src/repos/safety.rs (new) — safety_state table
+     - crates/forge-db/src/migrations.rs — new migration
+     - crates/forge-process/src/spawn.rs — add max_concurrent (Semaphore), max_output_bytes
+     - crates/forge-app/src/main.rs — load safety state on startup
+     Time: 2 days
+     Depends on: R2-B (uses new pool for safety repo)
+
+     Parallelism: R2-A and R2-B run in parallel (different crates). R2-C runs after R2-B.
+
+     ---
+     Wave R3 — Testing + UX (Days 9–14, 3 parallel agents)
+
+     Agent R3-A: API Integration Tests
+
+     Findings: AR-8, FP-01 (doc generation via test assertions)
+     Files:
+     - crates/forge-api/src/lib.rs — expand existing test_state() and route tests (pattern already exists at line 145+)
+     - tests/ (workspace root) — additional integration tests
+     - crates/forge-mcp-bin/ — test asserting tool count matches docs
+     Time: 4–5 days
+
+     Agent R3-B: UX — Loading, Errors, Empty States, WS Indicator
+
+     Findings: UX-1, UX-2, UX-3, UX-9, UX-10
+     Files (frontend only):
+     - frontend/src/lib/components/ — new: Skeleton.svelte, ErrorMessage.svelte, EmptyState.svelte, Toast.svelte
+     - frontend/src/routes/+layout.svelte — WS status indicator in footer
+     - frontend/src/routes/{companies,goals,approvals,personas,agents,sessions}/+page.svelte — integrate loading/error/empty states, resolve UUIDs to names
+     - frontend/src/app.css — skeleton animations, toast styles
+     Time: 3–4 days
+
+     Agent R3-C: UX — Responsive + Org Chart + Component Library
+
+     Findings: UX-4, UX-6, UX-7
+     Files (frontend only):
+     - frontend/src/lib/components/ — new: Button.svelte, Card.svelte, Modal.svelte, Badge.svelte, OrgNode.svelte (recursive)
+     - frontend/src/routes/+layout.svelte — responsive sidebar with hamburger
+     - frontend/src/routes/org-chart/+page.svelte — recursive tree (replace 3-level hardcode)
+     - frontend/src/app.css — responsive breakpoints
+     Time: 4–5 days
+     Depends on: R3-B finishing layout changes first (run R3-B days 9–12, R3-C days 12–14+)
+
+     ---
+     Wave R4 — Polish (Days 15–17)
+
+     Agent R4-A: Architecture Diagram + Remaining Docs
+
+     Findings: FP-09, FP-10, Issue 9
+     Files: site-docs/architecture/overview.md (Mermaid redraw), site-docs/reference/personas.md, site-docs/architecture/crates.md
+     Time: 3–4 hours
+
+     Agent R4-B: Accessibility
+
+     Findings: UX-5 (WCAG 2.1 AA subset)
+     Files: frontend/src/app.html (skip-to-content), frontend/src/app.css (.sr-only, focus styles), component files (aria attributes, focus traps)
+     Time: 1–2 days
+
+     Agent R4-C: ForgeError Stratification
+
+     Finding: AR-4
+     Files: crates/forge-core/src/error.rs — stratify into Client/Domain/Retriable/System, add is_retriable(), http_status(), error_code()
+     Time: 2 days
+
+     Agent R4-D: Final Verification + CLAUDE.md
+
+     Files: CLAUDE.md, review-march-15/RESOLUTION.md (new)
+     Tasks: cargo check, cargo test, cargo clippy -- -D warnings, verify all doc counts match code
+     Time: 2–3 hours
+     Depends on: All other agents complete
+
+     ---
+     Conflict Matrix (W = writes)
+
+     ┌───────┬─────────┬─────────┬─────────┬───────────┬─────────┬─────────┬───────────┬───────────┐
+     │ Agent │ main.rs │ pool.rs │ repos/* │ event_bus │ +layout │ app.css │ site-docs │ CLAUDE.md │
+     ├───────┼─────────┼─────────┼─────────┼───────────┼─────────┼─────────┼───────────┼───────────┤
+     │ R1-A  │         │         │         │           │         │         │ W         │           │
+     ├───────┼─────────┼─────────┼─────────┼───────────┼─────────┼─────────┼───────────┼───────────┤
+     │ R1-B  │ W       │         │         │           │         │         │           │ W         │
+     ├───────┼─────────┼─────────┼─────────┼───────────┼─────────┼─────────┼───────────┼───────────┤
+     │ R1-C  │ W       │         │         │           │         │         │           │           │
+     ├───────┼─────────┼─────────┼─────────┼───────────┼─────────┼─────────┼───────────┼───────────┤
+     │ R2-A  │ W       │         │         │ W         │         │         │           │           │
+     ├───────┼─────────┼─────────┼─────────┼───────────┼─────────┼─────────┼───────────┼───────────┤
+     │ R2-B  │         │ W       │ W       │           │         │         │           │           │
+     ├───────┼─────────┼─────────┼─────────┼───────────┼─────────┼─────────┼───────────┼───────────┤
+     │ R2-C  │ W       │         │ W(new)  │           │         │         │           │           │
+     ├───────┼─────────┼─────────┼─────────┼───────────┼─────────┼─────────┼───────────┼───────────┤
+     │ R3-A  │         │         │         │           │         │         │           │           │
+     ├───────┼─────────┼─────────┼─────────┼───────────┼─────────┼─────────┼───────────┼───────────┤
+     │ R3-B  │         │         │         │           │ W       │ W       │           │           │
+     ├───────┼─────────┼─────────┼─────────┼───────────┼─────────┼─────────┼───────────┼───────────┤
+     │ R3-C  │         │         │         │           │ W       │ W       │           │           │
+     ├───────┼─────────┼─────────┼─────────┼───────────┼─────────┼─────────┼───────────┼───────────┤
+     │ R4-A  │         │         │         │           │         │         │ W         │           │
+     ├───────┼─────────┼─────────┼─────────┼───────────┼─────────┼─────────┼───────────┼───────────┤
+     │ R4-B  │         │         │         │           │ W       │ W       │           │           │
+     ├───────┼─────────┼─────────┼─────────┼───────────┼─────────┼─────────┼───────────┼───────────┤
+     │ R4-C  │         │         │         │           │         │         │           │           │
+     ├───────┼─────────┼─────────┼─────────┼───────────┼─────────┼─────────┼───────────┼───────────┤
+     │ R4-D  │         │         │         │           │         │         │           │ W         │
+     └───────┴─────────┴─────────┴─────────┴───────────┴─────────┴─────────┴───────────┴───────────┘
+
+     Schedule Summary
+
+     ┌───────┬───────────────────────────┬───────────────────────────────────────────────────┐
+     │ Days  │     Agents (parallel)     │                       Focus                       │
+     ├───────┼───────────────────────────┼───────────────────────────────────────────────────┤
+     │ 1–2   │ R1-A + R1-B + R1-C        │ Docs, DB path, git cleanup, logging, cargo-deny   │
+     ├───────┼───────────────────────────┼───────────────────────────────────────────────────┤
+     │ 3–5   │ R2-A + R2-B               │ Event bus fan-out, connection pooling             │
+     ├───────┼───────────────────────────┼───────────────────────────────────────────────────┤
+     │ 6–8   │ R2-C                      │ Safety persistence, spawn limits                  │
+     ├───────┼───────────────────────────┼───────────────────────────────────────────────────┤
+     │ 9–12  │ R3-A + R3-B               │ API tests, UX loading/errors/empty states         │
+     ├───────┼───────────────────────────┼───────────────────────────────────────────────────┤
+     │ 12–14 │ R3-C                      │ Responsive sidebar, org chart, component library  │
+     ├───────┼───────────────────────────┼───────────────────────────────────────────────────┤
+     │ 15–17 │ R4-A + R4-B + R4-C + R4-D │ Diagram, a11y, error stratification, verification │
+     └───────┴───────────────────────────┴───────────────────────────────────────────────────┘
+
+     Verification
+
+     After all waves:
+     1. cargo check — zero warnings
+     2. cargo test — all green (including new API integration tests)
+     3. cargo clippy -- -D warnings
+     4. mkdocs build --strict — site builds clean
+     5. Manual: verify DB creates at ~/.agentforge/forge.db
+     6. Manual: verify site/ not tracked (git ls-files site/ returns empty)
+     7. Manual: open frontend, check loading skeletons, responsive sidebar, org chart recursion
+     8. Spot-check: doc counts in site-docs match code (events, tools, routes, middleware)
+
+✳ Undulating… (8m 34s · ↑ 22.0k tokens)
+  ⎿  Tip: Use /btw to ask a quick side question without interrupting Claude's current work
+
+─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯
+─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  ⏵⏵ accept edits on · cargo test 2>&1 (running) · ↓ to manage · esc to interrupt                                                                        ◐ medium · /effort
+                                                                                                                            Update available! Run: brew upgrade claude-code
+

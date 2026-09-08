@@ -225,7 +225,7 @@
   }
 
   .status-bad {
-    color: #fca5a5;
+    color: var(--danger-text);
   }
 
   .mono {
@@ -294,7 +294,7 @@
     border-radius: 6px;
     margin-bottom: 1.5rem;
     background: rgba(239, 68, 68, 0.15);
-    color: #fca5a5;
+    color: var(--danger-text);
     border: 1px solid rgba(239, 68, 68, 0.3);
     font-size: 0.9rem;
   }

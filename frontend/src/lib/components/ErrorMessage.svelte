@@ -26,7 +26,7 @@
     padding: 0.75rem 1rem;
     border-radius: var(--radius);
     background: var(--danger-muted);
-    color: #fca5a5;
+    color: var(--danger-text);
     border: 1px solid rgba(248, 113, 113, 0.3);
     margin-bottom: 1rem;
   }

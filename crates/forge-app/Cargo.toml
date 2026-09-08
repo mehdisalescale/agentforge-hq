@@ -7,6 +7,10 @@ edition = "2021"
 name = "forge"
 path = "src/main.rs"
 
+[[bin]]
+name = "forge-migrate"
+path = "src/migrate.rs"
+
 [dependencies]
 forge-api = { path = "../forge-api" }
 forge-core = { path = "../forge-core" }
@@ -15,6 +19,7 @@ forge-agent = { path = "../forge-agent" }
 forge-process = { path = "../forge-process" }
 forge-safety = { path = "../forge-safety" }
 forge-persona = { path = "../forge-persona" }
+forge-migrate = { path = "../forge-migrate" }
 tokio = { version = "1", features = ["full"] }
 chrono = { workspace = true }
 tracing = "0.1"
